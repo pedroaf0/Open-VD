@@ -1,0 +1,49 @@
+{
+  "dicom": {
+    "readingFiles": "Lendo arquivos DICOM",
+    "buildingVolume": "Montando volume",
+    "identifyingSeries": "Identificando séries",
+    "noCompatibleImages": "Nenhuma imagem compatível encontrada. {{detail}} ({{skipped}} arquivo(s) ignorado(s)).",
+    "decodeFallback": "Arquivos comprimidos podem ter falhado ao decodificar.",
+    "noValidFiles": "Nenhum arquivo DICOM válido encontrado.",
+    "seriesNumber": "Série {{number}}",
+    "seriesNoName": "Série sem nome",
+    "seriesNoId": "Série sem identificação"
+  },
+  "wp": {
+    "authorizeUnavailable": "URL authorization só está disponível dentro do WordPress.",
+    "urlNotAuthorized": "URL não autorizada e você não tem créditos para autorizar.",
+    "authCancelled": "Autorização cancelada pelo usuário.",
+    "confirmAuthorize": "Esta URL precisa ser autorizada. Será consumido 1 crédito.\n\nSaldo atual: {{credits}} crédito(s).\nDeseja continuar?",
+    "authorizeFailed": "Não foi possível autorizar a URL.",
+    "authorizeCheckFailed": "Não foi possível autorizar a URL. Verifique sua conexão.",
+    "httpError": "Erro {{status}}: {{detail}}",
+    "scenePanelUnavailable": "Painel de cenas só está disponível dentro do WordPress.",
+    "deleteScenesUnavailable": "Excluir cenas só está disponível dentro do WordPress.",
+    "saveScenesUnavailable": "Salvar cenas só está disponível dentro do WordPress.",
+    "shareUnavailable": "Compartilhar só está disponível dentro do WordPress.",
+    "uploadUnavailable": "Upload só está disponível dentro do WordPress.",
+    "splitUploadFailed": "Falha ao montar arquivo dividido no servidor.",
+    "segmentationUnavailable": "Segmentação só está disponível dentro do WordPress.",
+    "saveAnnotationsUnavailable": "Salvar anotações só está disponível dentro do WordPress.",
+    "markAccessUnavailable": "Marcar acesso só está disponível dentro do WordPress.",
+    "recentScenesUnavailable": "Cenas recentes só estão disponíveis dentro do WordPress.",
+    "downloadingSceneFiles": "Baixando arquivos da cena",
+    "checkingUrlAuth": "Verificando autorização da URL…",
+    "downloadingUrlFilePct": "Baixando arquivo por URL… {{percent}}%",
+    "downloadingUrlFileMb": "Baixando arquivo por URL… {{mb}} MB",
+    "fallbackFileName": "arquivo",
+    "downloadFailed": "Falha ao baixar (HTTP {{status}})"
+  },
+  "zip": {
+    "decompressingZip": "Descompactando ZIP",
+    "decompressing": "Descompactando {{label}}",
+    "decompressingZipJs": "Descompactando (zip.js) {{label}}",
+    "fileReaderNoArrayBuffer": "FileReader não retornou ArrayBuffer",
+    "fileReaderOnError": "FileReader onerror (sem detalhe)"
+  },
+  "annotations": {
+    "canvasUnavailable": "Canvas não disponível.",
+    "pngFailed": "Falha ao gerar o PNG."
+  }
+}

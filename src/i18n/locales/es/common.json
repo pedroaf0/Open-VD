@@ -1,0 +1,16 @@
+{
+  "language": {
+    "label": "Idioma",
+    "title": "Cambiar idioma"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "La página que buscas no existe o fue movida.",
+    "goHome": "Ir al inicio"
+  },
+  "errorPage": {
+    "title": "Esta página no se cargó",
+    "description": "Algo salió mal de nuestro lado. Puedes intentar actualizar o volver al inicio.",
+    "retry": "Intentar de nuevo"
+  }
+}

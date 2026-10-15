@@ -1,0 +1,780 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: v-dicom\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-15 00:00+0000\n"
+"PO-Revision-Date: 2026-10-15 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: v-dicom/plugin-i18n.js\n"
+
+#. /* translators: %d: days remaining */
+#: includes/class-v-dicom-admin.php:560
+#, php-format
+msgid "%d dia restante"
+msgid_plural "%d dias restantes"
+msgstr[0] "%d day left"
+msgstr[1] "%d days left"
+
+#. /* translators: %d: number of months */
+#: includes/class-v-dicom-admin.php:544
+#, php-format
+msgid "%d mês"
+msgid_plural "%d meses"
+msgstr[0] "%d month"
+msgstr[1] "%d months"
+
+#: includes/class-v-dicom-admin.php:732 includes/class-v-dicom-admin.php:818
+msgid "(em andamento)"
+msgstr "(in progress)"
+
+#: includes/class-v-dicom-admin.php:510
+msgid "(usados para segmentação automática)"
+msgstr "(used for automatic segmentation)"
+
+#. <?php /* translators: %d: extra storage in megabytes provided by active plans */ ?>
+#: includes/class-v-dicom-admin.php:659
+#, php-format
+msgid "+ %d MB em planos"
+msgstr "+ %d MB in plans"
+
+#: includes/class-v-dicom-rest.php:919
+msgid "A extensão ZIP não está disponível no servidor."
+msgstr "The ZIP extension is not available on the server."
+
+#. /* translators: %1$s: segmentation type, %2$s: scene title or key, %3$s: duration string, %4$s: line break, %5$s: scene URL */
+#: includes/class-v-dicom-rest.php:659
+#, php-format
+msgid "A segmentação (%1$s) da cena \"%2$s\" falhou.%3$sO crédito foi estornado. Tente novamente ou contate o suporte.%4$sCena: %5$s"
+msgstr "The segmentation (%1$s) of scene \"%2$s\" failed.%3$sThe credit was refunded. Please try again or contact support.%4$sScene: %5$s"
+
+#. /* translators: %1$s: scene title or key, %2$s: line break, %3$s: line break, %4$s: scene URL */
+#: includes/class-v-dicom-rest.php:648
+#, php-format
+msgid "A segmentação da cena \"%1$s\" falhou.%2$sO crédito foi estornado. Tente novamente ou contate o suporte.%3$sCena: %4$s"
+msgstr "The segmentation of scene \"%1$s\" failed.%2$sThe credit was refunded. Please try again or contact support.%3$sScene: %4$s"
+
+#: includes/class-v-dicom-admin.php:862
+msgid "A segmentação falhou."
+msgstr "The segmentation failed."
+
+#: includes/class-v-dicom-admin.php:298
+msgid "API key (upload/download por chave)"
+msgstr "API key (upload/download by key)"
+
+#: includes/class-v-dicom-admin.php:301
+msgid "API key atualizada."
+msgstr "API key updated."
+
+#: includes/class-v-dicom-admin.php:804
+msgid "Abrir"
+msgstr "Open"
+
+#: includes/class-v-dicom-admin.php:443
+msgid "Adicionar tipo"
+msgstr "Add type"
+
+#: includes/class-v-dicom-admin.php:255 includes/class-v-dicom-theme.php:27
+msgid "Aguarde, carregando sua cena…"
+msgstr "Please wait, loading your scene…"
+
+#: includes/class-v-dicom-rest.php:224 includes/class-v-dicom-rest.php:262
+msgid "Apenas o dono da cena pode solicitar a segmentação."
+msgstr "Only the scene owner can request segmentation."
+
+#: includes/class-v-dicom-admin.php:616
+msgid "Aplicado automaticamente quando uma nova conta é criada (ou na primeira sessão de contas ainda sem cota)."
+msgstr "Applied automatically when a new account is created (or on the first session of accounts that still have no quota)."
+
+#: includes/class-v-dicom-admin.php:461
+msgid "Após salvar, este campo virará editor visual com formatação."
+msgstr "After saving, this field becomes a visual editor with formatting."
+
+#: includes/class-v-dicom-admin.php:608
+msgid "Armazenamento inicial (MB)"
+msgstr "Initial storage (MB)"
+
+#: includes/class-v-dicom-admin.php:689
+msgid "Arquivos"
+msgstr "Files"
+
+#: includes/class-v-dicom-admin.php:271
+msgid "As cores dos cortes (axial, coronal e sagital) são fixas e não podem ser alteradas. As outras cores são aplicadas automaticamente ao visualizador."
+msgstr "The slice colors (axial, coronal and sagittal) are fixed and cannot be changed. The other colors are applied automatically to the viewer."
+
+#: includes/class-v-dicom-admin.php:411 includes/class-v-dicom-admin.php:457 includes/class-v-dicom-admin.php:554
+msgid "Ativo"
+msgstr "Active"
+
+#: includes/class-v-dicom-admin.php:395 includes/class-v-dicom-admin.php:453
+msgid "Authorization"
+msgstr "Authorization"
+
+#: includes/class-v-dicom-admin.php:345
+msgid "Autorização de URLs externas"
+msgstr "External URL authorization"
+
+#: includes/class-v-dicom-admin.php:377
+msgid "Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque \"Ativo\" para desabilitar sem excluir. A mesma cena pode usar vários tipos."
+msgstr "Each type has a name, description (rich text), URL, Authorization, max-voxels, max-triangles and cost. Uncheck \"Active\" to disable without deleting. The same scene can use several types."
+
+#: includes/class-v-dicom-rest.php:544
+msgid "Campo status ausente."
+msgstr "Missing status field."
+
+#: includes/class-v-dicom-storage.php:621 v-dicom.php:41
+msgid "Cena DICOM"
+msgstr "DICOM Scene"
+
+#: includes/class-v-dicom-rest.php:238 includes/class-v-dicom-rest.php:254 includes/class-v-dicom-rest.php:258 includes/class-v-dicom-rest.php:433 includes/class-v-dicom-rest.php:533 includes/class-v-dicom-rest.php:537 includes/class-v-dicom-rest.php:691 includes/class-v-dicom-rest.php:844 includes/class-v-dicom-rest.php:849 includes/class-v-dicom-rest.php:908
+msgid "Cena não encontrada."
+msgstr "Scene not found."
+
+#: includes/class-v-dicom-admin.php:213
+msgid "Cena removida."
+msgstr "Scene removed."
+
+#: v-dicom.php:40
+msgid "Cenas DICOM"
+msgstr "DICOM Scenes"
+
+#: includes/class-v-dicom-admin.php:683
+msgid "Cenas salvas"
+msgstr "Saved scenes"
+
+#: includes/class-v-dicom-admin.php:309
+msgid "Chave de API"
+msgstr "API key"
+
+#: includes/class-v-dicom-rest.php:604
+msgid "Chave de API inválida."
+msgstr "Invalid API key."
+
+#: includes/class-v-dicom-storage.php:1174
+msgid "Chave inválida."
+msgstr "Invalid key."
+
+#. /* translators: %1$d: chunk number, %2$d: total chunks */
+#: includes/class-v-dicom-storage.php:857
+#, php-format
+msgid "Chunk %1$d de %2$d não encontrado."
+msgstr "Chunk %1$d of %2$d not found."
+
+#: includes/class-v-dicom-admin.php:348
+msgid "Configuração atualizada."
+msgstr "Settings updated."
+
+#: includes/class-v-dicom-rest.php:294
+msgid "Configuração do RunPod ausente para este tipo."
+msgstr "RunPod configuration missing for this type."
+
+#: includes/class-v-dicom-rest.php:475
+msgid "Configuração do RunPod ausente."
+msgstr "RunPod configuration missing."
+
+#: includes/class-v-dicom-admin.php:522
+msgid "Contratado em"
+msgstr "Purchased on"
+
+#: includes/class-v-dicom-admin.php:262
+msgid "Cor da interface"
+msgstr "Interface color"
+
+#: includes/class-v-dicom-admin.php:266
+msgid "Cor de destaque"
+msgstr "Accent color"
+
+#: includes/class-v-dicom-admin.php:258
+msgid "Cor de fundo"
+msgstr "Background color"
+
+#: includes/class-v-dicom-admin.php:598
+msgid "Cotas para novas contas"
+msgstr "Quotas for new accounts"
+
+#: includes/class-v-dicom-admin.php:601
+msgid "Cotas para novas contas atualizadas."
+msgstr "Quotas for new accounts updated."
+
+#: includes/class-v-dicom-admin.php:690
+msgid "Criada em"
+msgstr "Created on"
+
+#. /* translators: %d: cost in credits */
+#: includes/class-v-dicom-rest.php:315
+#, php-format
+msgid "Crédito insuficiente para segmentar. Custo: %d créditos."
+msgstr "Insufficient credits to segment. Cost: %d credits."
+
+#: includes/class-v-dicom-admin.php:633
+msgid "Créditos"
+msgstr "Credits"
+
+#: includes/class-v-dicom-admin.php:506
+msgid "Créditos de processamento:"
+msgstr "Processing credits:"
+
+#: includes/class-v-dicom-admin.php:612
+msgid "Créditos iniciais"
+msgstr "Initial credits"
+
+#: includes/class-v-dicom-admin.php:407 includes/class-v-dicom-admin.php:456
+msgid "Custo"
+msgstr "Cost"
+
+#: includes/class-v-dicom-admin.php:814
+msgid "Debug RunPod — por cena (admin)"
+msgstr "RunPod Debug — per scene (admin)"
+
+#: includes/class-v-dicom-admin.php:314
+msgid "Deixe vazio para desativar. Endpoints aceitos com a chave:"
+msgstr "Leave empty to disable. Endpoints accepted with the key:"
+
+#: includes/class-v-dicom-admin.php:420
+msgid "Descrição (texto rico — exibida no painel de segmentação)"
+msgstr "Description (rich text — shown in the segmentation panel)"
+
+#: includes/class-v-dicom-admin.php:459
+msgid "Descrição (texto rico)"
+msgstr "Description (rich text)"
+
+#: includes/class-v-dicom-admin.php:460
+msgid "Descrição com formatação — após salvar vira editor rico"
+msgstr "Description with formatting — becomes a rich editor after saving"
+
+#: includes/class-v-dicom-admin.php:688
+msgid "Dono"
+msgstr "Owner"
+
+#: includes/class-v-dicom-admin.php:521
+msgid "Duração"
+msgstr "Duration"
+
+#: includes/class-v-dicom-admin.php:634
+msgid "Em uso agora"
+msgstr "In use now"
+
+#: includes/class-v-dicom-admin.php:866
+msgid "Enviando…"
+msgstr "Sending…"
+
+#: includes/class-v-dicom-admin.php:867
+msgid "Erro ao iniciar a segmentação."
+msgstr "Error starting segmentation."
+
+#: includes/class-v-dicom-storage.php:887
+msgid "Erro ao ler chunk."
+msgstr "Error reading chunk."
+
+#: includes/download.php:392
+msgid "Erro ao resolver OneDrive: "
+msgstr "Error resolving OneDrive: "
+
+#: includes/class-v-dicom-admin.php:868
+msgid "Erro de rede ao iniciar a segmentação."
+msgstr "Network error while starting segmentation."
+
+#: includes/class-v-dicom-admin.php:283
+msgid "Escolher logo"
+msgstr "Choose logo"
+
+#: includes/class-v-dicom-admin.php:520
+msgid "Espaço"
+msgstr "Space"
+
+#: includes/download.php:2123
+msgid "Esta URL precisa ser autorizada antes de ser baixada. Consulte o endpoint /wp-json/v-dicom/v1/authorized-url."
+msgstr "This URL must be authorized before it can be downloaded. See the /wp-json/v-dicom/v1/authorized-url endpoint."
+
+#: includes/class-v-dicom-rest.php:243 includes/class-v-dicom-rest.php:696 includes/class-v-dicom-storage.php:1184 includes/class-v-dicom-storage.php:717
+msgid "Esta cena pertence a outro usuário."
+msgstr "This scene belongs to another user."
+
+#: includes/class-v-dicom-rest.php:291
+msgid "Este tipo de segmentação está desabilitado."
+msgstr "This segmentation type is disabled."
+
+#: includes/class-v-dicom-admin.php:388 includes/class-v-dicom-admin.php:451
+msgid "Ex.: Ossos"
+msgstr "E.g.: Bones"
+
+#: includes/class-v-dicom-admin.php:415 includes/class-v-dicom-admin.php:458 includes/class-v-dicom-admin.php:807
+msgid "Excluir"
+msgstr "Delete"
+
+#: includes/class-v-dicom-admin.php:360
+msgid "Exigir autorização (1 crédito) para baixar arquivos de Google Drive/OneDrive."
+msgstr "Require authorization (1 credit) to download files from Google Drive/OneDrive."
+
+#: includes/class-v-dicom-admin.php:355
+msgid "Exigir autorização de URL"
+msgstr "Require URL authorization"
+
+#: includes/class-v-dicom-admin.php:523
+msgid "Expira em"
+msgstr "Expires on"
+
+#: includes/class-v-dicom-admin.php:567
+msgid "Expirado"
+msgstr "Expired"
+
+#: includes/download.php:766
+msgid "Falha ao consultar o arquivo no OneDrive."
+msgstr "Failed to query the file on OneDrive."
+
+#: includes/class-v-dicom-admin.php:818
+msgid "Fim:"
+msgstr "End:"
+
+#: includes/class-v-dicom-admin.php:312
+msgid "Gerar chave"
+msgstr "Generate key"
+
+#: includes/download.php:1989
+msgid "Informe ?url="
+msgstr "Provide ?url="
+
+#: includes/class-v-dicom-rest.php:273
+msgid "Informe o tipo de segmentação (type)."
+msgstr "Provide the segmentation type (type)."
+
+#. /* translators: %s: segmentation type name or id. */
+#: includes/class-v-dicom-admin.php:865
+#, php-format
+msgid "Iniciar %s? Confirme para consumir os créditos do tipo."
+msgstr "Start %s? Confirm to consume the type's credits."
+
+#: includes/class-v-dicom-admin.php:824
+msgid "Input enviado:"
+msgstr "Input sent:"
+
+#: includes/class-v-dicom-admin.php:817
+msgid "Início:"
+msgstr "Start:"
+
+#: includes/class-v-dicom-rest.php:302
+msgid "Já foi feita uma segmentação deste tipo para esta cena."
+msgstr "A segmentation of this type has already been done for this scene."
+
+#: includes/class-v-dicom-admin.php:632
+msgid "Limite (MB)"
+msgstr "Limit (MB)"
+
+#: includes/class-v-dicom-admin.php:677
+msgid "Limite 0 bloqueia novos uploads. O valor definido aqui é a cota base do usuário; planos de armazenamento ativos, quando existirem, somam-se a ele. Créditos são consumidos pela segmentação automática e pela autorização de URLs."
+msgstr "A limit of 0 blocks new uploads. The value set here is the user's base quota; active storage plans, when they exist, are added to it. Credits are consumed by automatic segmentation and URL authorization."
+
+#: includes/class-v-dicom-storage.php:1024
+msgid "Limite de armazenamento atingido. Exclua uma cena em \"Minhas cenas\" ou peça mais espaço ao administrador."
+msgstr "Storage limit reached. Delete a scene in \"My scenes\" or ask the administrator for more space."
+
+#: includes/class-v-dicom-admin.php:623
+msgid "Limites atualizados."
+msgstr "Limits updated."
+
+#: includes/class-v-dicom-admin.php:620
+msgid "Limites de armazenamento por usuário"
+msgstr "Storage limits per user"
+
+#: includes/class-v-dicom-admin.php:691
+msgid "Link de compartilhamento"
+msgstr "Share link"
+
+#: includes/download.php:2091
+msgid "Link não reconhecido. Use Google Drive ou OneDrive."
+msgstr "Unrecognized link. Use Google Drive or OneDrive."
+
+#: includes/class-v-dicom-admin.php:240
+msgid "Logo"
+msgstr "Logo"
+
+#: includes/class-v-dicom-admin.php:847
+msgid "Logs salvos no post meta da cena. DEBUG_RUNPOD=true também inclui debug na resposta JSON de /run e /segmentation-status."
+msgstr "Logs saved in the scene's post meta. DEBUG_RUNPOD=true also includes debug in the JSON response of /run and /segmentation-status."
+
+#: includes/class-v-dicom-admin.php:403 includes/class-v-dicom-admin.php:455
+msgid "Max triângulos"
+msgstr "Max triangles"
+
+#: includes/class-v-dicom-admin.php:399 includes/class-v-dicom-admin.php:454
+msgid "Max voxels"
+msgstr "Max voxels"
+
+#: includes/class-v-dicom-admin.php:504
+msgid "Meu armazenamento"
+msgstr "My storage"
+
+#: includes/class-v-dicom-admin.php:516
+msgid "Meus planos de armazenamento"
+msgstr "My storage plans"
+
+#: includes/download.php:590
+msgid "Microsoft não forneceu o token Badger."
+msgstr "Microsoft did not provide the Badger token."
+
+#: includes/class-v-dicom-rest.php:1030 includes/class-v-dicom-rest.php:740 includes/class-v-dicom-rest.php:974
+msgid "Nenhum arquivo recebido."
+msgstr "No file received."
+
+#: includes/class-v-dicom-rest.php:452
+msgid "Nenhum job de segmentação encontrado para esta cena."
+msgstr "No segmentation job found for this scene."
+
+#: includes/class-v-dicom-rest.php:464
+msgid "Nenhum job de segmentação encontrado para este tipo nesta cena."
+msgstr "No segmentation job found for this type in this scene."
+
+#: includes/class-v-dicom-admin.php:770
+msgid "Nenhum tipo configurado."
+msgstr "No type configured."
+
+#: includes/class-v-dicom-rest.php:281
+msgid "Nenhum tipo de segmentação configurado."
+msgstr "No segmentation type configured."
+
+#: includes/class-v-dicom-admin.php:640
+msgid "Nenhum usuário com cenas ou limite definido ainda."
+msgstr "No user with scenes or a defined limit yet."
+
+#: includes/class-v-dicom-admin.php:698
+msgid "Nenhuma cena salva ainda."
+msgstr "No saved scene yet."
+
+#: includes/class-v-dicom-admin.php:236
+msgid "Nome do visualizador"
+msgstr "Viewer name"
+
+#: includes/class-v-dicom-admin.php:387 includes/class-v-dicom-admin.php:450
+msgid "Nome*"
+msgstr "Name*"
+
+#: includes/class-v-dicom-admin.php:444
+msgid "Novo tipo ganha editor rico após salvar."
+msgstr "A new type gets a rich editor after saving."
+
+#: includes/class-v-dicom-rest.php:932 includes/class-v-dicom-rest.php:937
+msgid "Não foi possível criar o arquivo ZIP."
+msgstr "Could not create the ZIP file."
+
+#: includes/class-v-dicom-storage.php:879
+msgid "Não foi possível criar o arquivo final."
+msgstr "Could not create the final file."
+
+#: includes/class-v-dicom-rest.php:951
+msgid "Não foi possível gerar o arquivo ZIP."
+msgstr "Could not generate the ZIP file."
+
+#: includes/class-v-dicom-storage.php:1198 includes/class-v-dicom-storage.php:748
+msgid "Não foi possível gravar o arquivo."
+msgstr "Could not write the file."
+
+#: includes/class-v-dicom-storage.php:826
+msgid "Não foi possível gravar o chunk."
+msgstr "Could not write the chunk."
+
+#: includes/download.php:1264
+msgid "Não foi possível identificar o ID do Google Drive."
+msgstr "Could not identify the Google Drive ID."
+
+#: includes/download.php:690
+msgid "Não foi possível obter o redeem do OneDrive."
+msgstr "Could not obtain the OneDrive redeem."
+
+#: includes/download.php:569
+msgid "Não foi possível obter o token do OneDrive."
+msgstr "Could not obtain the OneDrive token."
+
+#: includes/download.php:1647
+msgid "O Google Drive não forneceu um download direto. O arquivo pode exigir login, ter o download desativado ou estar sujeito a uma confirmação que o Google não permitiu resolver automaticamente."
+msgstr "Google Drive did not provide a direct download. The file may require login, have downloads disabled, or be subject to a confirmation that Google could not resolve automatically."
+
+#: includes/class-v-dicom-admin.php:217
+msgid "O visualizador tem página própria, carregada sem o tema do site."
+msgstr "The viewer has its own page, loaded without the site theme."
+
+#: includes/download.php:841
+msgid "OneDrive não retornou URL de download."
+msgstr "OneDrive did not return a download URL."
+
+#: includes/download.php:799
+msgid "OneDrive recusou o acesso ao arquivo."
+msgstr "OneDrive denied access to the file."
+
+#: includes/class-v-dicom-rest.php:277 includes/class-v-dicom-storage.php:235
+msgid "Padrão"
+msgstr "Default"
+
+#: includes/class-v-dicom-rest.php:923 includes/class-v-dicom-rest.php:927
+msgid "Pasta não encontrada."
+msgstr "Folder not found."
+
+#: includes/class-v-dicom-admin.php:101 includes/class-v-dicom-admin.php:114 includes/class-v-dicom-admin.php:125 includes/class-v-dicom-admin.php:163 includes/class-v-dicom-admin.php:175 includes/class-v-dicom-admin.php:58 includes/class-v-dicom-admin.php:77
+msgid "Permissão negada."
+msgstr "Permission denied."
+
+#: includes/class-v-dicom-admin.php:245
+msgid "Pré-visualização do logo"
+msgstr "Logo preview"
+
+#: includes/class-v-dicom-admin.php:220
+msgid "Página do visualizador:"
+msgstr "Viewer page:"
+
+#: includes/class-v-dicom-admin.php:363
+msgid "Quando ativado, URLs externas precisam ser autorizadas antes do download. Ao desativar, todos os links são baixados sem autorização prévia."
+msgstr "When enabled, external URLs must be authorized before download. When disabled, all links are downloaded without prior authorization."
+
+#: includes/download.php:483
+msgid "Redirect inválido do OneDrive."
+msgstr "Invalid OneDrive redirect."
+
+#: includes/class-v-dicom-admin.php:806
+msgid "Remover esta cena e seus arquivos?"
+msgstr "Remove this scene and its files?"
+
+#: includes/download.php:2072
+msgid "Requisição não autorizada."
+msgstr "Unauthorized request."
+
+#: includes/class-v-dicom-admin.php:827
+msgid "Resposta RunPod:"
+msgstr "RunPod response:"
+
+#: includes/download.php:786
+msgid "Resposta inválida do OneDrive."
+msgstr "Invalid OneDrive response."
+
+#: includes/class-v-dicom-rest.php:419 includes/class-v-dicom-rest.php:500
+msgid "Resposta inválida do RunPod"
+msgstr "Invalid RunPod response"
+
+#: includes/class-v-dicom-admin.php:321
+msgid "Salvar API key"
+msgstr "Save API key"
+
+#: includes/class-v-dicom-admin.php:368
+msgid "Salvar autorização de URL"
+msgstr "Save URL authorization"
+
+#: includes/class-v-dicom-admin.php:617
+msgid "Salvar cotas para novas contas"
+msgstr "Save quotas for new accounts"
+
+#: includes/class-v-dicom-admin.php:678
+msgid "Salvar limites e créditos"
+msgstr "Save limits and credits"
+
+#: includes/class-v-dicom-admin.php:446
+msgid "Salvar tipos de segmentação"
+msgstr "Save segmentation types"
+
+#: includes/class-v-dicom-admin.php:273
+msgid "Salvar visual"
+msgstr "Save visual"
+
+#: includes/class-v-dicom-admin.php:692
+msgid "Segmentação"
+msgstr "Segmentation"
+
+#. /* translators: %s: scene title or key */
+#: includes/class-v-dicom-rest.php:641
+#, php-format
+msgid "Segmentação concluída — %s"
+msgstr "Segmentation completed — %s"
+
+#. /* translators: %s: scene title or key */
+#: includes/class-v-dicom-rest.php:643
+#, php-format
+msgid "Segmentação falhou — %s"
+msgstr "Segmentation failed — %s"
+
+#: includes/class-v-dicom-admin.php:243
+msgid "Selecionar na biblioteca"
+msgstr "Select from library"
+
+#: includes/class-v-dicom-rest.php:724
+msgid "Sessão de upload inválida ou expirada."
+msgstr "Invalid or expired upload session."
+
+#: includes/class-v-dicom-storage.php:1017
+msgid "Seu limite de armazenamento é zero. Peça ao administrador para definir um limite antes de enviar estudos."
+msgstr "Your storage limit is zero. Ask the administrator to set a limit before uploading studies."
+
+#: includes/class-v-dicom-admin.php:524
+msgid "Situação"
+msgstr "Status"
+
+#: includes/download.php:2027
+msgid "Somente HTTP/HTTPS é permitido."
+msgstr "Only HTTP/HTTPS is allowed."
+
+#. /* translators: %1$s: segmentation type, %2$s: scene title or key, %3$s: duration string, %4$s: line break, %5$s: scene URL */
+#: includes/class-v-dicom-rest.php:659
+#, php-format
+msgid "Sua segmentação (%1$s) da cena \"%2$s\" foi concluída%3$s.%4$sAbra a cena: %5$s"
+msgstr "Your segmentation (%1$s) of scene \"%2$s\" has completed%3$s.%4$sOpen the scene: %5$s"
+
+#. /* translators: %1$s: scene title or key, %2$s: duration string, %3$s: line break, %4$s: scene URL */
+#: includes/class-v-dicom-rest.php:646
+#, php-format
+msgid "Sua segmentação da cena \"%1$s\" foi concluída%2$s.%3$sAbra a cena: %4$s"
+msgstr "Your segmentation of scene \"%1$s\" has completed%2$s.%3$sOpen the scene: %4$s"
+
+#: includes/class-v-dicom-admin.php:782
+msgid "Tentar novamente"
+msgstr "Try again"
+
+#: includes/class-v-dicom-admin.php:254
+msgid "Texto de espera"
+msgstr "Waiting text"
+
+#: includes/class-v-dicom-rest.php:288
+msgid "Tipo de segmentação não encontrado."
+msgstr "Segmentation type not found."
+
+#: includes/class-v-dicom-storage.php:236
+msgid "Tipo migrado automaticamente da configuração anterior."
+msgstr "Type automatically migrated from the previous configuration."
+
+#: includes/class-v-dicom-admin.php:371
+msgid "Tipos de segmentação (RunPod)"
+msgstr "Segmentation types (RunPod)"
+
+#: includes/class-v-dicom-admin.php:374
+msgid "Tipos de segmentação atualizados."
+msgstr "Segmentation types updated."
+
+#: includes/class-v-dicom-admin.php:819
+msgid "Total:"
+msgstr "Total:"
+
+#: includes/class-v-dicom-admin.php:687
+msgid "Título"
+msgstr "Title"
+
+#: includes/class-v-dicom-rest.php:1156
+msgid "URL autorizada com sucesso! 1 crédito consumido."
+msgstr "URL authorized successfully! 1 credit consumed."
+
+#: includes/class-v-dicom-rest.php:1155
+msgid "URL autorizará com 1 crédito. Confirme para prosseguir."
+msgstr "The URL will be authorized with 1 credit. Confirm to proceed."
+
+#: includes/class-v-dicom-admin.php:250
+msgid "URL de espera"
+msgstr "Waiting URL"
+
+#: includes/class-v-dicom-admin.php:391 includes/class-v-dicom-admin.php:452
+msgid "URL do servidor"
+msgstr "Server URL"
+
+#: includes/class-v-dicom-rest.php:1058 includes/download.php:2003
+msgid "URL inválida."
+msgstr "Invalid URL."
+
+#: includes/class-v-dicom-storage.php:1177 includes/class-v-dicom-storage.php:744 includes/class-v-dicom-storage.php:813
+msgid "Upload inválido."
+msgstr "Invalid upload."
+
+#. /* translators: 1: used space 2: total limit 3: available space */
+#: includes/class-v-dicom-admin.php:584
+#, php-format
+msgid "Usado: %1$s de %2$s (%3$s disponíveis)."
+msgstr "Used: %1$s of %2$s (%3$s available)."
+
+#: includes/class-v-dicom-admin.php:631
+msgid "Usuário"
+msgstr "User"
+
+#: includes/class-v-dicom-admin.php:761
+msgid "Usuário removido"
+msgstr "Removed user"
+
+#: includes/class-v-dicom-admin.php:800
+msgid "Ver logs RunPod"
+msgstr "View RunPod logs"
+
+#: includes/class-v-dicom-admin.php:225
+msgid "Visual / White label"
+msgstr "Visual / White label"
+
+#: includes/class-v-dicom-admin.php:228
+msgid "Visual atualizado."
+msgstr "Visual updated."
+
+#: includes/class-v-dicom-page.php:185
+msgid "Visualizador DICOM com cortes MPR, 3D e modelos STL."
+msgstr "DICOM viewer with MPR slices, 3D and STL models."
+
+#: includes/class-v-dicom-admin.php:577
+msgid "Você não tem armazenamento disponível. Contrate um plano ou peça ao administrador para definir um limite antes de enviar estudos."
+msgstr "You have no storage available. Purchase a plan or ask the administrator to set a limit before uploading studies."
+
+#: includes/class-v-dicom-rest.php:1123
+msgid "Você não tem créditos para autorizar URLs. Compre créditos na loja."
+msgstr "You have no credits to authorize URLs. Buy credits in the store."
+
+#: includes/class-v-dicom-rest.php:203
+msgid "Você não tem permissão para salvar cenas."
+msgstr "You do not have permission to save scenes."
+
+#: includes/class-v-dicom-rest.php:837
+msgid "Você precisa estar logado para acessar este recurso."
+msgstr "You must be logged in to access this resource."
+
+#: includes/class-v-dicom-rest.php:1049
+msgid "Você precisa estar logado."
+msgstr "You must be logged in."
+
+#: includes/class-v-dicom-storage.php:702 includes/class-v-dicom-storage.php:732 includes/class-v-dicom-storage.php:868 includes/download.php:1385 includes/download.php:1526 includes/download.php:1617 includes/download.php:1685 includes/download.php:1709 includes/download.php:678 includes/download.php:849
+msgid "arquivo"
+msgstr "file"
+
+#: includes/class-v-dicom-admin.php:669
+msgid "de"
+msgstr "of"
+
+#: includes/class-v-dicom-admin.php:841
+msgid "error (até 4k):"
+msgstr "error (up to 4k):"
+
+#: includes/class-v-dicom-admin.php:842
+msgid "output (até 8k):"
+msgstr "output (up to 8k):"
+
+#: includes/class-v-dicom-admin.php:863
+msgid "segmentação"
+msgstr "segmentation"
+
+#: includes/class-v-dicom-admin.php:838
+msgid "status mapeado:"
+msgstr "mapped status:"
+
+#: includes/class-v-dicom-admin.php:210 includes/class-v-dicom-admin.php:32 includes/class-v-dicom-admin.php:33
+msgid "v-dicom"
+msgstr "v-dicom"
+
+#: includes/class-v-dicom-rest.php:308
+msgid "É necessário estar logado."
+msgstr "You must be logged in."
+
+#: includes/class-v-dicom-admin.php:831
+msgid "último polling"
+msgstr "last polling"
+
+#: includes/class-v-dicom-admin.php:781 includes/class-v-dicom-admin.php:860
+msgid "✓ Concluída"
+msgstr "✓ Completed"
+
+#: includes/class-v-dicom-admin.php:861
+msgid "✕ Falhou"
+msgstr "✕ Failed"
+
+#: includes/class-v-dicom-admin.php:782
+msgid "✕ Falhou — crédito devolvido"
+msgstr "✕ Failed — credit refunded"

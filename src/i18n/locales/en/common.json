@@ -1,0 +1,16 @@
+{
+  "language": {
+    "label": "Language",
+    "title": "Change language"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or has been moved.",
+    "goHome": "Go home"
+  },
+  "errorPage": {
+    "title": "This page didn't load",
+    "description": "Something went wrong on our end. You can try refreshing or head back home.",
+    "retry": "Try again"
+  }
+}

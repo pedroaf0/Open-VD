@@ -1,0 +1,49 @@
+{
+  "dicom": {
+    "readingFiles": "Reading DICOM files",
+    "buildingVolume": "Building volume",
+    "identifyingSeries": "Identifying series",
+    "noCompatibleImages": "No compatible image found. {{detail}} ({{skipped}} file(s) skipped).",
+    "decodeFallback": "Compressed files may have failed to decode.",
+    "noValidFiles": "No valid DICOM file found.",
+    "seriesNumber": "Series {{number}}",
+    "seriesNoName": "Unnamed series",
+    "seriesNoId": "Unidentified series"
+  },
+  "wp": {
+    "authorizeUnavailable": "URL authorization is only available inside WordPress.",
+    "urlNotAuthorized": "URL not authorized and you don't have credits to authorize it.",
+    "authCancelled": "Authorization canceled by the user.",
+    "confirmAuthorize": "This URL needs to be authorized. 1 credit will be consumed.\n\nCurrent balance: {{credits}} credit(s).\nDo you want to continue?",
+    "authorizeFailed": "The URL could not be authorized.",
+    "authorizeCheckFailed": "The URL could not be authorized. Check your connection.",
+    "httpError": "Error {{status}}: {{detail}}",
+    "scenePanelUnavailable": "The scene panel is only available inside WordPress.",
+    "deleteScenesUnavailable": "Deleting scenes is only available inside WordPress.",
+    "saveScenesUnavailable": "Saving scenes is only available inside WordPress.",
+    "shareUnavailable": "Sharing is only available inside WordPress.",
+    "uploadUnavailable": "Upload is only available inside WordPress.",
+    "splitUploadFailed": "Failed to assemble the split file on the server.",
+    "segmentationUnavailable": "Segmentation is only available inside WordPress.",
+    "saveAnnotationsUnavailable": "Saving annotations is only available inside WordPress.",
+    "markAccessUnavailable": "Marking scene access is only available inside WordPress.",
+    "recentScenesUnavailable": "Recent scenes are only available inside WordPress.",
+    "downloadingSceneFiles": "Downloading scene files",
+    "checkingUrlAuth": "Checking URL authorization…",
+    "downloadingUrlFilePct": "Downloading file via URL… {{percent}}%",
+    "downloadingUrlFileMb": "Downloading file via URL… {{mb}} MB",
+    "fallbackFileName": "file",
+    "downloadFailed": "Download failed (HTTP {{status}})"
+  },
+  "zip": {
+    "decompressingZip": "Decompressing ZIP",
+    "decompressing": "Decompressing {{label}}",
+    "decompressingZipJs": "Decompressing (zip.js) {{label}}",
+    "fileReaderNoArrayBuffer": "FileReader did not return an ArrayBuffer",
+    "fileReaderOnError": "FileReader onerror (no details)"
+  },
+  "annotations": {
+    "canvasUnavailable": "Canvas not available.",
+    "pngFailed": "Failed to generate the PNG."
+  }
+}

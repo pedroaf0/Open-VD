@@ -1,0 +1,49 @@
+{
+  "dicom": {
+    "readingFiles": "Leyendo archivos DICOM",
+    "buildingVolume": "Montando el volumen",
+    "identifyingSeries": "Identificando series",
+    "noCompatibleImages": "Ninguna imagen compatible encontrada. {{detail}} ({{skipped}} archivo(s) omitido(s)).",
+    "decodeFallback": "Los archivos comprimidos pueden haber fallado al decodificar.",
+    "noValidFiles": "Ningún archivo DICOM válido encontrado.",
+    "seriesNumber": "Serie {{number}}",
+    "seriesNoName": "Serie sin nombre",
+    "seriesNoId": "Serie sin identificación"
+  },
+  "wp": {
+    "authorizeUnavailable": "La autorización de URL solo está disponible dentro de WordPress.",
+    "urlNotAuthorized": "URL no autorizada y no tienes créditos para autorizarla.",
+    "authCancelled": "Autorización cancelada por el usuario.",
+    "confirmAuthorize": "Esta URL necesita ser autorizada. Se consumirá 1 crédito.\n\nSaldo actual: {{credits}} crédito(s).\n¿Desea continuar?",
+    "authorizeFailed": "No se pudo autorizar la URL.",
+    "authorizeCheckFailed": "No se pudo autorizar la URL. Comprueba tu conexión.",
+    "httpError": "Error {{status}}: {{detail}}",
+    "scenePanelUnavailable": "El panel de escenas solo está disponible dentro de WordPress.",
+    "deleteScenesUnavailable": "Eliminar escenas solo está disponible dentro de WordPress.",
+    "saveScenesUnavailable": "Guardar escenas solo está disponible dentro de WordPress.",
+    "shareUnavailable": "Compartir solo está disponible dentro de WordPress.",
+    "uploadUnavailable": "La subida solo está disponible dentro de WordPress.",
+    "splitUploadFailed": "Error al ensamblar el archivo dividido en el servidor.",
+    "segmentationUnavailable": "La segmentación solo está disponible dentro de WordPress.",
+    "saveAnnotationsUnavailable": "Guardar anotaciones solo está disponible dentro de WordPress.",
+    "markAccessUnavailable": "Marcar el acceso solo está disponible dentro de WordPress.",
+    "recentScenesUnavailable": "Las escenas recientes solo están disponibles dentro de WordPress.",
+    "downloadingSceneFiles": "Descargando archivos de la escena",
+    "checkingUrlAuth": "Verificando la autorización de la URL…",
+    "downloadingUrlFilePct": "Descargando archivo por URL… {{percent}}%",
+    "downloadingUrlFileMb": "Descargando archivo por URL… {{mb}} MB",
+    "fallbackFileName": "archivo",
+    "downloadFailed": "Error al descargar (HTTP {{status}})"
+  },
+  "zip": {
+    "decompressingZip": "Descomprimiendo ZIP",
+    "decompressing": "Descomprimiendo {{label}}",
+    "decompressingZipJs": "Descomprimiendo (zip.js) {{label}}",
+    "fileReaderNoArrayBuffer": "FileReader no devolvió un ArrayBuffer",
+    "fileReaderOnError": "FileReader onerror (sin detalles)"
+  },
+  "annotations": {
+    "canvasUnavailable": "Canvas no disponible.",
+    "pngFailed": "Error al generar el PNG."
+  }
+}
