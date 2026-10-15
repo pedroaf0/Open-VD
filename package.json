@@ -1,5 +1,6 @@
 {
   "name": "tanstack_start_ts",
+  "license": "GPL-2.0-or-later",
   "private": true,
   "sideEffects": false,
   "type": "module",
