@@ -96,7 +96,20 @@
     "linkLabel": "Link da cena:",
     "showQr": "Ver código QR deste link",
     "qrTitle": "QR do link da cena",
-    "qrAria": "Código QR do link da cena"
+    "qrAria": "Código QR do link da cena",
+    "accessLabel": "Quem pode abrir esta cena",
+    "access": {
+      "public": "Link público",
+      "publicHint": "Qualquer pessoa com o link abre a cena.",
+      "private": "Privado",
+      "privateHint": "Só você (dono) e administradores abrem a cena.",
+      "restricted": "Restrito",
+      "restrictedHint": "Só os e-mails autorizados, cada um com o seu link privado."
+    },
+    "emailsLabel": "E-mails autorizados",
+    "emailsPlaceholder": "paciente@exemplo.com, clinica@exemplo.com",
+    "emailsHint": "Separe por vírgula ou espaço. Cada e-mail recebe um link privado.",
+    "invitesLabel": "Links privados por e-mail:"
   },
   "rail": {
     "tools": "Ferramentas",

@@ -272,6 +272,15 @@ SWJS;
 			$scene = V_Dicom_Storage::sanitize_key( wp_unslash( $_GET['scene'] ) );
 		}
 
+		// Invite token (?t=…) of a restricted scene. Printed in the config so the
+		// viewer can read the scene and stream its files without a WP session.
+		$access_token = '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only viewer route (invite link).
+		if ( isset( $_GET['t'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- read-only viewer route; only [A-Za-z0-9] survives.
+			$access_token = preg_replace( '/[^A-Za-z0-9]/', '', (string) wp_unslash( $_GET['t'] ) );
+		}
+
 		$theme = V_Dicom_Theme::get();
 		$title = $theme['name'];
 		if ( $scene ) {
@@ -286,6 +295,8 @@ $config = array(
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
 			'canUpload' => v_dicom_can_upload(),
 			'sceneKey'  => $scene ? $scene : null,
+			// Token of a restricted-scene invite link ('' when not sharing that way).
+			'accessToken' => '' !== $access_token ? $access_token : null,
 			'homeUrl'   => esc_url_raw( home_url( '/' ) ),
 			'viewerUrl' => esc_url_raw( self::url() ),
 			'shareTemplate' => str_replace( 'zzkeyzz', 'ZZKEYZZ', esc_url_raw( self::url( 'zzkeyzz' ) ) ),

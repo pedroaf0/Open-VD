@@ -96,7 +96,20 @@
     "linkLabel": "Enlace de la escena:",
     "showQr": "Ver código QR de este enlace",
     "qrTitle": "QR del enlace de la escena",
-    "qrAria": "Código QR del enlace de la escena"
+    "qrAria": "Código QR del enlace de la escena",
+    "accessLabel": "Quién puede abrir esta escena",
+    "access": {
+      "public": "Enlace público",
+      "publicHint": "Cualquier persona con el enlace abre la escena.",
+      "private": "Privado",
+      "privateHint": "Solo tú (propietario) y los administradores abren la escena.",
+      "restricted": "Restringido",
+      "restrictedHint": "Solo los correos autorizados, cada uno con su enlace privado."
+    },
+    "emailsLabel": "Correos autorizados",
+    "emailsPlaceholder": "paciente@ejemplo.com, clinica@ejemplo.com",
+    "emailsHint": "Separa por coma o espacio. Cada correo recibe un enlace privado.",
+    "invitesLabel": "Enlaces privados por correo:"
   },
   "rail": {
     "tools": "Herramientas",

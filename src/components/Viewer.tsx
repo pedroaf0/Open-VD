@@ -111,11 +111,15 @@ import {
   markSceneAccessed,
   runSegmentation,
   saveSceneSettings,
+  saveSceneShare,
+  fetchSceneShare,
   shareUrl,
   uploadAnnotationPng,
   uploadSceneFile,
   wpConfig,
   useWpConfig,
+  type SceneAccess,
+  type SceneInvite,
   type SceneSettings,
   type SceneSummary,
   type UserPanel,
@@ -140,6 +144,23 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 
 /** Maximum simultaneous uploads. */
 const UPLOAD_CONCURRENCY = 6;
+
+/**
+ * Separa uma lista de e-mails digitada à mão (vírgula, ponto e vírgula ou
+ * espaço) num array limpo, sem duplicatas. Validação real fica no servidor.
+ */
+function parseEmails(raw: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of raw.split(/[\s,;]+/)) {
+    const email = part.trim().toLowerCase();
+    if (email && !seen.has(email)) {
+      seen.add(email);
+      out.push(email);
+    }
+  }
+  return out;
+}
 
 /**
  * Run `task` for every item with a bounded number of parallel workers.
@@ -468,6 +489,12 @@ export function Viewer() {
   const [sceneKey, setSceneKey] = useState<string | null>(null);
   const [share, setShare] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  /** Nível de acesso escolhido no modal de compartilhamento. */
+  const [access, setAccess] = useState<SceneAccess>("private");
+  /** Lista de e-mails autorizados (texto livre, separados por vírgula/espaço). */
+  const [shareEmails, setShareEmails] = useState("");
+  /** Links privados por e-mail (cenas restritas, exibidos após salvar). */
+  const [invites, setInvites] = useState<SceneInvite[]>([]);
   const [qrOpen, setQrOpen] = useState(false);
   const [sceneName, setSceneName] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -1039,7 +1066,19 @@ export function Viewer() {
     // Exibe nome do paciente automaticamente em todas as telas
     setShareOpen(true);
     void loadPanel();
-  }, [loadPanel]);
+
+    // Dono da cena: carrega o nível de acesso e os e-mails já autorizados.
+    const key = sceneKey;
+    if (key && cfg?.canUpload) {
+      void fetchSceneShare(key)
+        .then((info) => {
+          setAccess(info.access);
+          setShareEmails((info.emails ?? []).join(", "));
+          setInvites(info.invites ?? []);
+        })
+        .catch(() => {});
+    }
+  }, [cfg, sceneKey, loadPanel]);
 
   const handleDeleteScene = useCallback(
     async (s: SceneSummary) => {
@@ -1462,6 +1501,17 @@ export function Viewer() {
       const annForSave = await ensureAnnotationPngs({ sceneKey: targetKey }, annotations);
       await saveSceneSettings(targetKey, collectSettings(), title, annForSave);
       setAnnotations(annForSave);
+
+      // Step 4 — access level and authorized e-mails (owner only). Restricted
+      // scenes e-mail each recipient their private link.
+      const emails = parseEmails(shareEmails);
+      const saved = await saveSceneShare(targetKey, {
+        access,
+        emails,
+        notify: access === "restricted" && emails.length > 0,
+      });
+      setInvites(saved.invites ?? []);
+      setAccess(saved.access);
       setShare(shareUrl(targetKey));
       setShareOpen(false);
       void loadPanel();
@@ -1477,7 +1527,18 @@ export function Viewer() {
       setStatus(null);
       setBusy(false);
     }
-  }, [cfg, sceneKey, sceneName, collectSettings, loadPanel, annotations, ensureAnnotationPngs, t]);
+  }, [
+    cfg,
+    sceneKey,
+    sceneName,
+    collectSettings,
+    loadPanel,
+    annotations,
+    ensureAnnotationPngs,
+    access,
+    shareEmails,
+    t,
+  ]);
 
   const preset = (c: number, w: number) => {
     setWc(c);
@@ -2071,6 +2132,47 @@ export function Viewer() {
                     : t("viewer.share.storageFull")}
                 </p>
               )}
+              <fieldset className="space-y-1.5">
+                <legend className="data-mono text-[10px] text-muted-foreground">
+                  {t("viewer.share.accessLabel")}
+                </legend>
+                {(["public", "private", "restricted"] as const).map((level) => (
+                  <label key={level} className="flex cursor-pointer items-start gap-2 text-[11px]">
+                    <input
+                      type="radio"
+                      name="v-dicom-access"
+                      className="mt-0.5"
+                      checked={access === level}
+                      onChange={() => setAccess(level)}
+                      disabled={busy}
+                    />
+                    <span>
+                      <span className="font-medium">{t(`viewer.share.access.${level}`)}</span>
+                      <span className="block text-[10px] text-muted-foreground">
+                        {t(`viewer.share.access.${level}Hint`)}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+              {access === "restricted" && (
+                <label className="block space-y-1">
+                  <span className="data-mono text-[10px] text-muted-foreground">
+                    {t("viewer.share.emailsLabel")}
+                  </span>
+                  <textarea
+                    value={shareEmails}
+                    onChange={(e) => setShareEmails(e.target.value)}
+                    rows={2}
+                    disabled={busy}
+                    className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
+                    placeholder={t("viewer.share.emailsPlaceholder")}
+                  />
+                  <span className="block text-[10px] text-muted-foreground">
+                    {t("viewer.share.emailsHint")}
+                  </span>
+                </label>
+              )}
               {progress && (
                 <div className="space-y-1">
                   <div className="h-1.5 w-full overflow-hidden rounded bg-panel-2">
@@ -2128,6 +2230,31 @@ export function Viewer() {
             <button className="btn-chip" onClick={() => setShare(null)}>
               {t("viewer.common.close")}
             </button>
+          </div>
+        )}
+
+        {invites.length > 0 && (
+          <div className="flex shrink-0 flex-col gap-1 border-b border-border bg-panel px-3 py-2 text-[11px]">
+            <span className="data-mono text-muted-foreground">
+              {t("viewer.share.invitesLabel")}
+            </span>
+            {invites.map((inv) => (
+              <div key={inv.email} className="flex flex-wrap items-center gap-2">
+                <span className="min-w-[10rem] truncate font-medium">{inv.email}</span>
+                <input
+                  readOnly
+                  value={inv.url}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px]"
+                />
+                <button
+                  className="btn-chip"
+                  onClick={() => navigator.clipboard?.writeText(inv.url)}
+                >
+                  {t("viewer.common.copy")}
+                </button>
+              </div>
+            ))}
           </div>
         )}
 

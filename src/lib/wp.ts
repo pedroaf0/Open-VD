@@ -54,6 +54,8 @@ export type WpConfig = {
   segmentationTypes?: SegmentationType[];
   /** WordPress site locale (`get_locale()`), used as the viewer language. */
   locale?: string;
+  /** Invite token of a restricted scene (`?t=…`); empty for normal links. */
+  accessToken?: string;
 };
 
 export type SceneFile = {
@@ -104,6 +106,23 @@ export type Scene = {
   files: SceneFile[];
   urls: string[];
   annotations: Annotation[];
+  /** Access level of the scene (only meaningful when shared by its owner). */
+  access?: SceneAccess;
+  /** Authorized e-mails (returned only to the owner/editor). */
+  emails?: string[];
+  /** Invite links per e-mail (returned only to the owner/editor). */
+  invites?: SceneInvite[];
+};
+
+/** How a shared scene can be opened. */
+export type SceneAccess = "public" | "private" | "restricted";
+
+/** Private link of one authorized e-mail. */
+export type SceneInvite = {
+  email: string;
+  url: string;
+  /** Unix timestamp (seconds) of the last delivery, 0 when never sent. */
+  sentAt: number;
 };
 
 export type SceneSummary = {
@@ -196,6 +215,9 @@ export function wpConfig(): WpConfig | null {
   };
   if (raw.locale) {
     cfg.locale = raw.locale;
+  }
+  if (raw.accessToken) {
+    cfg.accessToken = raw.accessToken;
   }
   if (raw.brand) {
     cfg.brand = {
@@ -343,12 +365,20 @@ export function currentSceneKey(): string | null {
   return raw?.sceneKey || null;
 }
 
-export function shareUrl(key: string): string {
+export function shareUrl(key: string, token?: string): string {
   const cfg = wpConfig();
-  if (cfg?.shareTemplate) return cfg.shareTemplate.replace("ZZKEYZZ", encodeURIComponent(key));
-  const base =
-    cfg?.viewerUrl || (typeof window !== "undefined" ? window.location.href.split("?")[0]! : "");
-  return `${base}${base.includes("?") ? "&" : "?"}scene=${encodeURIComponent(key)}`;
+  let url: string;
+  if (cfg?.shareTemplate) {
+    url = cfg.shareTemplate.replace("ZZKEYZZ", encodeURIComponent(key));
+  } else {
+    const base =
+      cfg?.viewerUrl || (typeof window !== "undefined" ? window.location.href.split("?")[0]! : "");
+    url = `${base}${base.includes("?") ? "&" : "?"}scene=${encodeURIComponent(key)}`;
+  }
+  if (token) {
+    url += `${url.includes("?") ? "&" : "?"}t=${encodeURIComponent(token)}`;
+  }
+  return url;
 }
 
 function headers(cfg: WpConfig, json = false): HeadersInit {
@@ -369,8 +399,11 @@ async function ok<T>(res: Response): Promise<T> {
 export async function fetchScene(key: string): Promise<Scene> {
   const cfg = wpConfig();
   const base = cfg?.restUrl ?? "/wp-json/v-dicom/v1";
+  // Restricted scenes are opened with an invite token (?t=…), which the plugin
+  // prints into the config; it also authorizes the scene's file downloads.
+  const qs = cfg?.accessToken ? `?t=${encodeURIComponent(cfg.accessToken)}` : "";
   const res = await fetch(
-    `${base}/scenes/${encodeURIComponent(key)}`,
+    `${base}/scenes/${encodeURIComponent(key)}${qs}`,
     cfg ? { headers: headers(cfg) } : {},
   );
   const raw = await ok<{
@@ -380,6 +413,9 @@ export async function fetchScene(key: string): Promise<Scene> {
     files: SceneFile[];
     urls?: string[];
     annotations?: Annotation[];
+    access?: SceneAccess;
+    emails?: string[];
+    invites?: SceneInvite[];
   }>(res);
   // Converte url único (legado) para array urls - garante que urls sempre é string[]
   const urlsList: string[] = raw.urls || (raw.settings?.url ? [raw.settings.url] : []);
@@ -396,6 +432,9 @@ export async function fetchScene(key: string): Promise<Scene> {
     files: raw.files,
     urls: urlsList,
     annotations: raw.annotations ?? [],
+    access: raw.access ?? "public",
+    emails: raw.emails ?? [],
+    invites: raw.invites ?? [],
   };
 }
 
@@ -621,6 +660,48 @@ export async function saveSceneSettings(
   return ok<{ ok: true }>(res);
 }
 
+/**
+ * Define o nível de acesso da cena (público/privado/restrito), a lista de
+ * e-mails autorizados e, opcionalmente, envia os convites por e-mail com o
+ * link privado de cada destinatário (notify=true). Só o dono pode chamar.
+ */
+export async function saveSceneShare(
+  key: string,
+  params: { access: SceneAccess; emails?: string[]; notify?: boolean },
+): Promise<{
+  access: SceneAccess;
+  emails: string[];
+  invites: SceneInvite[];
+  sent: string[];
+  url: string;
+}> {
+  const cfg = wpConfig();
+  if (!cfg) throw new Error(i18n.t("lib.wp.saveScenesUnavailable"));
+  const res = await fetch(`${cfg.restUrl}/scenes/${encodeURIComponent(key)}/share`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: headers(cfg, true),
+    body: JSON.stringify({
+      access: params.access,
+      emails: params.emails ?? [],
+      notify: !!params.notify,
+    }),
+  });
+  return ok(res);
+}
+
+/** Lê as configurações de compartilhamento atuais (somente o dono). */
+export async function fetchSceneShare(
+  key: string,
+): Promise<{ access: SceneAccess; emails: string[]; invites: SceneInvite[]; url: string }> {
+  const cfg = wpConfig();
+  if (!cfg) throw new Error(i18n.t("lib.wp.saveScenesUnavailable"));
+  const res = await fetch(`${cfg.restUrl}/scenes/${encodeURIComponent(key)}/share`, {
+    headers: headers(cfg),
+  });
+  return ok(res);
+}
+
 /** Inicia a segmentação automática de uma cena (consome créditos do tipo). */
 export async function runSegmentation(
   key: string,
@@ -727,6 +808,7 @@ export async function downloadSceneFiles(
 ): Promise<File[]> {
   // Bytes de cada arquivo mantidos em memória como `{ name, data }` — só viram
   // `File` os arquivos realmente pequenos (já descompactados) mais adiante.
+  const cfg = wpConfig();
   const files: ExpandInput[] = [];
   const total = scene.files.length;
   let receivedBytes = 0;
@@ -759,7 +841,9 @@ export async function downloadSceneFiles(
   for (let i = 0; i < total; i++) {
     const f = scene.files[i]!;
     report(i, i18n.t("lib.wp.downloadingSceneFiles"));
-    const res = await fetch(f.url);
+    // Scene files may be served by the plugin (non-public scenes), where the
+    // session nonce authorizes the request; the invite token travels in the URL.
+    const res = await fetch(f.url, cfg ? { headers: headers(cfg) } : {});
     if (!res.ok) continue;
     // Acumula cópias estáveis de cada chunk da stream (o buffer interno do WebKit
     // é reutilizado/liberado assim que o reader avança).

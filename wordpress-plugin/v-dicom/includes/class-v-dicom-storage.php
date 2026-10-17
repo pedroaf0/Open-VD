@@ -17,6 +17,15 @@ class V_Dicom_Storage {
 	/** Planos de armazenamento comprados pelo usuário (lista com expiração individual). */
 	const META_PLANS    = 'v_dicom_storage_plans';
 
+	/** Access control of a shared scene. */
+	const META_ACCESS  = '_v_dicom_access';
+	const META_EMAILS  = '_v_dicom_emails';
+	const META_INVITES = '_v_dicom_invites';
+
+	const ACCESS_PUBLIC     = 'public';
+	const ACCESS_PRIVATE    = 'private';
+	const ACCESS_RESTRICTED = 'restricted';
+
 	const OPTION_API_KEY = 'v_dicom_api_key';
 const OPTION_CREDIT = 'v_dicom_credit';
 const OPTION_RECENT_SCENES = 'v_dicom_recent_scenes';
@@ -620,6 +629,214 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 		return $is_owner || current_user_can( 'edit_others_posts' );
 	}
 
+	/* ------------------------------------------------------------------ *
+	 *  Sharing / access control                                          *
+	 * ------------------------------------------------------------------ */
+
+	/** Valid access levels for a shared scene. */
+	public static function access_levels() {
+		return array( self::ACCESS_PUBLIC, self::ACCESS_PRIVATE, self::ACCESS_RESTRICTED );
+	}
+
+	/**
+	 * Access level of a scene. Scenes created before this feature existed have
+	 * no meta value and default to "private" as documented.
+	 */
+	public static function get_access( $post ) {
+		$value = get_post_meta( $post->ID, self::META_ACCESS, true );
+		return in_array( $value, $this->access_levels(), true ) ? $value : self::ACCESS_PRIVATE;
+	}
+
+	/** Persist the access level and (un)lock direct file access accordingly. */
+	public static function set_access( $post, $access ) {
+		if ( ! in_array( $access, self::access_levels(), true ) ) {
+			$access = self::ACCESS_PRIVATE;
+		}
+		update_post_meta( $post->ID, self::META_ACCESS, $access );
+		$key = self::sanitize_key( get_post_meta( $post->ID, self::META_KEY, true ) );
+		if ( $key ) {
+			self::set_dir_lock( $key, self::ACCESS_PUBLIC !== $access );
+		}
+		return $access;
+	}
+
+	/** Authorized e-mails (lowercase, unique) of a restricted scene. */
+	public static function get_authorized_emails( $post ) {
+		return self::sanitize_emails( get_post_meta( $post->ID, self::META_EMAILS, true ) );
+	}
+
+	/** Normalize e-mails coming from the client (array or CSV/space separated). */
+	public static function sanitize_emails( $raw ) {
+		if ( is_string( $raw ) ) {
+			$raw = preg_split( '/[\s,;]+/', $raw );
+		}
+		if ( ! is_array( $raw ) ) {
+			return array();
+		}
+		$out = array();
+		foreach ( $raw as $email ) {
+			$email = strtolower( trim( (string) $email ) );
+			if ( '' !== $email && is_email( $email ) && ! in_array( $email, $out, true ) ) {
+				$out[] = $email;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Replace the authorized e-mail list. Invites (tokens) for removed e-mails
+	 * are dropped; new e-mails get a fresh token.
+	 */
+	public static function set_authorized_emails( $post, $emails ) {
+		$emails = self::sanitize_emails( $emails );
+		update_post_meta( $post->ID, self::META_EMAILS, $emails );
+
+		$invites = self::get_invites( $post );
+		foreach ( array_keys( $invites ) as $email ) {
+			if ( ! in_array( $email, $emails, true ) ) {
+				unset( $invites[ $email ] );
+			}
+		}
+		foreach ( $emails as $email ) {
+			if ( empty( $invites[ $email ]['token'] ) ) {
+				$invites[ $email ] = array(
+					'token'   => wp_generate_password( 32, false, false ),
+					'created' => time(),
+					'sent'    => 0,
+				);
+			}
+		}
+		update_post_meta( $post->ID, self::META_INVITES, $invites );
+		return $emails;
+	}
+
+	/** Invites map: e-mail => array( token, created, sent ). */
+	public static function get_invites( $post ) {
+		$invites = get_post_meta( $post->ID, self::META_INVITES, true );
+		return is_array( $invites ) ? $invites : array();
+	}
+
+	/** Token of one authorized e-mail, creating it on the fly when missing. */
+	public static function token_for_email( $post, $email ) {
+		$email   = strtolower( trim( (string) $email ) );
+		$invites = self::get_invites( $post );
+		if ( empty( $invites[ $email ]['token'] ) ) {
+			$invites[ $email ] = array(
+				'token'   => wp_generate_password( 32, false, false ),
+				'created' => time(),
+				'sent'    => 0,
+			);
+			update_post_meta( $post->ID, self::META_INVITES, $invites );
+		}
+		return (string) $invites[ $email ]['token'];
+	}
+
+	/** True when $token matches any invite token of the scene (constant time). */
+	public static function token_is_valid( $post, $token ) {
+		$token = (string) $token;
+		if ( '' === $token ) {
+			return false;
+		}
+		foreach ( self::get_invites( $post ) as $invite ) {
+			if ( ! empty( $invite['token'] ) && hash_equals( (string) $invite['token'], $token ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Record that an invite e-mail was delivered. */
+	public static function mark_invite_sent( $post, $email ) {
+		$email   = strtolower( trim( (string) $email ) );
+		$invites = self::get_invites( $post );
+		if ( isset( $invites[ $email ] ) ) {
+			$invites[ $email ]['sent'] = time();
+			update_post_meta( $post->ID, self::META_INVITES, $invites );
+		}
+	}
+
+	/** Viewer URL of one e-mail invite (its private token in the query string). */
+	public static function invite_url( $post, $email ) {
+		$key   = self::sanitize_key( get_post_meta( $post->ID, self::META_KEY, true ) );
+		$token = self::token_for_email( $post, $email );
+		if ( '' === $key || '' === $token ) {
+			return '';
+		}
+		return add_query_arg( 't', $token, V_Dicom_Page::url( $key ) );
+	}
+
+	/**
+	 * Deeper access check: owner/editor, admin API key, public scenes, and for
+	 * restricted scenes either a valid invite token or a logged-in authorized
+	 * e-mail. Returns true or a WP_Error.
+	 */
+	public static function check_scene_view_access( $post, $token = '' ) {
+		if ( ! $post ) {
+			return new WP_Error( 'v_dicom_not_found', __( 'Cena não encontrada.', 'v-dicom' ), array( 'status' => 404 ) );
+		}
+		if ( self::user_can_write_scene( $post ) ) {
+			return true;
+		}
+		$access = self::get_access( $post );
+		if ( self::ACCESS_PUBLIC === $access ) {
+			return true;
+		}
+		if ( self::ACCESS_RESTRICTED === $access ) {
+			if ( '' !== (string) $token && self::token_is_valid( $post, $token ) ) {
+				return true;
+			}
+			if ( is_user_logged_in() ) {
+				$email = strtolower( (string) wp_get_current_user()->user_email );
+				if ( '' !== $email && in_array( $email, self::get_authorized_emails( $post ), true ) ) {
+					return true;
+				}
+			}
+		}
+		return new WP_Error(
+			'v_dicom_forbidden',
+			__( 'Você não tem acesso a esta cena.', 'v-dicom' ),
+			array( 'status' => rest_authorization_required_code() )
+		);
+	}
+
+	/** REST URL that streams one scene file through the access check. */
+	public static function file_endpoint_url( $key, $name, $token = '' ) {
+		$url  = rest_url( V_Dicom_REST::NS . '/scenes/' . rawurlencode( $key ) . '/file' );
+		$args = array( 'name' => $name );
+		if ( '' !== (string) $token ) {
+			$args['t'] = $token;
+		}
+		return add_query_arg( $args, $url );
+	}
+
+	/**
+	 * Lock or unlock direct (web) access to a scene folder. Non-public scenes
+	 * must be reached through the REST file endpoint, which enforces access.
+	 * Best-effort: servers that ignore .htaccess (nginx) still rely on the
+	 * endpoint-only URLs returned by scene_payload().
+	 */
+	private static function set_dir_lock( $key, $locked ) {
+		$dir = self::base_dir() . '/' . $key;
+		if ( ! is_dir( $dir ) ) {
+			return;
+		}
+		$file   = $dir . '/.htaccess';
+		$marker = '# v-dicom access lock';
+
+		if ( ! $locked ) {
+			if ( file_exists( $file ) && false !== strpos( (string) file_get_contents( $file ), $marker ) ) {
+				wp_delete_file( $file );
+			}
+			return;
+		}
+
+		$rules  = $marker . "\n";
+		$rules .= "<IfModule mod_authz_core.c>\n\tRequire all denied\n</IfModule>\n";
+		$rules .= "<IfModule !mod_authz_core.c>\n\tOrder allow,deny\n\tDeny from all\n</IfModule>\n";
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents -- writes the folder access lock
+		file_put_contents( $file, $rules );
+	}
+
 	public static function sanitize_key( $key ) {
 		return preg_replace( '/[^a-z0-9]/', '', strtolower( (string) $key ) );
 	}
@@ -935,20 +1152,53 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	}
 
 	/** Public representation of a scene consumed by the React viewer. */
-	public static function scene_payload( $post ) {
+	public static function scene_payload( $post, $token = '' ) {
+		$key      = self::sanitize_key( get_post_meta( $post->ID, self::META_KEY, true ) );
+		$access   = self::get_access( $post );
 		$files    = get_post_meta( $post->ID, self::META_FILES, true );
+		$files    = is_array( $files ) ? array_values( $files ) : array();
 		$settings = get_post_meta( $post->ID, self::META_SETTINGS, true );
 		$anns     = get_post_meta( $post->ID, self::META_ANNOTATIONS, true );
 		$urls     = get_post_meta( $post->ID, '_v_dicom_urls', true );
 		$urls     = is_array( $urls ) ? $urls : array();
-		return array(
-			'key'         => (string) get_post_meta( $post->ID, self::META_KEY, true ),
+
+		// Non-public scenes are served only through the REST file endpoint, which
+		// re-checks the access level (token for guests, session for the owner).
+		if ( self::ACCESS_PUBLIC !== $access ) {
+			foreach ( $files as $i => $file ) {
+				if ( empty( $file['url'] ) ) {
+					continue;
+				}
+				$files[ $i ]['url'] = self::file_endpoint_url( $key, wp_basename( (string) $file['url'] ), $token );
+			}
+		}
+
+		$payload = array(
+			'key'         => $key,
 			'title'       => get_the_title( $post ),
 			'settings'    => is_array( $settings ) ? $settings : null,
-			'files'       => is_array( $files ) ? array_values( $files ) : array(),
+			'files'       => $files,
 			'urls'        => array_values( $urls ),
 			'annotations' => is_array( $anns ) ? array_values( $anns ) : array(),
+			'access'      => $access,
 		);
+
+		// The owner (or an editor) also gets the invite list to manage sharing.
+		if ( self::user_can_write_scene( $post ) ) {
+			$invites = self::get_invites( $post );
+			$list    = array();
+			foreach ( self::get_authorized_emails( $post ) as $email ) {
+				$list[] = array(
+					'email'  => $email,
+					'url'    => self::invite_url( $post, $email ),
+					'sentAt' => isset( $invites[ $email ]['sent'] ) ? (int) $invites[ $email ]['sent'] : 0,
+				);
+			}
+			$payload['emails']  = self::get_authorized_emails( $post );
+			$payload['invites'] = $list;
+		}
+
+		return $payload;
 	}
 
 	/** Recursively delete a scene folder and its post. */

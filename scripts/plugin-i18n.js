@@ -46,7 +46,9 @@ const EN = {
   "A segmentação falhou.": "The segmentation failed.",
   "API key (upload/download por chave)": "API key (upload/download by key)",
   "API key atualizada.": "API key updated.",
+  "Abra pelo link privado abaixo:": "Open it through the private link below:",
   Abrir: "Open",
+  'Acesso à cena "%1$s" — %2$s': 'Access to scene "%1$s" — %2$s',
   "Adicionar tipo": "Add type",
   "Aguarde, carregando sua cena…": "Please wait, loading your scene…",
   "Apenas o dono da cena pode solicitar a segmentação.":
@@ -56,6 +58,7 @@ const EN = {
   "Após salvar, este campo virará editor visual com formatação.":
     "After saving, this field becomes a visual editor with formatting.",
   "Armazenamento inicial (MB)": "Initial storage (MB)",
+  "Arquivo não encontrado.": "File not found.",
   Arquivos: "Files",
   "As cores dos cortes (axial, coronal e sagital) são fixas e não podem ser alteradas. As outras cores são aplicadas automaticamente ao visualizador.":
     "The slice colors (axial, coronal and sagittal) are fixed and cannot be changed. The other colors are applied automatically to the viewer.",
@@ -71,6 +74,7 @@ const EN = {
   "Carregamento de DICOM": "DICOM loading",
   "Cena DICOM": "DICOM Scene",
   "Cena não encontrada.": "Scene not found.",
+  "Cena: %s": "Scene: %s",
   "Cena removida.": "Scene removed.",
   "Cenas DICOM": "DICOM Scenes",
   "Cenas salvas": "Saved scenes",
@@ -252,9 +256,12 @@ const EN = {
   "Você não tem créditos para autorizar URLs. Compre créditos na loja.":
     "You have no credits to authorize URLs. Buy credits in the store.",
   "Você não tem permissão para salvar cenas.": "You do not have permission to save scenes.",
+  "Você não tem acesso a esta cena.": "You do not have access to this scene.",
   "Você precisa estar logado para acessar este recurso.":
     "You must be logged in to access this resource.",
   "Você precisa estar logado.": "You must be logged in.",
+  "Você recebeu acesso a uma cena no visualizador v-dicom de %s.":
+    "You have been given access to a scene in the v-dicom viewer of %s.",
   de: "of",
   "error (até 4k):": "error (up to 4k):",
   "output (até 8k):": "output (up to 8k):",
@@ -284,7 +291,9 @@ const ES = {
   "A segmentação falhou.": "La segmentación falló.",
   "API key (upload/download por chave)": "API key (subida/descarga por clave)",
   "API key atualizada.": "API key actualizada.",
+  "Abra pelo link privado abaixo:": "Ábrela a través del enlace privado de abajo:",
   Abrir: "Abrir",
+  'Acesso à cena "%1$s" — %2$s': 'Acceso a la escena "%1$s" — %2$s',
   "Adicionar tipo": "Añadir tipo",
   "Aguarde, carregando sua cena…": "Espere, cargando su escena…",
   "Apenas o dono da cena pode solicitar a segmentação.":
@@ -294,6 +303,7 @@ const ES = {
   "Após salvar, este campo virará editor visual com formatação.":
     "Tras guardar, este campo se convierte en un editor visual con formato.",
   "Armazenamento inicial (MB)": "Almacenamiento inicial (MB)",
+  "Arquivo não encontrado.": "Archivo no encontrado.",
   Arquivos: "Archivos",
   "As cores dos cortes (axial, coronal e sagital) são fixas e não podem ser alteradas. As outras cores são aplicadas automaticamente ao visualizador.":
     "Los colores de los cortes (axial, coronal y sagital) son fijos y no se pueden cambiar. Los demás colores se aplican automáticamente al visor.",
@@ -309,6 +319,7 @@ const ES = {
   "Carregamento de DICOM": "Carga de DICOM",
   "Cena DICOM": "Escena DICOM",
   "Cena não encontrada.": "Escena no encontrada.",
+  "Cena: %s": "Escena: %s",
   "Cena removida.": "Escena eliminada.",
   "Cenas DICOM": "Escenas DICOM",
   "Cenas salvas": "Escenas guardadas",
@@ -493,9 +504,12 @@ const ES = {
   "Você não tem créditos para autorizar URLs. Compre créditos na loja.":
     "No tienes créditos para autorizar URL. Compra créditos en la tienda.",
   "Você não tem permissão para salvar cenas.": "No tienes permiso para guardar escenas.",
+  "Você não tem acesso a esta cena.": "No tienes acceso a esta escena.",
   "Você precisa estar logado para acessar este recurso.":
     "Debes iniciar sesión para acceder a este recurso.",
   "Você precisa estar logado.": "Debes iniciar sesión.",
+  "Você recebeu acesso a uma cena no visualizador v-dicom de %s.":
+    "Has recibido acceso a una escena en el visor v-dicom de %s.",
   de: "de",
   "error (até 4k):": "error (hasta 4k):",
   "output (até 8k):": "output (hasta 8k):",

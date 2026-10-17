@@ -96,7 +96,20 @@
     "linkLabel": "Scene link:",
     "showQr": "View QR code of this link",
     "qrTitle": "QR of the scene link",
-    "qrAria": "QR code of the scene link"
+    "qrAria": "QR code of the scene link",
+    "accessLabel": "Who can open this scene",
+    "access": {
+      "public": "Public link",
+      "publicHint": "Anyone with the link can open the scene.",
+      "private": "Private",
+      "privateHint": "Only you (owner) and administrators can open the scene.",
+      "restricted": "Restricted",
+      "restrictedHint": "Only authorized e-mails, each with its own private link."
+    },
+    "emailsLabel": "Authorized e-mails",
+    "emailsPlaceholder": "patient@example.com, clinic@example.com",
+    "emailsHint": "Separate by comma or space. Each e-mail gets a private link.",
+    "invitesLabel": "Private links per e-mail:"
   },
   "rail": {
     "tools": "Tools",
