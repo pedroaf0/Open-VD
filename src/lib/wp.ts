@@ -520,110 +520,17 @@ export async function deleteScene(key: string): Promise<{ ok: true }> {
   return ok<{ ok: true }>(res);
 }
 
-export async function createScene(title: string): Promise<{ key: string; id: number }> {
-  const cfg = wpConfig();
-  if (!cfg) throw new Error(i18n.t("lib.wp.saveScenesUnavailable"));
-  const res = await fetch(`${cfg.restUrl}/scenes`, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: headers(cfg, true),
-    body: JSON.stringify({ title }),
-  });
-  return ok<{ key: string; id: number }>(res);
-}
-
-/** Step 1 — open an upload session (a folder) before any file is sent. */
-export async function startUpload(): Promise<{ token: string }> {
-  const cfg = wpConfig();
-  if (!cfg) throw new Error(i18n.t("lib.wp.shareUnavailable"));
-  const res = await fetch(`${cfg.restUrl}/uploads`, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: headers(cfg, true),
-    body: "{}",
-  });
-  return ok<{ token: string }>(res);
-}
-
-/** Step 2 — send one file and get back its public link. */
-export async function uploadToSession(token: string, file: File): Promise<SceneFile> {
-  const cfg = wpConfig();
-  if (!cfg) throw new Error(i18n.t("lib.wp.uploadUnavailable"));
-  const form = new FormData();
-  form.append("file", file, file.name);
-  const res = await fetch(`${cfg.restUrl}/uploads/${encodeURIComponent(token)}/files`, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: headers(cfg),
-    body: form,
-  });
-  return ok<SceneFile>(res);
-}
-
 /**
- * Envia um arquivo para a sessão, dividindo em chunks se ele passar do limite
- * de upload do servidor. Cada chunk é enviado como um arquivo separado com
- * o nome `nome.NofMpart`; o servidor junta tudo quando o último chega.
+ * Create the scene record up front, before any file is uploaded. Creating it
+ * first guarantees that every uploaded file belongs to a real, deletable
+ * scene: if an upload fails or is interrupted, its files stay attached to a
+ * scene that can be removed instead of becoming orphaned on the server.
+ * Files are added afterwards with `uploadSceneFile` and the settings can be
+ * refreshed with `saveSceneSettings`.
  */
-export async function uploadToSessionSmart(token: string, file: File): Promise<SceneFile> {
-  const cfg = wpConfig();
-  if (!cfg) throw new Error(i18n.t("lib.wp.uploadUnavailable"));
-
-  const max = cfg.uploadLimit && cfg.uploadLimit > 0 ? cfg.uploadLimit : 0;
-  // Só divide se soubermos o limite E o arquivo passar dele (com margem de 1 MB).
-  if (!max || file.size <= max) {
-    return uploadToSession(token, file);
-  }
-
-  // Margem para o nome `.NofMpart` e overhead multipart.
-  const chunk = Math.max(1024 * 1024, max - 1024 * 1024);
-  const parts = Math.ceil(file.size / chunk);
-  const baseName = file.name;
-  const finalName = file.name;
-
-  let resolved: SceneFile | undefined;
-
-  for (let i = 1; i <= parts; i++) {
-    const start = (i - 1) * chunk;
-    const end = Math.min(file.size, i * chunk);
-    const blob = file.slice(start, end);
-    const partFile = new File([blob], `${baseName}.${i}of${parts}part`, {
-      type: "application/octet-stream",
-    });
-
-    const form = new FormData();
-    form.append("file", partFile, partFile.name);
-    const res = await fetch(`${cfg.restUrl}/uploads/${encodeURIComponent(token)}/files`, {
-      method: "POST",
-      credentials: "same-origin",
-      headers: headers(cfg),
-      body: form,
-    });
-    const data = await ok<SceneFile & { chunk?: boolean; finalName?: string }>(res);
-
-    if (i === parts || data.chunk !== true) {
-      resolved = {
-        name: data.finalName || finalName,
-        url: data.url,
-        kind: data.kind,
-        size: data.size ?? 0,
-      };
-    }
-  }
-
-  if (!resolved) {
-    throw new Error(i18n.t("lib.wp.splitUploadFailed"));
-  }
-  return resolved;
-}
-
-/** Step 3 — create the scene with every link, the settings and a custom name. */
-export async function createSceneWithFiles(params: {
-  token: string;
+export async function createScene(params: {
   title: string;
-  files: SceneFile[];
-  settings: SceneSettings;
-  annotations?: Annotation[];
+  settings?: SceneSettings;
 }): Promise<{ key: string; id: number }> {
   const cfg = wpConfig();
   if (!cfg) throw new Error(i18n.t("lib.wp.saveScenesUnavailable"));
@@ -631,7 +538,7 @@ export async function createSceneWithFiles(params: {
     method: "POST",
     credentials: "same-origin",
     headers: headers(cfg, true),
-    body: JSON.stringify(params),
+    body: JSON.stringify({ title: params.title, settings: params.settings ?? {} }),
   });
   return ok<{ key: string; id: number }>(res);
 }

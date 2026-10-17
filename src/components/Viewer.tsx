@@ -99,7 +99,7 @@ import { registerServiceWorker } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
 import {
   currentSceneKey,
-  createSceneWithFiles,
+  createScene,
   deleteScene,
   downloadSceneFiles,
   fetchRecentScenes,
@@ -112,13 +112,10 @@ import {
   runSegmentation,
   saveSceneSettings,
   shareUrl,
-  startUpload,
   uploadAnnotationPng,
   uploadSceneFile,
-  uploadToSessionSmart,
   wpConfig,
   useWpConfig,
-  type SceneFile,
   type SceneSettings,
   type SceneSummary,
   type UserPanel,
@@ -1414,9 +1411,12 @@ export function Viewer() {
   );
 
   /**
-   * Share flow: open an upload session, send every file one by one collecting
-   * its link, and finally create the scene with all links + settings + name.
-   * Files loaded via URL are excluded from upload - only the URL is stored.
+   * Share flow: create the scene record FIRST, then send the files into it.
+   * Creating the scene before any byte is uploaded guarantees that every file
+   * has an owner: if an upload fails or is interrupted, its files stay
+   * attached to a real scene that can be deleted, never orphaned on the
+   * server. Files loaded via URL are excluded from upload - only the URL is
+   * stored. When the scene already exists this only adds what is missing.
    */
   const publishScene = useCallback(async (): Promise<string | null> => {
     if (!cfg?.canUpload) return null;
@@ -1424,91 +1424,52 @@ export function Viewer() {
     setError(null);
     setBusy(true);
     try {
-      if (sceneKey) {
-        const pending = sourceFiles.current.filter((f) => !uploadedNames.current.has(f.name));
-        if (pending.length) {
-          setProgress({ done: 0, total: pending.length });
-          setStatus(t("viewer.status.uploadingCount", { count: pending.length }));
-          await runPool(
-            pending,
-            UPLOAD_CONCURRENCY,
-            async (f) => {
-              await withRetry(() => uploadSceneFile(sceneKey, toUploadFile(f)));
-              uploadedNames.current.add(f.name);
-            },
-            (d, total) => {
-              setProgress({ done: d, total });
-              setStatus(t("viewer.status.uploadingFiles", { done: d, total }));
-            },
-          );
+      const pending = sourceFiles.current.filter((f) => !uploadedNames.current.has(f.name));
+      let key = sceneKey;
+
+      // Step 1 — guarantee the scene exists before uploading anything.
+      if (!key) {
+        if (!pending.length && !sceneSourceUrl.current) {
+          throw new Error(t("viewer.errors.noFilesToShare"));
         }
-        setStatus(t("viewer.status.savingSettings"));
-        const annForSave = await ensureAnnotationPngs({ sceneKey }, annotations);
-        await saveSceneSettings(sceneKey, collectSettings(), title, annForSave);
-        setAnnotations(annForSave);
-        setShare(shareUrl(sceneKey));
-        setShareOpen(false);
-        void loadPanel();
-        return sceneKey;
+        setStatus(t("viewer.status.creatingScene"));
+        const created = await createScene({ title, settings: collectSettings() });
+        key = created.key;
+        setSceneKey(key);
       }
-      const filesToUpload = sourceFiles.current.filter((f) => !uploadedNames.current.has(f.name));
-      if (!filesToUpload.length && !sceneSourceUrl.current) {
-        throw new Error(t("viewer.errors.noFilesToShare"));
-      }
-      setStatus(t("viewer.status.preparingUpload"));
-      const { token } = await startUpload();
-      // If we have files to upload, upload them.
-      if (filesToUpload.length) {
-        setProgress({ done: 0, total: filesToUpload.length });
-        setStatus(t("viewer.status.uploadingFiles", { done: 0, total: filesToUpload.length }));
-        const links: SceneFile[] = await runPool(
-          filesToUpload,
+      const targetKey = key;
+
+      // Step 2 — send every file that isn't stored yet, straight into the scene.
+      if (pending.length) {
+        setProgress({ done: 0, total: pending.length });
+        setStatus(t("viewer.status.uploadingCount", { count: pending.length }));
+        await runPool(
+          pending,
           UPLOAD_CONCURRENCY,
           async (f) => {
-            const link = await withRetry(() => uploadToSessionSmart(token, toUploadFile(f)));
+            await withRetry(() => uploadSceneFile(targetKey, toUploadFile(f)));
             uploadedNames.current.add(f.name);
-            return link;
           },
           (d, total) => {
             setProgress({ done: d, total });
             setStatus(t("viewer.status.uploadingFiles", { done: d, total }));
           },
         );
-        setStatus(t("viewer.status.creatingScene"));
-        const annForSave = await ensureAnnotationPngs({ token }, annotations);
-        setAnnotations(annForSave);
-        const created = await createSceneWithFiles({
-          token,
-          title,
-          files: links,
-          settings: collectSettings(),
-          annotations: annForSave,
-        });
-        const k1 = created.key;
-        setSceneKey(k1);
-        setShare(shareUrl(k1));
-        setShareOpen(false);
-        void loadPanel();
-        return k1;
-      } else {
-        setStatus(t("viewer.status.creatingScene"));
-        const annForSave = await ensureAnnotationPngs({ token }, annotations);
-        setAnnotations(annForSave);
-        const created = await createSceneWithFiles({
-          token,
-          title,
-          files: [],
-          settings: collectSettings(),
-          annotations: annForSave,
-        });
-        const k2 = created.key;
-        setSceneKey(k2);
-        setShare(shareUrl(k2));
-        setShareOpen(false);
-        void loadPanel();
-        return k2;
       }
+
+      // Step 3 — store the annotation PNGs and the final settings/link.
+      setStatus(t("viewer.status.savingSettings"));
+      const annForSave = await ensureAnnotationPngs({ sceneKey: targetKey }, annotations);
+      await saveSceneSettings(targetKey, collectSettings(), title, annForSave);
+      setAnnotations(annForSave);
+      setShare(shareUrl(targetKey));
+      setShareOpen(false);
+      void loadPanel();
+      return targetKey;
     } catch (e) {
+      // The scene may have been created before the failure; refresh the list
+      // so it can be deleted (and its files cleaned up) instead of leaking.
+      void loadPanel();
       setError(e instanceof Error ? e.message : t("viewer.errors.shareFailed"));
       return null;
     } finally {

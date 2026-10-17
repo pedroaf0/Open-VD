@@ -147,8 +147,9 @@ do host) como `window.V_DICOM = { e:1, iv, d }`; o front descriptografa
    interpolação trilinear) → `ImageData`.
 5. **Render 3D**: `Volume3D.tsx` (Three.js) com textura de volume + meshes + planos.
 6. **Anotações**: sobre `SliceView`, salvas como metadados + PNG na cena.
-7. **Compartilhar**: upload para o WordPress (`createSceneWithFiles`) e link
-   `/v-dicom/KEY/`.
+7. **Compartilhar**: cria a cena no WordPress (`createScene`) **antes** dos
+   uploads e envia os arquivos direto para ela (`uploadSceneFile` + link
+   `/v-dicom/KEY/`).
 
 ### 4.4 MPR oblíquo — modelo mental (importante)
 
@@ -191,11 +192,17 @@ Definido em `src/lib/mpr.ts`:
 - `wpConfig()` / `wpConfigAsync()` / `useWpConfig()` — lê e **descriptografa** a config.
 - `currentSceneKey()` — chave via `?scene=` ou `/base/KEY/`.
 - `shareUrl(key)` — monta link (`shareTemplate` com `ZZKEYZZ` ou `?scene=`).
-- Cenas: `fetchScene`, `createScene`, `createSceneWithFiles`, `deleteScene`,
-  `saveSceneSettings`, `downloadSceneFiles`, `fetchUserPanel`, `fetchRecentScenes`,
-  `markSceneAccessed`.
-- Upload: `startUpload`, `uploadToSession(Smart)`, `uploadSceneFile` — com
-  **chunks** (`nome.NofMpart`) quando passa do `uploadLimit` do PHP.
+- Cenas: `fetchScene`, `createScene`, `deleteScene`, `saveSceneSettings`,
+  `downloadSceneFiles`, `fetchUserPanel`, `fetchRecentScenes`, `markSceneAccessed`.
+- Upload: `uploadSceneFile` (com **chunks** `nome.NofMpart` quando passa do
+  `uploadLimit` do PHP) — envia para uma cena **já existente**.
+  - **Ordem de compartilhamento (importante)**: `publishScene` cria a cena
+    primeiro (`createScene({ title, settings })`) e só depois sobe arquivos,
+    PNGs de anotação e por fim `saveSceneSettings`. Assim todo arquivo enviado
+    pertence a uma cena real e excluível; se um upload falhar/interromper, os
+    arquivos ficam presos a uma cena que pode ser apagada — nunca órfãos no
+    servidor (o endpoint de sessão `/uploads` do PHP permanece só para API
+    externa via `apikey`).
 - Segmentação: `runSegmentation`, `fetchSegmentationStatus`.
 - URL externa: `fetchUrlFiles` (proxy + autorização), `authorizeUrl` (2 passos
   dry-run→confirma→consome crédito), `AuthorizeUrlError`.
@@ -313,6 +320,14 @@ Sub-componentes no mesmo arquivo: `QuizLoadingPanel`, `useBreakpoint`,
 | POST | `/authorized-url` | logado | Autoriza URL externa (consome 1 crédito) |
 
 - `DEBUG_RUNPOD = false`; `api_key_is_valid()` libera rotas de admin com apikey.
+- **Compartilhar (ordem)**: `POST /scenes` **sem** `token` cria a cena vazia com
+  `title` + `settings`; os arquivos entram por `/scenes/<key>/files` (o
+  `store_file` anexa o descritor a `_v_dicom_files`), os PNGs por
+  `/scenes/<key>/annotations` e por fim `/scenes/<key>/settings`. O par
+  `/uploads` + `POST /scenes` **com** `token` (sessão que vira cena) fica mantido
+  para a **API externa via apikey**.
+- `upload_scene_annotation()` (`/scenes/<key>/annotations`) espelha
+  `upload_session_annotation()` e usa `scene_for_write()` + `store_annotation_png()`.
 - Segmentação: valida dono + crédito, envia `POST {url}/run` ao RunPod com
   `download-url`, `upload-url`, `max-voxels`, `max-triangles`; guarda `job_id`;
   reembolsa crédito em falha; notifica conclusão.

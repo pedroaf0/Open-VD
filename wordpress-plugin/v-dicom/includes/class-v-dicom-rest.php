@@ -980,6 +980,23 @@ $settings = V_Dicom_Storage::sanitize_settings( $request->get_param( 'settings' 
 		return rest_ensure_response( $stored );
 	}
 
+	/** Upload one annotation PNG into an existing scene folder and return its URL. */
+	public function upload_scene_annotation( WP_REST_Request $request ) {
+		$post = $this->scene_for_write( $request['key'] );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+		$files = $request->get_file_params();
+		if ( empty( $files['file'] ) ) {
+			return new WP_Error( 'v_dicom_upload', __( 'Nenhum arquivo recebido.', 'v-dicom' ), array( 'status' => 400 ) );
+		}
+		$stored = V_Dicom_Storage::store_annotation_png( $request['key'], $files['file'] );
+		if ( is_wp_error( $stored ) ) {
+			return $stored;
+		}
+		return rest_ensure_response( $stored );
+	}
+
 	public function save_settings( WP_REST_Request $request ) {
 		$post = $this->scene_for_write( $request['key'] );
 		if ( is_wp_error( $post ) ) {
