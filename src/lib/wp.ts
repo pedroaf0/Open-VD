@@ -83,6 +83,8 @@ export type SceneSettings = {
     "axial" | "coronal" | "sagittal",
     { origin: number[]; u: number[]; v: number[]; n: number[] }
   >;
+  /** correcao manual da orientacao do volume (espelhamento por eixo) */
+  flip?: { x: boolean; y: boolean; z: boolean };
   threshold: number;
   opacity: number;
   showVolume: boolean;

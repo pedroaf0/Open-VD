@@ -1233,6 +1233,13 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 		if ( isset( $raw['invert'] ) ) {
 			$out['invert'] = (bool) $raw['invert'];
 		}
+		if ( isset( $raw['flip'] ) && is_array( $raw['flip'] ) ) {
+			$out['flip'] = array(
+				'x' => ! empty( $raw['flip']['x'] ),
+				'y' => ! empty( $raw['flip']['y'] ),
+				'z' => ! empty( $raw['flip']['z'] ),
+			);
+		}
 		if ( isset( $raw['threshold'] ) ) {
 			$out['threshold'] = max( 0, min( 1, (float) $raw['threshold'] ) );
 		}

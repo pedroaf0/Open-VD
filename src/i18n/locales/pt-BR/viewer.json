@@ -145,6 +145,17 @@
   "mpr": {
     "resetOblique": "Zerar MPR oblíquo"
   },
+  "orientation": {
+    "title": "Orientação do volume",
+    "hint": "Se o exame abrir invertido, espelhe o volume no eixo necessário.",
+    "leftRight": "Esq./Dir.",
+    "leftRightHint": "Espelhar esquerda/direita (eixo X)",
+    "antPost": "Ant./Post.",
+    "antPostHint": "Espelhar frente/trás (eixo Y)",
+    "supInf": "Sup./Inf.",
+    "supInfHint": "Espelhar cima/baixo — corrige o exame de cabeça para baixo (eixo Z)",
+    "reset": "Restaurar orientação"
+  },
   "panel": {
     "aria": "Parâmetros",
     "studyTitle": "Estudo",

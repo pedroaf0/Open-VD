@@ -145,6 +145,17 @@
   "mpr": {
     "resetOblique": "Reset oblique MPR"
   },
+  "orientation": {
+    "title": "Volume orientation",
+    "hint": "If the exam opens inverted, mirror the volume on the needed axis.",
+    "leftRight": "L/R",
+    "leftRightHint": "Mirror left/right (X axis)",
+    "antPost": "A/P",
+    "antPostHint": "Mirror front/back (Y axis)",
+    "supInf": "S/I",
+    "supInfHint": "Mirror top/bottom — fixes an upside-down exam (Z axis)",
+    "reset": "Restore orientation"
+  },
   "panel": {
     "aria": "Parameters",
     "studyTitle": "Study",

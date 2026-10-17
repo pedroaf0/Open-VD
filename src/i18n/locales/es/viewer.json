@@ -145,6 +145,17 @@
   "mpr": {
     "resetOblique": "Restablecer MPR oblicuo"
   },
+  "orientation": {
+    "title": "Orientación del volumen",
+    "hint": "Si el examen se abre invertido, espeja el volumen en el eje necesario.",
+    "leftRight": "Izq./Der.",
+    "leftRightHint": "Espejar izquierda/derecha (eje X)",
+    "antPost": "Ant./Post.",
+    "antPostHint": "Espejar delante/detrás (eje Y)",
+    "supInf": "Sup./Inf.",
+    "supInfHint": "Espejar arriba/abajo — corrige el examen boca abajo (eje Z)",
+    "reset": "Restaurar orientación"
+  },
   "panel": {
     "aria": "Parámetros",
     "studyTitle": "Estudio",

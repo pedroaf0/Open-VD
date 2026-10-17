@@ -173,6 +173,11 @@ Definido em `src/lib/mpr.ts`:
 - `buildVolumeFromFiles(files, onProgress)` — núcleo do parse/decodificação.
 - `groupFilesBySeries(files, onProgress)` → `DicomSeriesGroup[]`.
 - `renderSlice(v, plane, index, center, width, invert)` → `ImageData` (ortogonal).
+- `flipVolumeInPlace(v, axis)` + `VOLUME_AXES` / `type VolumeAxis` — correção
+  manual de orientação: espelha os voxels do volume **in place** num eixo
+  (`x`/`y`/`z`) quando o exame abre invertido (de cabeça para baixo / espelhado).
+  Como os cortes MPR e o 3D derivam sempre do mesmo array, corrige os dois; aplicar
+  o mesmo eixo duas vezes restaura o volume.
 - `sliceCount`, `sliceDims`, `makeTextureVolume` (downsample p/ 3D).
 - Transfer Syntaxes suportados: nativo, JPEG baseline/lossless, JPEG-LS, JPEG2000, RLE.
 - Cuidado com `MONOCHROME1` (inverte), `signed`, `rescale slope/intercept`.
@@ -197,6 +202,7 @@ Definido em `src/lib/mpr.ts`:
 - Anotações: `uploadAnnotationPng`.
 - Tipos: `WpConfig`, `Scene`, `SceneFile`, `SceneSettings`, `SceneSummary`,
   `UserPanel`, `StorageInfo`, `StoragePlan`, `SegmentationType`.
+  - `SceneSettings` inclui `flip?: {x,y,z}` (correção de orientação do volume).
 - **iOS**: downloads são acumulados como `{name, data}` em memória e expandidos,
   evitando `File.arrayBuffer()` gigante (falha NotReadableError no WebKit).
 
@@ -227,6 +233,9 @@ Parser ZIP em streaming (EOCD → Central Directory → entradas), ZIP64, com
 Concentra quase toda a lógica de UI (~3.5k linhas). Responsabilidades:
 - Estado do volume/meshes, **window/level** (`wc`,`ww`), `invert`, `threshold`,
   `opacity`, `showVolume`, `showPlanes`.
+- **Correção de orientação** (`volumeFlip` + `toggleFlip`/`resetFlip`): espelha o
+  volume em X/Y/Z via `flipVolumeInPlace` (exame de cabeça para baixo); persistido
+  em `settings.flip` e reaplicado ao carregar cena compartilhada.
 - `planeStates` (os 3 planos MPR) e cursor/crosshair 3D.
 - Abrir arquivos: drag-drop, `loadDicom`, `openByUrl`.
 - Carregar cena compartilhada (`?scene=`) com progresso e painel/quiz de espera.

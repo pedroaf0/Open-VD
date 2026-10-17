@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ArrowUpDown,
   Box,
   Boxes,
   ChevronDown,
@@ -9,6 +10,8 @@ import {
   EyeOff,
   FileDown,
   FileUp,
+  FlipHorizontal2,
+  FlipVertical2,
   FolderOpen,
   FolderUp,
   Layers,
@@ -52,10 +55,13 @@ import {
 import { Input } from "@/components/ui/input";
 import {
   buildVolumeFromFiles,
+  flipVolumeInPlace,
   groupFilesBySeries,
+  VOLUME_AXES,
   type DicomSeriesGroup,
   type Plane,
   type Volume,
+  type VolumeAxis,
 } from "@/lib/dicom";
 import { expandArchives, isZipBuffer, type ExpandInput } from "@/lib/zip";
 import { MultiSeriesModal } from "@/components/MultiSeriesModal";
@@ -182,6 +188,23 @@ const serializePlane = (p: PlaneState) => ({
   u: [...p.u],
   v: [...p.v],
   n: [...p.n],
+});
+
+/**
+ * Correção manual da orientação do volume: quais eixos estão espelhados.
+ * Exames CBCT sem tags de orientação confiáveis podem abrir invertidos
+ * (de cabeça para baixo / espelhados); estes flags são aplicados aos dados do
+ * volume ao carregar e ficam salvos nas configurações da cena compartilhada.
+ */
+type FlipFlags = { x: boolean; y: boolean; z: boolean };
+
+const ZERO_FLIP: FlipFlags = { x: false, y: false, z: false };
+
+/** Normaliza flags vindos das configurações da cena (podem faltar/inválidos). */
+const normalizeFlip = (f: FlipFlags | null | undefined): FlipFlags => ({
+  x: f?.x === true,
+  y: f?.y === true,
+  z: f?.z === true,
 });
 
 const FORCED_MESH_COLORS: Record<string, string> = {
@@ -382,6 +405,13 @@ function toUploadFile(input: ExpandInput): File {
 export function Viewer() {
   const { t } = useTranslation();
   const [volume, setVolume] = useState<Volume | null>(null);
+  /** referência do volume atual, usada pelos controles de orientação */
+  const volumeRef = useRef<Volume | null>(null);
+  volumeRef.current = volume;
+  /** eixos espelhados para corrigir a orientação do volume (ver FlipFlags) */
+  const [volumeFlip, setVolumeFlip] = useState<FlipFlags>(ZERO_FLIP);
+  const volumeFlipRef = useRef(volumeFlip);
+  volumeFlipRef.current = volumeFlip;
   const [meshes, setMeshes] = useState<MeshFile[]>([]);
   const meshVolumeCacheRef = useRef<Map<string, string | null>>(new Map());
   const meshVolumes = useMemo(() => {
@@ -620,7 +650,10 @@ export function Viewer() {
   }, []);
 
   const loadDicom = useCallback(
-    async (fileList: FileList | ExpandInput[] | null, opts?: { trackForUpload?: boolean }) => {
+    async (
+      fileList: FileList | ExpandInput[] | null,
+      opts?: { trackForUpload?: boolean; flip?: FlipFlags | null },
+    ) => {
       if (!fileList || !fileList.length) return;
       setError(null);
       setStatus(t("viewer.status.readingFiles"));
@@ -679,6 +712,12 @@ export function Viewer() {
         }
 
         if (v) {
+          // Correção de orientação: aplica os espelhamentos salvos na cena (ou
+          // nenhum, ao abrir um estudo novo) diretamente nos dados do volume.
+          const flags = normalizeFlip(opts?.flip);
+          volumeFlipRef.current = flags;
+          setVolumeFlip(flags);
+          for (const axis of VOLUME_AXES) if (flags[axis]) flipVolumeInPlace(v, axis);
           setVolume(v);
           setWc(v.windowCenter);
           setWw(v.windowWidth);
@@ -893,7 +932,7 @@ export function Viewer() {
             ...serverFiles,
             ...urlFiles.filter((f) => !serverFiles.some((sf) => sf.name === f.name)),
           ];
-          await loadDicom(allFiles, { trackForUpload: false });
+          await loadDicom(allFiles, { trackForUpload: false, flip: settings.flip ?? null });
         } else {
           // Caso contrário, baixa os arquivos do servidor como antes.
           const files = await downloadSceneFiles(scene, (p) => {
@@ -907,7 +946,7 @@ export function Viewer() {
             setStatus(`${p.label} ${p.done}/${p.total}`);
           });
           scene.files.forEach((f) => uploadedNames.current.add(f.name));
-          await loadDicom(files, { trackForUpload: false });
+          await loadDicom(files, { trackForUpload: false, flip: settings.flip ?? null });
         }
         applySettings(scene.settings);
         setAnnotations(scene.annotations ?? []);
@@ -942,6 +981,7 @@ export function Viewer() {
         coronal: serializePlane(planeStates.coronal),
         sagittal: serializePlane(planeStates.sagittal),
       },
+      flip: { ...volumeFlip },
       threshold,
       opacity,
       showVolume,
@@ -955,7 +995,19 @@ export function Viewer() {
       })),
       ...(sceneSourceUrl.current ? { urls: [sceneSourceUrl.current] } : { urls: [] }),
     }),
-    [wc, ww, invert, cross, planeStates, threshold, opacity, showVolume, showPlanes, meshes],
+    [
+      wc,
+      ww,
+      invert,
+      cross,
+      planeStates,
+      volumeFlip,
+      threshold,
+      opacity,
+      showVolume,
+      showPlanes,
+      meshes,
+    ],
   );
 
   const loadPanel = useCallback(async () => {
@@ -1485,6 +1537,34 @@ export function Viewer() {
     if (volume) setPlaneStates(defaultPlaneStates(volume));
   }, [volume]);
 
+  /**
+   * Espelha os voxels do volume em um eixo para corrigir a orientação do exame
+   * (ex.: exame abrindo de cabeça para baixo). Alterna o eixo: aplicar de novo
+   * no mesmo eixo restaura o volume. Não altera as dimensões/espaçamentos, logo
+   * os planos MPR e o cursor 3D continuam válidos.
+   */
+  const toggleFlip = useCallback((axis: VolumeAxis) => {
+    const v = volumeRef.current;
+    if (!v) return;
+    const next: FlipFlags = { ...volumeFlipRef.current, [axis]: !volumeFlipRef.current[axis] };
+    volumeFlipRef.current = next;
+    setVolumeFlip(next);
+    flipVolumeInPlace(v, axis);
+    setVolume({ ...v });
+  }, []);
+
+  /** Desfaz todos os espelhamentos, restaurando a orientação original. */
+  const resetFlip = useCallback(() => {
+    const v = volumeRef.current;
+    const flags = volumeFlipRef.current;
+    if (v && (flags.x || flags.y || flags.z)) {
+      for (const axis of VOLUME_AXES) if (flags[axis]) flipVolumeInPlace(v, axis);
+      setVolume({ ...v });
+    }
+    volumeFlipRef.current = ZERO_FLIP;
+    setVolumeFlip(ZERO_FLIP);
+  }, []);
+
   /** Restaura todos os parâmetros de visualização aos padrões. */
   const handleResetAll = useCallback(() => {
     setInvert(false);
@@ -1497,7 +1577,8 @@ export function Viewer() {
       setWw(volume.windowWidth);
     }
     resetAllPlanes();
-  }, [volume, resetAllPlanes]);
+    resetFlip();
+  }, [volume, resetAllPlanes, resetFlip]);
 
   const canUpload = !cfg || cfg.canUpload;
   const hasData = !!volume || meshes.length > 0;
@@ -2628,6 +2709,16 @@ export function Viewer() {
                       )}
 
                       {volume && (
+                        <Section title={t("viewer.orientation.title")}>
+                          <FlipControls
+                            flags={volumeFlip}
+                            onToggle={toggleFlip}
+                            onReset={resetFlip}
+                          />
+                        </Section>
+                      )}
+
+                      {volume && (
                         <Section title={t("viewer.panel.reconstructionTitle")}>
                           <Range
                             label={`${t("viewer.panel.density")} ${(threshold * 100).toFixed(0)}%`}
@@ -3030,6 +3121,8 @@ export function Viewer() {
                     <RotateCcw className="h-3.5 w-3.5" />
                     {t("viewer.mpr.resetOblique")}
                   </button>
+                  <p className="group-title">{t("viewer.orientation.title")}</p>
+                  <FlipControls flags={volumeFlip} onToggle={toggleFlip} onReset={resetFlip} />
                   <div className="space-y-1 text-[10px] leading-relaxed text-muted-foreground">
                     <p>{t("viewer.mobile.slicesHint1")}</p>
                     <p>{t("viewer.mobile.slicesHint2")}</p>
@@ -3664,6 +3757,64 @@ export function Viewer() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** Controles de correção da orientação do volume (espelhamento por eixo). */
+function FlipControls({
+  flags,
+  onToggle,
+  onReset,
+}: {
+  flags: FlipFlags;
+  onToggle: (axis: VolumeAxis) => void;
+  onReset: () => void;
+}) {
+  const { t } = useTranslation();
+  const items: Array<{ axis: VolumeAxis; icon: LucideIcon; labelKey: string; hintKey: string }> = [
+    {
+      axis: "x",
+      icon: FlipHorizontal2,
+      labelKey: "viewer.orientation.leftRight",
+      hintKey: "viewer.orientation.leftRightHint",
+    },
+    {
+      axis: "y",
+      icon: FlipVertical2,
+      labelKey: "viewer.orientation.antPost",
+      hintKey: "viewer.orientation.antPostHint",
+    },
+    {
+      axis: "z",
+      icon: ArrowUpDown,
+      labelKey: "viewer.orientation.supInf",
+      hintKey: "viewer.orientation.supInfHint",
+    },
+  ];
+  return (
+    <>
+      <p className="text-[10px] leading-relaxed text-muted-foreground">
+        {t("viewer.orientation.hint")}
+      </p>
+      <div className="grid grid-cols-3 gap-1">
+        {items.map((item) => (
+          <button
+            key={item.axis}
+            className={cn("btn-chip", flags[item.axis] && "border-primary text-foreground")}
+            onClick={() => onToggle(item.axis)}
+            aria-pressed={flags[item.axis]}
+            title={t(item.hintKey)}
+          >
+            <item.icon className="h-3.5 w-3.5" />
+            {t(item.labelKey)}
+          </button>
+        ))}
+      </div>
+      <button className="btn-chip w-full" onClick={onReset}>
+        <RotateCcw className="h-3.5 w-3.5" />
+        {t("viewer.orientation.reset")}
+      </button>
+    </>
   );
 }
 

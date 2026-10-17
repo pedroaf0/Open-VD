@@ -831,6 +831,70 @@ export function renderSlice(
   return img;
 }
 
+/** Eixo do volume usado na correção manual de orientação. */
+export type VolumeAxis = "x" | "y" | "z";
+
+/** Todos os eixos, na ordem usada pelos controles de correção. */
+export const VOLUME_AXES: VolumeAxis[] = ["x", "y", "z"];
+
+/**
+ * Corrige a orientação do volume espelhando os voxels ao longo de um eixo,
+ * **in place** (sem alocar um novo array — volumes CBCT podem passar de 100 MB).
+ *
+ * Usado quando o exame abre invertido (de cabeça para baixo, espelhado
+ * esquerda/direita ou com a profundidade trocada) por falta de tags de
+ * orientação confiáveis (ImageOrientationPatient / ImagePositionPatient).
+ *
+ * O volume é fixo e tanto os cortes 2D (MPR) quanto a reconstrução 3D são
+ * derivados deste array, então espelhar os dados corrige os dois de uma vez.
+ * Aplicar o mesmo eixo duas vezes restaura o volume original.
+ */
+export function flipVolumeInPlace(v: Volume, axis: VolumeAxis): void {
+  const d = v.data;
+  const { nx, ny, nz } = v;
+  const nxy = nx * ny;
+  if (axis === "x") {
+    const half = nx >> 1;
+    for (let z = 0; z < nz; z++) {
+      for (let y = 0; y < ny; y++) {
+        const base = z * nxy + y * nx;
+        for (let x = 0; x < half; x++) {
+          const a = base + x;
+          const b = base + (nx - 1 - x);
+          const tmp = d[a]!;
+          d[a] = d[b]!;
+          d[b] = tmp;
+        }
+      }
+    }
+  } else if (axis === "y") {
+    const half = ny >> 1;
+    for (let z = 0; z < nz; z++) {
+      const zBase = z * nxy;
+      for (let y = 0; y < half; y++) {
+        const aBase = zBase + y * nx;
+        const bBase = zBase + (ny - 1 - y) * nx;
+        for (let x = 0; x < nx; x++) {
+          const tmp = d[aBase + x]!;
+          d[aBase + x] = d[bBase + x]!;
+          d[bBase + x] = tmp;
+        }
+      }
+    }
+  } else {
+    const half = nz >> 1;
+    for (let z = 0; z < half; z++) {
+      const aBase = z * nxy;
+      const bBase = (nz - 1 - z) * nxy;
+      for (let i = 0; i < nxy; i++) {
+        const tmp = d[aBase + i]!;
+        d[aBase + i] = d[bBase + i]!;
+        d[bBase + i] = tmp;
+      }
+    }
+  }
+}
+
 export function makeTextureVolume(v: Volume, maxDim = 192) {
   const step = Math.max(1, Math.ceil(Math.max(v.nx, v.ny, v.nz) / maxDim));
   const tx = Math.max(2, Math.floor(v.nx / step));
