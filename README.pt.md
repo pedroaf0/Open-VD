@@ -94,7 +94,7 @@ responsável escolhe o nível de acesso:
 | --- | --- |
 | **Privado** (padrão) | Somente o responsável (e administradores) |
 | **Link público** | Qualquer pessoa que possua o link |
-| **Restrito** | Apenas os e-mails autorizados, cada um com seu próprio link privado |
+| **Restrito** | Apenas os e-mails autorizados |
 
 No acesso **restrito**, cada destinatário recebe por **e-mail** um link privado,
 mesmo sem possuir conta. O link público tem o formato

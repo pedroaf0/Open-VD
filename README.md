@@ -93,7 +93,7 @@ chooses the access level:
 | --- | --- |
 | **Private** (default) | Only the owner (and administrators) |
 | **Public link** | Anyone who has the link |
-| **Restricted** | Only the authorized emails, each with their own private link |
+| **Restricted** | Only the authorized emails |
 
 For **restricted** access, each recipient receives a private link by **email**,
 even without having an account. The public link has the format

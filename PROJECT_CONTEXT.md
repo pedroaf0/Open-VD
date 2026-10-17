@@ -431,7 +431,7 @@ npm run format         # prettier --write .
 
 - Processamento de imagem é **local no browser**; não há upload a menos que se
   "salve e compartilhe".
-- Compartilhamento com nível de acesso: **link público** (default), **privado** (dono/admins) e **restrito** (e-mails autorizados, cada um recebe um link privado por e-mail). Implementado no backend (`class-v-dicom-rest.php` `GET /scenes/<key>` com `can_access_scene`; rota `GET /scenes/<key>/file`; `POST /scenes/<key>/share`) e no modal do visor (`Viewer.tsx`). Arquivos de cenas não públicas passam por um endpoint verificável; a pasta recebe `.htaccess` bloqueando acesso direto (best-effort).
+- Cenas são **privadas por padrão**; link público/restrito é escolha explícita.
 - Pasta de uploads bloqueia **execução de PHP** e **listagem de diretório**.
 - `window.V_DICOM` é **criptografado** (AES-256-CBC; chave derivada do host);
   apenas o locale vai em claro.

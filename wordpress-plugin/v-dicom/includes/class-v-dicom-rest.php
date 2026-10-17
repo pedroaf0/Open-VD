@@ -97,7 +97,7 @@ class V_Dicom_REST {
 				array(
 					'methods'             => 'GET',
 					'callback'            => array( $this, 'get_scene' ),
-					'permission_callback' => array( $this, 'can_access_scene' ),
+					'permission_callback' => '__return_true',
 				),
 				array(
 					'methods'             => 'DELETE',
@@ -114,33 +114,6 @@ class V_Dicom_REST {
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'upload_file' ),
 				'permission_callback' => array( $this, 'can_upload' ),
-			)
-		);
-
-		register_rest_route(
-			self::NS,
-			'/scenes/(?P<key>[a-z0-9]+)/file',
-			array(
-				'methods'             => 'GET',
-				'callback'            => array( $this, 'get_scene_file' ),
-				'permission_callback' => array( $this, 'can_access_scene' ),
-			)
-		);
-
-		register_rest_route(
-			self::NS,
-			'/scenes/(?P<key>[a-z0-9]+)/share',
-			array(
-				array(
-					'methods'             => 'GET',
-					'callback'            => array( $this, 'get_share' ),
-					'permission_callback' => array( $this, 'can_upload' ),
-				),
-				array(
-					'methods'             => 'POST',
-					'callback'            => array( $this, 'save_share' ),
-					'permission_callback' => array( $this, 'can_upload' ),
-				),
 			)
 		);
 
@@ -272,19 +245,6 @@ class V_Dicom_REST {
 			);
 		}
 		return true;
-	}
-
-	/**
-	 * Access check for reading a scene and its files: the owner/editor, an admin
-	 * API key, any public scene, and for restricted scenes a valid invite token
-	 * (`?t=`) or a logged-in authorized e-mail.
-	 */
-	public function can_access_scene( WP_REST_Request $request ) {
-		if ( $this->api_key_is_valid( $request ) ) {
-			return true;
-		}
-		$post = V_Dicom_Storage::find_scene( $request['key'] );
-		return V_Dicom_Storage::check_scene_view_access( $post, (string) $request->get_param( 't' ) );
 	}
 
 	/** Execute automatic segmentation using external RunPod service */
@@ -947,143 +907,7 @@ $settings = V_Dicom_Storage::sanitize_settings( $request->get_param( 'settings' 
 		if ( ! $post ) {
 			return new WP_Error( 'v_dicom_not_found', __( 'Cena não encontrada.', 'v-dicom' ), array( 'status' => 404 ) );
 		}
-		return rest_ensure_response( V_Dicom_Storage::scene_payload( $post, (string) $request->get_param( 't' ) ) );
-	}
-
-	/** Stream one scene file, enforcing the scene's access level. */
-	public function get_scene_file( WP_REST_Request $request ) {
-		$key  = V_Dicom_Storage::sanitize_key( $request['key'] );
-		$name = wp_basename( (string) $request->get_param( 'name' ) );
-		if ( '' === $key || '' === $name || '.' === $name || '..' === $name ) {
-			return new WP_Error( 'v_dicom_not_found', __( 'Arquivo não encontrado.', 'v-dicom' ), array( 'status' => 404 ) );
-		}
-
-		$dir  = V_Dicom_Storage::base_dir() . '/' . $key;
-		$base = realpath( $dir );
-		$real = realpath( $dir . '/' . $name );
-		if ( ! $base || ! $real || 0 !== strpos( $real, $base . DIRECTORY_SEPARATOR ) || ! is_file( $real ) ) {
-			return new WP_Error( 'v_dicom_not_found', __( 'Arquivo não encontrado.', 'v-dicom' ), array( 'status' => 404 ) );
-		}
-
-		$type = wp_check_filetype( $name );
-		$mime = ! empty( $type['type'] ) ? $type['type'] : 'application/octet-stream';
-
-		nocache_headers();
-		header( 'Content-Type: ' . $mime );
-		header( 'Content-Length: ' . (int) filesize( $real ) );
-		header( 'Content-Disposition: inline; filename="' . rawurlencode( $name ) . '"' );
-		while ( ob_get_level() > 0 ) {
-			ob_end_clean();
-		}
-		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_readfile -- streams a scene file to the browser
-		readfile( $real );
-		exit;
-	}
-
-	/** Current sharing settings of a scene (owner/editor only). */
-	public function get_share( WP_REST_Request $request ) {
-		$post = $this->scene_for_write( $request['key'] );
-		if ( is_wp_error( $post ) ) {
-			return $post;
-		}
-		return rest_ensure_response( $this->share_response( $post ) );
-	}
-
-	/** Update access level / authorized e-mails and, optionally, e-mail the invites. */
-	public function save_share( WP_REST_Request $request ) {
-		$post = $this->scene_for_write( $request['key'] );
-		if ( is_wp_error( $post ) ) {
-			return $post;
-		}
-
-		$access = (string) $request->get_param( 'access' );
-		if ( ! in_array( $access, V_Dicom_Storage::access_levels(), true ) ) {
-			$access = V_Dicom_Storage::ACCESS_PUBLIC;
-		}
-		V_Dicom_Storage::set_access( $post, $access );
-
-		if ( V_Dicom_Storage::ACCESS_RESTRICTED === $access ) {
-			V_Dicom_Storage::set_authorized_emails( $post, V_Dicom_Storage::sanitize_emails( $request->get_param( 'emails' ) ) );
-		}
-
-		$sent = array();
-		if ( $request->get_param( 'notify' ) && V_Dicom_Storage::ACCESS_RESTRICTED === $access ) {
-			foreach ( V_Dicom_Storage::get_authorized_emails( $post ) as $email ) {
-				if ( $this->send_scene_invite( $post, $email ) ) {
-					$sent[] = $email;
-				}
-			}
-		}
-
-		$out         = $this->share_response( $post );
-		$out['sent'] = $sent;
-		return rest_ensure_response( $out );
-	}
-
-	/** Sharing payload: access level + authorized e-mails with their invite links. */
-	private function share_response( $post ) {
-		$invites = V_Dicom_Storage::get_invites( $post );
-		$list    = array();
-		foreach ( V_Dicom_Storage::get_authorized_emails( $post ) as $email ) {
-			$list[] = array(
-				'email'  => $email,
-				'url'    => V_Dicom_Storage::invite_url( $post, $email ),
-				'sentAt' => isset( $invites[ $email ]['sent'] ) ? (int) $invites[ $email ]['sent'] : 0,
-			);
-		}
-		return array(
-			'access'  => V_Dicom_Storage::get_access( $post ),
-			'emails'  => V_Dicom_Storage::get_authorized_emails( $post ),
-			'invites' => $list,
-			'url'     => V_Dicom_Page::url( (string) get_post_meta( $post->ID, V_Dicom_Storage::META_KEY, true ) ),
-		);
-	}
-
-	/** E-mail the private link of a restricted scene to one authorized address. */
-	private function send_scene_invite( $post, $email ) {
-		$email = strtolower( trim( (string) $email ) );
-		if ( ! is_email( $email ) ) {
-			return false;
-		}
-		$url = V_Dicom_Storage::invite_url( $post, $email );
-		if ( '' === $url ) {
-			return false;
-		}
-		$title = get_the_title( $post );
-		$site  = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
-
-		$subject = sprintf(
-			/* translators: 1: scene title, 2: site name. */
-			__( 'Acesso à cena "%1$s" — %2$s', 'v-dicom' ),
-			$title,
-			$site
-		);
-		$body    = implode(
-			"\n",
-			array(
-				sprintf(
-					/* translators: %s: site name. */
-					__( 'Você recebeu acesso a uma cena no visualizador v-dicom de %s.', 'v-dicom' ),
-					$site
-				),
-				'',
-				sprintf(
-					/* translators: %s: scene title. */
-					__( 'Cena: %s', 'v-dicom' ),
-					$title
-				),
-				'',
-				__( 'Abra pelo link privado abaixo:', 'v-dicom' ),
-				$url,
-			)
-		);
-		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
-
-		$sent = wp_mail( $email, $subject, $body, $headers );
-		if ( $sent ) {
-			V_Dicom_Storage::mark_invite_sent( $post, $email );
-		}
-		return (bool) $sent;
+		return rest_ensure_response( V_Dicom_Storage::scene_payload( $post ) );
 	}
 
 	/**

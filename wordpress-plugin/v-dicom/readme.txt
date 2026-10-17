@@ -4,7 +4,7 @@ Tags: dicom, cbct, stl, viewer, radiology
 Requires at least: 5.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.74.0
+Stable tag: 1.71.0
 License: GPLv2 or later
 
 View DICOM/CBCT studies in the browser: axial, coronal and sagittal slices, 3D reconstruction and STL/PLY models, with study upload and link sharing.
