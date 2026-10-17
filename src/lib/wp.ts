@@ -44,6 +44,11 @@ export type WpConfig = {
   downloadUrl?: string;
   /** Whether URL authorization (credit consumption) is enforced by admin. */
   urlAuthEnabled?: boolean;
+  /**
+   * Whether the admin allows loading DICOM directly from local files/folders
+   * (and uploading them). When false, exams can only come from Drive/OneDrive.
+   */
+  directDicomEnabled?: boolean;
   /** Cost in credits to run segmentation (admin config). */
   segmentationCost?: number;
   segmentationTypes?: SegmentationType[];
@@ -212,6 +217,9 @@ export function wpConfig(): WpConfig | null {
   }
   if (typeof raw.urlAuthEnabled === "boolean") {
     cfg.urlAuthEnabled = raw.urlAuthEnabled;
+  }
+  if (typeof raw.directDicomEnabled === "boolean") {
+    cfg.directDicomEnabled = raw.directDicomEnabled;
   }
   if (typeof raw.segmentationCost === "number") {
     cfg.segmentationCost = Math.max(0, Math.floor(raw.segmentationCost));

@@ -8,7 +8,9 @@ import {
   Eye,
   EyeOff,
   FileDown,
+  FileUp,
   FolderOpen,
+  FolderUp,
   Layers,
   LayoutGrid,
   Link2,
@@ -444,6 +446,10 @@ export function Viewer() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const stlInput = useRef<HTMLInputElement>(null);
+  /** Entrada de arquivos DICOM (arquivos soltos ou ZIP). */
+  const dicomInput = useRef<HTMLInputElement>(null);
+  /** Entrada de pasta DICOM (atributo não padrão `webkitdirectory`). */
+  const dicomFolderInput = useRef<HTMLInputElement>(null);
   const [urlOpen, setUrlOpen] = useState(false);
   const [urlValue, setUrlValue] = useState("");
   const urlInput = useRef<HTMLInputElement>(null);
@@ -1496,6 +1502,24 @@ export function Viewer() {
   const canUpload = !cfg || cfg.canUpload;
   const hasData = !!volume || meshes.length > 0;
 
+  /**
+   * Carregamento direto de DICOM a partir de arquivos/pasta do disco.
+   * No modo local (sem WordPress) é sempre permitido; dentro do WordPress
+   * depende da opção do administrador (padrão: desativado = só Drive/OneDrive).
+   */
+  const allowDirectDicom = !cfg || cfg.directDicomEnabled === true;
+
+  /**
+   * `webkitdirectory` é um atributo não padronizado e não consta nos tipos do
+   * React, então é aplicado de forma imperativa no input de pasta DICOM.
+   */
+  useEffect(() => {
+    const el = dicomFolderInput.current;
+    if (!el) return;
+    el.setAttribute("webkitdirectory", "");
+    el.setAttribute("directory", "");
+  }, [allowDirectDicom]);
+
   const handleSegmentAction = useCallback(async () => {
     if (!cfg || segBusy || busy) return;
     if (!hasData) {
@@ -1627,6 +1651,36 @@ export function Viewer() {
         }}
       />
 
+      {allowDirectDicom && (
+        <>
+          <input
+            ref={dicomInput}
+            type="file"
+            multiple
+            accept=".dcm,.dicom,.ima,.img,.zip,.nrrd,.nii,.gz,.bin"
+            className="hidden"
+            onChange={async (e) => {
+              const picked = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              if (!picked.length) return;
+              await loadDicom(picked);
+            }}
+          />
+          <input
+            ref={dicomFolderInput}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={async (e) => {
+              const picked = Array.from(e.target.files ?? []);
+              e.target.value = "";
+              if (!picked.length) return;
+              await loadDicom(picked);
+            }}
+          />
+        </>
+      )}
+
       <div className="relative flex min-h-0 w-full flex-col">
         {/* ── Header ─────────────────────────────────────────────────── */}
         <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-2 sm:px-3">
@@ -1716,6 +1770,18 @@ export function Viewer() {
                 <DropdownMenuLabel className="group-title">
                   {t("viewer.header.openFiles")}
                 </DropdownMenuLabel>
+                {allowDirectDicom && (
+                  <DropdownMenuItem onSelect={() => dicomInput.current?.click()}>
+                    <FileUp className="h-4 w-4" />
+                    {t("viewer.header.openDicom")}
+                  </DropdownMenuItem>
+                )}
+                {allowDirectDicom && (
+                  <DropdownMenuItem onSelect={() => dicomFolderInput.current?.click()}>
+                    <FolderUp className="h-4 w-4" />
+                    {t("viewer.header.openDicomFolder")}
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onSelect={() => stlInput.current?.click()}>
                   <Box className="h-4 w-4" />
                   STL / PLY / OBJ
@@ -2242,6 +2308,12 @@ export function Viewer() {
                           e.preventDefault();
                           const files = Array.from(e.dataTransfer.files ?? []);
                           if (!files.length) return;
+                          if (allowDirectDicom) {
+                            // Arquivos e pasta DICOM (além de STL/ZIP) são aceitos
+                            // diretamente; `loadDicom` já separa meshes do volume.
+                            await loadDicom(files);
+                            return;
+                          }
                           const meshFiles = files.filter((f) =>
                             /\.(stl|ply|obj|mtl|png|jpe?g|bmp|gif|webp|zip)$/i.test(f.name),
                           );
@@ -2269,13 +2341,35 @@ export function Viewer() {
                           </h2>
                           <p className="mt-2 text-xs text-muted-foreground">
                             {canUpload
-                              ? t("viewer.empty.loadStudyHint")
+                              ? allowDirectDicom
+                                ? t("viewer.empty.loadStudyHintDirect")
+                                : t("viewer.empty.loadStudyHint")
                               : t("viewer.empty.loginHint")}
                           </p>
                           {canUpload && (
                             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                              {allowDirectDicom && (
+                                <button
+                                  className="btn-primary gap-1.5"
+                                  onClick={() => dicomInput.current?.click()}
+                                >
+                                  <FileUp className="h-3.5 w-3.5" />
+                                  {t("viewer.header.openDicom")}
+                                </button>
+                              )}
+                              {allowDirectDicom && (
+                                <button
+                                  className="btn-ghost gap-1.5"
+                                  onClick={() => dicomFolderInput.current?.click()}
+                                >
+                                  <FolderUp className="h-3.5 w-3.5" />
+                                  {t("viewer.header.openDicomFolder")}
+                                </button>
+                              )}
                               <button
-                                className="btn-primary gap-1.5"
+                                className={
+                                  allowDirectDicom ? "btn-ghost gap-1.5" : "btn-primary gap-1.5"
+                                }
                                 onClick={() => {
                                   setUrlValue("");
                                   setUrlOpen(true);

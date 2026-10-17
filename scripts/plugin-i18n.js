@@ -64,6 +64,7 @@ const EN = {
   'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.':
     'Each type has a name, description (rich text), URL, Authorization, max-voxels, max-triangles and cost. Uncheck "Active" to disable without deleting. The same scene can use several types.',
   "Campo status ausente.": "Missing status field.",
+  "Carregamento de DICOM": "DICOM loading",
   "Cena DICOM": "DICOM Scene",
   "Cena não encontrada.": "Scene not found.",
   "Cena removida.": "Scene removed.",
@@ -177,10 +178,15 @@ const EN = {
   Padrão: "Default",
   "Pasta não encontrada.": "Folder not found.",
   "Permissão negada.": "Permission denied.",
+  "Permitir carregamento direto de DICOM": "Allow direct DICOM loading",
+  "Permitir que os usuários abram DICOM de arquivos/pastas do próprio computador e façam upload direto (sem precisar de link do Drive/OneDrive).":
+    "Allow users to open DICOM from files/folders on their own computer and upload them directly (no Drive/OneDrive link required).",
   "Pré-visualização do logo": "Logo preview",
   "Página do visualizador:": "Viewer page:",
   "Quando ativado, URLs externas precisam ser autorizadas antes do download. Ao desativar, todos os links são baixados sem autorização prévia.":
     "When enabled, external URLs must be authorized before download. When disabled, all links are downloaded without prior authorization.",
+  "Quando desativado (padrão), os exames só podem ser carregados por link público do Google Drive ou do OneDrive. Quando ativado, também é possível selecionar arquivos ou uma pasta com as fatias DICOM e salvá-las na cena.":
+    "When disabled (default), exams can only be loaded from a public Google Drive or OneDrive link. When enabled, users can also select files or a folder with the DICOM slices and save them to the scene.",
   "Redirect inválido do OneDrive.": "Invalid OneDrive redirect.",
   "Remover esta cena e seus arquivos?": "Remove this scene and its files?",
   "Requisição não autorizada.": "Unauthorized request.",
@@ -189,6 +195,7 @@ const EN = {
   "Resposta inválida do RunPod": "Invalid RunPod response",
   "Salvar API key": "Save API key",
   "Salvar autorização de URL": "Save URL authorization",
+  "Salvar carregamento de DICOM": "Save DICOM loading",
   "Salvar cotas para novas contas": "Save quotas for new accounts",
   "Salvar limites e créditos": "Save limits and credits",
   "Salvar tipos de segmentação": "Save segmentation types",
@@ -287,6 +294,7 @@ const ES = {
   'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.':
     'Cada tipo tiene nombre, descripción (texto enriquecido), URL, Authorization, max-voxels, max-triangles y coste. Desmarca "Activo" para deshabilitarlo sin eliminarlo. La misma escena puede usar varios tipos.',
   "Campo status ausente.": "Falta el campo status.",
+  "Carregamento de DICOM": "Carga de DICOM",
   "Cena DICOM": "Escena DICOM",
   "Cena não encontrada.": "Escena no encontrada.",
   "Cena removida.": "Escena eliminada.",
@@ -403,10 +411,15 @@ const ES = {
   Padrão: "Predeterminado",
   "Pasta não encontrada.": "Carpeta no encontrada.",
   "Permissão negada.": "Permiso denegado.",
+  "Permitir carregamento direto de DICOM": "Permitir la carga directa de DICOM",
+  "Permitir que os usuários abram DICOM de arquivos/pastas do próprio computador e façam upload direto (sem precisar de link do Drive/OneDrive).":
+    "Permitir que los usuarios abran DICOM desde archivos/carpetas de su propio ordenador y los suban directamente (sin necesidad de un enlace de Drive/OneDrive).",
   "Pré-visualização do logo": "Vista previa del logo",
   "Página do visualizador:": "Página del visor:",
   "Quando ativado, URLs externas precisam ser autorizadas antes do download. Ao desativar, todos os links são baixados sem autorização prévia.":
     "Cuando está activado, las URL externas deben autorizarse antes de la descarga. Al desactivarlo, todos los enlaces se descargan sin autorización previa.",
+  "Quando desativado (padrão), os exames só podem ser carregados por link público do Google Drive ou do OneDrive. Quando ativado, também é possível selecionar arquivos ou uma pasta com as fatias DICOM e salvá-las na cena.":
+    "Cuando está desactivado (predeterminado), los exámenes solo se pueden cargar desde un enlace público de Google Drive o OneDrive. Cuando está activado, también es posible seleccionar archivos o una carpeta con los cortes DICOM y guardarlos en la escena.",
   "Redirect inválido do OneDrive.": "Redirección de OneDrive no válida.",
   "Remover esta cena e seus arquivos?": "¿Eliminar esta escena y sus archivos?",
   "Requisição não autorizada.": "Solicitud no autorizada.",
@@ -415,6 +428,7 @@ const ES = {
   "Resposta inválida do RunPod": "Respuesta no válida de RunPod",
   "Salvar API key": "Guardar API key",
   "Salvar autorização de URL": "Guardar autorización de URL",
+  "Salvar carregamento de DICOM": "Guardar carga de DICOM",
   "Salvar cotas para novas contas": "Guardar cuotas para cuentas nuevas",
   "Salvar limites e créditos": "Guardar límites y créditos",
   "Salvar tipos de segmentação": "Guardar tipos de segmentación",

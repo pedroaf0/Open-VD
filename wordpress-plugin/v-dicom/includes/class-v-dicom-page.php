@@ -303,6 +303,8 @@ $config = array(
 			'downloadUrl' => esc_url_raw( V_DICOM_URL . 'includes/download.php' ),
 			// Whether URL authorization (credit consumption) is enforced.
 			'urlAuthEnabled' => V_Dicom_Storage::url_auth_enabled(),
+			// Whether direct DICOM loading/upload from local files is allowed.
+			'directDicomEnabled' => V_Dicom_Storage::direct_dicom_enabled(),
 			'segmentationCost' => V_Dicom_Storage::segmentation_cost(),
 			'segmentationTypes' => V_Dicom_Storage::get_public_segmentation_types(),
 			'locale'    => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),

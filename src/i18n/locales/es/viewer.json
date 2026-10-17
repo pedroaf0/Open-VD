@@ -17,6 +17,8 @@
     "openFiles": "Abrir archivos",
     "addFiles": "Añadir archivos",
     "openByUrl": "Abrir DICOM por URL de Drive/OneDrive",
+    "openDicom": "Abrir DICOM (archivos)",
+    "openDicomFolder": "Abrir carpeta DICOM",
     "paramsPanel": "Panel de parámetros",
     "backToViewer": "Volver al visor DICOM",
     "profileTitle": "Mi perfil: escenas, almacenamiento y créditos",
@@ -182,6 +184,7 @@
     "loadStudy": "Carga un estudio DICOM",
     "noScene": "Ninguna escena para mostrar",
     "loadStudyHint": "Carga el examen en formato ZIP desde un enlace público de Google Drive o OneDrive. Los STL se pueden cargar directamente.",
+    "loadStudyHintDirect": "Abre los archivos o la carpeta del examen directamente desde tu ordenador (DICOM/ZIP), o usa un enlace público de Google Drive o OneDrive. Los archivos se procesan en tu navegador; los STL se pueden cargar directamente.",
     "loginHint": "Inicia sesión para enviar estudios o abre un enlace de escena compartida.",
     "login": "Iniciar sesión"
   },

@@ -17,6 +17,7 @@ class V_Dicom_Admin {
 		add_action( 'admin_post_v_dicom_apikey', array( $this, 'handle_apikey' ) );
 		add_action( 'admin_post_v_dicom_seg_types', array( $this, 'handle_seg_types' ) );
 		add_action( 'admin_post_v_dicom_url_auth', array( $this, 'handle_url_auth' ) );
+		add_action( 'admin_post_v_dicom_direct_dicom', array( $this, 'handle_direct_dicom' ) );
 		add_action( 'admin_post_v_dicom_newuser_defaults', array( $this, 'handle_newuser_defaults' ) );
 	}
 
@@ -177,6 +178,17 @@ class V_Dicom_Admin {
 		check_admin_referer( 'v_dicom_url_auth' );
 		V_Dicom_Storage::set_url_auth_enabled( isset( $_POST['v_dicom_url_auth'] ) );
 		wp_safe_redirect( add_query_arg( 'urlauthsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
+		exit;
+	}
+
+	/** Toggle direct DICOM loading/upload on/off. */
+	public function handle_direct_dicom() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		check_admin_referer( 'v_dicom_direct_dicom' );
+		V_Dicom_Storage::set_direct_dicom_enabled( isset( $_POST['v_dicom_direct_dicom'] ) );
+		wp_safe_redirect( add_query_arg( 'directdicomsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
 		exit;
 	}
 
@@ -366,6 +378,32 @@ class V_Dicom_Admin {
 						</tr>
 					</table>
 					<?php submit_button( __( 'Salvar autorização de URL', 'v-dicom' ) ); ?>
+				</form>
+
+				<h2><?php esc_html_e( 'Carregamento de DICOM', 'v-dicom' ); ?></h2>
+				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
+				<?php if ( isset( $_GET['directdicomsaved'] ) ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração atualizada.', 'v-dicom' ); ?></p></div>
+				<?php endif; ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="v_dicom_direct_dicom" />
+					<?php wp_nonce_field( 'v_dicom_direct_dicom' ); ?>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="v-dicom-direct-dicom-enabled"><?php esc_html_e( 'Permitir carregamento direto de DICOM', 'v-dicom' ); ?></label></th>
+							<td>
+								<label>
+									<input type="checkbox" id="v-dicom-direct-dicom-enabled" name="v_dicom_direct_dicom" value="1"
+										<?php checked( V_Dicom_Storage::direct_dicom_enabled() ); ?> />
+									<?php esc_html_e( 'Permitir que os usuários abram DICOM de arquivos/pastas do próprio computador e façam upload direto (sem precisar de link do Drive/OneDrive).', 'v-dicom' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Quando desativado (padrão), os exames só podem ser carregados por link público do Google Drive ou do OneDrive. Quando ativado, também é possível selecionar arquivos ou uma pasta com as fatias DICOM e salvá-las na cena.', 'v-dicom' ); ?>
+								</p>
+							</td>
+						</tr>
+					</table>
+					<?php submit_button( __( 'Salvar carregamento de DICOM', 'v-dicom' ) ); ?>
 				</form>
 
 				<h2><?php esc_html_e( 'Tipos de segmentação (RunPod)', 'v-dicom' ); ?></h2>

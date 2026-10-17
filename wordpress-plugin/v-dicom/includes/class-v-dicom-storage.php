@@ -22,6 +22,8 @@ const OPTION_CREDIT = 'v_dicom_credit';
 const OPTION_RECENT_SCENES = 'v_dicom_recent_scenes';
 /** Master toggle: when false, download.php skips URL authorization entirely. */
 const OPTION_URL_AUTH_ENABLED = 'v_dicom_url_auth_enabled';
+/** Master toggle: when true, DICOM files may be loaded/uploaded directly from local files. */
+const OPTION_DIRECT_DICOM_ENABLED = 'v_dicom_direct_dicom_enabled';
 const OPTION_DEFAULT_CREDIT = 'v_dicom_default_credit';
 const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	const OPTION_SEG_COST = 'v_dicom_segmentation_cost';
@@ -135,6 +137,19 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	/** Enable or disable URL authorization. */
 	public static function set_url_auth_enabled( $enabled ) {
 		update_option( self::OPTION_URL_AUTH_ENABLED, $enabled ? 1 : 0 );
+	}
+
+	/**
+	 * Whether DICOM files may be loaded/uploaded directly from local files
+	 * (admin toggle). When false, exams can only be loaded via Drive/OneDrive.
+	 */
+	public static function direct_dicom_enabled() {
+		return (bool) get_option( self::OPTION_DIRECT_DICOM_ENABLED, false );
+	}
+
+	/** Enable or disable direct DICOM loading/upload. */
+	public static function set_direct_dicom_enabled( $enabled ) {
+		update_option( self::OPTION_DIRECT_DICOM_ENABLED, $enabled ? 1 : 0 );
 	}
 
 	public static function default_new_user_credit() {
