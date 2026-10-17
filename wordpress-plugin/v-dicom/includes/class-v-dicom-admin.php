@@ -8,6 +8,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class V_Dicom_Admin {
 
+	/** Rows per page in the admin lists. */
+	const PER_PAGE_USERS  = 20;
+	const PER_PAGE_SCENES = 20;
+
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_media' ) );
@@ -40,18 +44,63 @@ class V_Dicom_Admin {
 		);
 	}
 
-	private function scenes() {
-		$args = array(
-			'post_type'   => V_DICOM_CPT,
-			'post_status' => 'any',
-			'numberposts' => 200,
-			'orderby'     => 'date',
-			'order'       => 'DESC',
-		);
+	/**
+	 * Paginated scene list with an optional search over the title, the scene
+	 * key and the owner (display name, login or e-mail). Returns the posts of
+	 * the current page plus the total number of matches.
+	 */
+	private function query_scenes( $search, $paged, $per_page ) {
+		global $wpdb;
+
+		$paged    = max( 1, (int) $paged );
+		$per_page = max( 1, (int) $per_page );
+
+		$where  = array( 'p.post_type = %s', "p.post_status NOT IN ('trash','auto-draft')" );
+		$params = array( V_DICOM_CPT );
+
 		if ( ! current_user_can( 'edit_others_posts' ) ) {
-			$args['author'] = get_current_user_id();
+			$where[]  = 'p.post_author = %d';
+			$params[] = get_current_user_id();
 		}
-		return get_posts( $args );
+
+		$joins       = " LEFT JOIN {$wpdb->postmeta} km ON km.post_id = p.ID AND km.meta_key = %s"
+			. " LEFT JOIN {$wpdb->users} u ON u.ID = p.post_author";
+		$join_params = array( V_Dicom_Storage::META_KEY );
+
+		if ( '' !== $search ) {
+			$like    = '%' . $wpdb->esc_like( $search ) . '%';
+			$where[] = '( p.post_title LIKE %s OR km.meta_value LIKE %s OR u.display_name LIKE %s OR u.user_login LIKE %s OR u.user_email LIKE %s )';
+			array_push( $params, $like, $like, $like, $like, $like );
+		}
+
+		$where_sql = implode( ' AND ', $where );
+
+		$count_sql = "SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p{$joins} WHERE {$where_sql}";
+		$total     = (int) $wpdb->get_var( $wpdb->prepare( $count_sql, array_merge( $join_params, $params ) ) );
+
+		$posts = array();
+		if ( $total > 0 ) {
+			$list_sql = "SELECT p.ID FROM {$wpdb->posts} p{$joins} WHERE {$where_sql} ORDER BY p.post_date DESC LIMIT %d OFFSET %d";
+			$args     = array_merge( $join_params, $params, array( $per_page, ( $paged - 1 ) * $per_page ) );
+			$ids      = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( $list_sql, $args ) ) );
+			if ( $ids ) {
+				$posts = get_posts(
+					array(
+						'post_type'        => V_DICOM_CPT,
+						'post_status'      => 'any',
+						'post__in'         => $ids,
+						'orderby'          => 'post__in',
+						'numberposts'      => count( $ids ),
+						'suppress_filters' => false,
+					)
+				);
+			}
+		}
+
+		return array(
+			'posts' => $posts,
+			'total' => $total,
+		);
 	}
 
 	public function handle_delete() {
@@ -192,14 +241,28 @@ class V_Dicom_Admin {
 		exit;
 	}
 
-	/** All WordPress users, so the admin can define a limit for anyone. */
-	private function quota_users() {
-		return get_users(
-			array(
-				'number'  => 0,
-				'orderby' => 'display_name',
-				'order'   => 'ASC',
-			)
+	/**
+	 * Paginated user list with an optional search over login, e-mail, nicename
+	 * and display name. Returns the users of the current page plus the total
+	 * number of matches.
+	 */
+	private function query_quota_users( $search, $paged, $per_page ) {
+		$per_page = max( 1, (int) $per_page );
+		$args     = array(
+			'orderby'     => 'display_name',
+			'order'       => 'ASC',
+			'number'      => $per_page,
+			'offset'      => ( max( 1, (int) $paged ) - 1 ) * $per_page,
+			'count_total' => true,
+		);
+		if ( '' !== $search ) {
+			$args['search']         = '*' . $search . '*';
+			$args['search_columns'] = array( 'user_login', 'user_email', 'user_nicename', 'display_name' );
+		}
+		$query = new WP_User_Query( $args );
+		return array(
+			'users' => $query->get_results(),
+			'total' => (int) $query->get_total(),
 		);
 	}
 
@@ -214,8 +277,129 @@ class V_Dicom_Admin {
 		return number_format_i18n( $mb / 1024, 2 ) . ' GB';
 	}
 
+	/** This admin screen's URL with the given query args (null/'' values are dropped). */
+	private static function list_url( array $args = array() ) {
+		$args = array_merge( array( 'page' => 'v-dicom' ), $args );
+		$args = array_filter(
+			$args,
+			static function ( $v ) {
+				return null !== $v && '' !== $v;
+			}
+		);
+		return admin_url( 'admin.php' ) . '?' . http_build_query( $args );
+	}
+
+	/**
+	 * Same as list_url() but leaves an unencoded %#% placeholder where
+	 * paginate_links() expects the page number.
+	 */
+	private static function list_url_paged( $page_arg, array $args = array() ) {
+		$args = array_merge( $args, array( 'page' => 'v-dicom', $page_arg => '__VD_PAGE__' ) );
+		$args = array_filter(
+			$args,
+			static function ( $v ) {
+				return null !== $v && '' !== $v;
+			}
+		);
+		return str_replace( '__VD_PAGE__', '%#%', admin_url( 'admin.php' ) . '?' . http_build_query( $args ) );
+	}
+
+	/**
+	 * Renders the search box for one of the admin lists.
+	 *
+	 * @param string $name        Query arg holding the search term (uq|sq).
+	 * @param string $search      Current search term.
+	 * @param array  $keep        Extra query args to preserve (the other list's state).
+	 * @param string $placeholder Search field placeholder.
+	 * @param int    $total       Total number of rows across all pages.
+	 */
+	private function render_list_search( $name, $search, array $keep, $placeholder, $total ) {
+		?>
+		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" style="margin:8px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+			<input type="hidden" name="page" value="v-dicom" />
+			<?php foreach ( $keep as $k => $v ) : ?>
+				<?php if ( null === $v || '' === $v ) { continue; } ?>
+				<input type="hidden" name="<?php echo esc_attr( $k ); ?>" value="<?php echo esc_attr( $v ); ?>" />
+			<?php endforeach; ?>
+			<input type="search" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( $search ); ?>" class="regular-text" placeholder="<?php echo esc_attr( $placeholder ); ?>" />
+			<button type="submit" class="button"><?php esc_html_e( 'Buscar', 'v-dicom' ); ?></button>
+			<?php if ( '' !== $search ) : ?>
+				<a class="button" href="<?php echo esc_url( self::list_url( $keep ) ); ?>"><?php esc_html_e( 'Limpar', 'v-dicom' ); ?></a>
+			<?php endif; ?>
+			<?php if ( $total > 0 ) : ?>
+				<span class="description" style="margin-left:auto;">
+					<?php
+					echo esc_html(
+						sprintf(
+							/* translators: %s: number of rows found. */
+							__( '%s resultado(s)', 'v-dicom' ),
+							number_format_i18n( $total )
+						)
+					);
+					?>
+				</span>
+			<?php endif; ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Renders the pagination links for one of the admin lists.
+	 *
+	 * @param string $name     Query arg holding the search term (uq|sq).
+	 * @param string $page_arg Query arg holding the page number (upage|spage).
+	 * @param string $search   Current search term.
+	 * @param int    $total    Total number of rows across all pages.
+	 * @param int    $per_page Rows per page.
+	 * @param array  $keep     Extra query args to preserve (the other list's state).
+	 * @param int    $current  Current page number.
+	 */
+	private function render_list_pages( $name, $page_arg, $search, $total, $per_page, array $keep, $current ) {
+		$pages = max( 1, (int) ceil( $total / max( 1, $per_page ) ) );
+		if ( $pages < 2 ) {
+			return;
+		}
+		$current = max( 1, min( $pages, (int) $current ) );
+		$query   = array_merge( $keep, array( $name => '' !== $search ? $search : null ) );
+		$links   = paginate_links(
+			array(
+				'base'      => self::list_url_paged( $page_arg, $query ),
+				'format'    => '',
+				'current'   => $current,
+				'total'     => $pages,
+				'prev_text' => '‹',
+				'next_text' => '›',
+			)
+		);
+		if ( $links ) {
+			echo '<div class="tablenav"><div class="tablenav-pages">' . wp_kses_post( $links ) . '</div></div>';
+		}
+	}
+
 	public function page() {
-		$scenes = $this->scenes();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin list filter.
+		$users_search  = isset( $_GET['uq'] ) ? sanitize_text_field( wp_unslash( $_GET['uq'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin list filter.
+		$users_paged   = isset( $_GET['upage'] ) ? max( 1, absint( wp_unslash( $_GET['upage'] ) ) ) : 1;
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin list filter.
+		$scenes_search = isset( $_GET['sq'] ) ? sanitize_text_field( wp_unslash( $_GET['sq'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin list filter.
+		$scenes_paged  = isset( $_GET['spage'] ) ? max( 1, absint( wp_unslash( $_GET['spage'] ) ) ) : 1;
+
+		$scenes_result = $this->query_scenes( $scenes_search, $scenes_paged, self::PER_PAGE_SCENES );
+		$scenes        = $scenes_result['posts'];
+		$scenes_total  = (int) $scenes_result['total'];
+
+		// Query args that must survive navigation between the two lists.
+		$scenes_args = array(
+			'sq'    => '' !== $scenes_search ? $scenes_search : null,
+			'spage' => $scenes_paged > 1 ? $scenes_paged : null,
+		);
+		$users_args  = array(
+			'uq'    => '' !== $users_search ? $users_search : null,
+			'upage' => $users_paged > 1 ? $users_paged : null,
+		);
+
 		$viewer = v_dicom_viewer_url();
 		?>
 		<div class="wrap">
@@ -660,6 +844,12 @@ class V_Dicom_Admin {
 				<?php if ( isset( $_GET['limitsaved'] ) ) : ?>
 					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Limites atualizados.', 'v-dicom' ); ?></p></div>
 				<?php endif; ?>
+				<?php
+				$users_result = $this->query_quota_users( $users_search, $users_paged, self::PER_PAGE_USERS );
+				$quota_users  = $users_result['users'];
+				$users_total  = (int) $users_result['total'];
+				$this->render_list_search( 'uq', $users_search, $scenes_args, __( 'Buscar por nome, usuário ou e-mail…', 'v-dicom' ), $users_total );
+				?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="v_dicom_limit" />
 					<?php wp_nonce_field( 'v_dicom_limits' ); ?>
@@ -673,9 +863,8 @@ class V_Dicom_Admin {
 							</tr>
 						</thead>
 						<tbody>
-						<?php $quota_users = $this->quota_users(); ?>
 						<?php if ( ! $quota_users ) : ?>
-							<tr><td colspan="4"><?php esc_html_e( 'Nenhum usuário com cenas ou limite definido ainda.', 'v-dicom' ); ?></td></tr>
+							<tr><td colspan="4"><?php echo esc_html( '' !== $users_search ? __( 'Nenhum usuário encontrado para a busca.', 'v-dicom' ) : __( 'Nenhum usuário com cenas ou limite definido ainda.', 'v-dicom' ) ); ?></td></tr>
 						<?php endif; ?>
 						<?php foreach ( $quota_users as $u ) :
 							$u_limit   = V_Dicom_Storage::user_limit_bytes( (int) $u->ID );
@@ -711,14 +900,19 @@ class V_Dicom_Admin {
 						<?php endforeach; ?>
 						</tbody>
 					</table>
+					<?php $this->render_list_pages( 'uq', 'upage', $users_search, $users_total, self::PER_PAGE_USERS, $scenes_args, $users_paged ); ?>
 					<?php if ( $quota_users ) : ?>
 						<p class="description"><?php esc_html_e( 'Limite 0 bloqueia novos uploads. O valor definido aqui é a cota base do usuário; planos de armazenamento ativos, quando existirem, somam-se a ele. Créditos são consumidos pela segmentação automática e pela autorização de URLs.', 'v-dicom' ); ?></p>
+						<?php if ( $users_total > self::PER_PAGE_USERS ) : ?>
+							<p class="description"><?php esc_html_e( 'Somente os usuários desta página são salvos.', 'v-dicom' ); ?></p>
+						<?php endif; ?>
 						<?php submit_button( __( 'Salvar limites e créditos', 'v-dicom' ) ); ?>
 					<?php endif; ?>
 				</form>
 			<?php endif; ?>
 
 			<h2><?php esc_html_e( 'Cenas salvas', 'v-dicom' ); ?></h2>
+			<?php $this->render_list_search( 'sq', $scenes_search, $users_args, __( 'Buscar por título, chave ou dono…', 'v-dicom' ), $scenes_total ); ?>
 			<table class="widefat striped">
 				<thead>
 					<tr>
@@ -733,7 +927,7 @@ class V_Dicom_Admin {
 				</thead>
 				<tbody>
 				<?php if ( ! $scenes ) : ?>
-					<tr><td colspan="7"><?php esc_html_e( 'Nenhuma cena salva ainda.', 'v-dicom' ); ?></td></tr>
+					<tr><td colspan="7"><?php echo esc_html( '' !== $scenes_search ? __( 'Nenhuma cena encontrada para a busca.', 'v-dicom' ) : __( 'Nenhuma cena salva ainda.', 'v-dicom' ) ); ?></td></tr>
 				<?php endif; ?>
 				<?php
 				$seg_types_all = V_Dicom_Storage::get_segmentation_types( true );
@@ -889,6 +1083,7 @@ class V_Dicom_Admin {
 				<?php endforeach; ?>
 				</tbody>
 			</table>
+			<?php $this->render_list_pages( 'sq', 'spage', $scenes_search, $scenes_total, self::PER_PAGE_SCENES, $users_args, $scenes_paged ); ?>
 		</div>
 		<script>
 		(function () {

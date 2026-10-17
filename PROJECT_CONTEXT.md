@@ -358,6 +358,16 @@ delete, limite (`limit`), tema, **API key**, **tipos de segmentação**, URL-aut
 A tela lista cenas, gera/edita links, mostra debug do
 RunPod e faz polling do status de segmentação.
 
+**Listas com busca + paginação** (linhas por página: `PER_PAGE_USERS` /
+`PER_PAGE_SCENES` = 20): as listas de **usuários** (`query_quota_users()`,
+`WP_User_Query` com `search` sobre nome/login/e-mail) e de **cenas**
+(`query_scenes()`, SQL com `LIKE` sobre título, chave da cena e dono) recebem
+`busca` + `página` via query args `uq`/`upage` e `sq`/`spage`. Cada lista
+preserva o estado da outra (inputs ocultos / `keep`). Como a lista de usuários
+é um `<form>` de limites, **apenas os usuários da página atual são salvos**
+(o form de busca é um `<form method="get">` separado). UI em
+`render_list_search()` + `render_list_pages()` (`paginate_links`).
+
 ### Tema / white-label — `class-v-dicom-theme.php`
 `get()` (nome, logo, cores, quiz URL/texto), `css_vars()`, `login_css()`
 (estiliza `wp-login.php`).

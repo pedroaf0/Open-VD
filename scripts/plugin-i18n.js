@@ -33,6 +33,7 @@ const PLACEHOLDER_RE = /%[0-9]*\$?[sd]/;
 const EN = {
   "%d dia restante": ["%d day left", "%d days left"],
   "%d mês": ["%d month", "%d months"],
+  "%s resultado(s)": "%s result(s)",
   "(em andamento)": "(in progress)",
   "(usados para segmentação automática)": "(used for automatic segmentation)",
   "+ %d MB em planos": "+ %d MB in plans",
@@ -61,6 +62,9 @@ const EN = {
   Ativo: "Active",
   Authorization: "Authorization",
   "Autorização de URLs externas": "External URL authorization",
+  Buscar: "Search",
+  "Buscar por nome, usuário ou e-mail…": "Search by name, username or e-mail…",
+  "Buscar por título, chave ou dono…": "Search by title, key or owner…",
   'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.':
     'Each type has a name, description (rich text), URL, Authorization, max-voxels, max-triangles and cost. Uncheck "Active" to disable without deleting. The same scene can use several types.',
   "Campo status ausente.": "Missing status field.",
@@ -137,6 +141,7 @@ const EN = {
     'Storage limit reached. Delete a scene in "My scenes" or ask the administrator for more space.',
   "Limites atualizados.": "Limits updated.",
   "Limites de armazenamento por usuário": "Storage limits per user",
+  Limpar: "Clear",
   "Link de compartilhamento": "Share link",
   "Link não reconhecido. Use Google Drive ou OneDrive.":
     "Unrecognized link. Use Google Drive or OneDrive.",
@@ -157,6 +162,8 @@ const EN = {
   "Nenhum tipo de segmentação configurado.": "No segmentation type configured.",
   "Nenhum usuário com cenas ou limite definido ainda.":
     "No user with scenes or a defined limit yet.",
+  "Nenhum usuário encontrado para a busca.": "No user found for the search.",
+  "Nenhuma cena encontrada para a busca.": "No scene found for the search.",
   "Nenhuma cena salva ainda.": "No saved scene yet.",
   "Nome do visualizador": "Viewer name",
   "Nome*": "Name*",
@@ -209,6 +216,7 @@ const EN = {
     "Your storage limit is zero. Ask the administrator to set a limit before uploading studies.",
   Situação: "Status",
   "Somente HTTP/HTTPS é permitido.": "Only HTTP/HTTPS is allowed.",
+  "Somente os usuários desta página são salvos.": "Only the users on this page are saved.",
   'Sua segmentação (%1$s) da cena "%2$s" foi concluída%3$s.%4$sAbra a cena: %5$s':
     'Your segmentation (%1$s) of scene "%2$s" has completed%3$s.%4$sOpen the scene: %5$s',
   'Sua segmentação da cena "%1$s" foi concluída%2$s.%3$sAbra a cena: %4$s':
@@ -263,6 +271,7 @@ const EN = {
 const ES = {
   "%d dia restante": ["%d día restante", "%d días restantes"],
   "%d mês": ["%d mes", "%d meses"],
+  "%s resultado(s)": "%s resultado(s)",
   "(em andamento)": "(en curso)",
   "(usados para segmentação automática)": "(usados para segmentación automática)",
   "+ %d MB em planos": "+ %d MB en planes",
@@ -291,6 +300,9 @@ const ES = {
   Ativo: "Activo",
   Authorization: "Authorization",
   "Autorização de URLs externas": "Autorización de URL externas",
+  Buscar: "Buscar",
+  "Buscar por nome, usuário ou e-mail…": "Buscar por nombre, usuario o correo…",
+  "Buscar por título, chave ou dono…": "Buscar por título, clave o propietario…",
   'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.':
     'Cada tipo tiene nombre, descripción (texto enriquecido), URL, Authorization, max-voxels, max-triangles y coste. Desmarca "Activo" para deshabilitarlo sin eliminarlo. La misma escena puede usar varios tipos.',
   "Campo status ausente.": "Falta el campo status.",
@@ -368,6 +380,7 @@ const ES = {
     'Se alcanzó el límite de almacenamiento. Elimina una escena en "Mis escenas" o pide más espacio al administrador.',
   "Limites atualizados.": "Límites actualizados.",
   "Limites de armazenamento por usuário": "Límites de almacenamiento por usuario",
+  Limpar: "Limpiar",
   "Link de compartilhamento": "Enlace para compartir",
   "Link não reconhecido. Use Google Drive ou OneDrive.":
     "Enlace no reconocido. Usa Google Drive o OneDrive.",
@@ -388,6 +401,8 @@ const ES = {
   "Nenhum tipo de segmentação configurado.": "Ningún tipo de segmentación configurado.",
   "Nenhum usuário com cenas ou limite definido ainda.":
     "Ningún usuario con escenas o límite definido todavía.",
+  "Nenhum usuário encontrado para a busca.": "No se encontró ningún usuario para la búsqueda.",
+  "Nenhuma cena encontrada para a busca.": "No se encontró ninguna escena para la búsqueda.",
   "Nenhuma cena salva ainda.": "Aún no hay ninguna escena guardada.",
   "Nome do visualizador": "Nombre del visor",
   "Nome*": "Nombre*",
@@ -442,6 +457,7 @@ const ES = {
     "Tu límite de almacenamiento es cero. Pide al administrador que defina un límite antes de subir estudios.",
   Situação: "Estado",
   "Somente HTTP/HTTPS é permitido.": "Solo se permite HTTP/HTTPS.",
+  "Somente os usuários desta página são salvos.": "Solo se guardan los usuarios de esta página.",
   'Sua segmentação (%1$s) da cena "%2$s" foi concluída%3$s.%4$sAbra a cena: %5$s':
     'Tu segmentación (%1$s) de la escena "%2$s" se ha completado%3$s.%4$sAbre la escena: %5$s',
   'Sua segmentação da cena "%1$s" foi concluída%2$s.%3$sAbra a cena: %4$s':
