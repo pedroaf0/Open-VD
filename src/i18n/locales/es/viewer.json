@@ -180,7 +180,10 @@
   "meshes": {
     "colorOf": "Color de {{name}}",
     "remove": "Eliminar {{name}}",
-    "opacityOf": "Opacidad de {{name}}"
+    "opacityOf": "Opacidad de {{name}}",
+    "toggleGroup": "Mostrar / ocultar {{name}}",
+    "expandGroup": "Expandir grupo",
+    "collapseGroup": "Contraer grupo"
   },
   "shortcuts": {
     "wheel": "Rueda del ratón: navegar cortes",

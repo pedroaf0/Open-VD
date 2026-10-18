@@ -5,6 +5,7 @@ import {
   Box,
   Boxes,
   ChevronDown,
+  ChevronRight,
   Crosshair,
   Eye,
   EyeOff,
@@ -123,6 +124,8 @@ import {
   type UrlProgress,
 } from "@/lib/wp";
 import { computeMeshFileVolume, formatMeshVolume } from "@/lib/meshVolume";
+import { forcedMeshColor } from "@/lib/meshColors";
+import { groupMeshesByName } from "@/lib/meshGroups";
 
 /** Retry a network step a couple of times before giving up. */
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
@@ -203,23 +206,6 @@ const normalizeFlip = (f: FlipFlags | null | undefined): FlipFlags => ({
   y: f?.y === true,
   z: f?.z === true,
 });
-
-const FORCED_MESH_COLORS: Record<string, string> = {
-  "maxila e cranio superior": "#FFF3B0",
-  mandibula: "#FFF3B0",
-  "dentes superiores": "#FFFFFF",
-  "dentes inferiores": "#FFFFFF",
-  "canal mandibular": "#FF0000",
-};
-const normalizeMeshName = (n: string) =>
-  n
-    .replace(/\.(stl|ply|obj)$/i, "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-const forcedMeshColor = (name: string): string | undefined =>
-  FORCED_MESH_COLORS[normalizeMeshName(name)];
 
 const MESH_COLORS = ["#9fd9ff", "#ffb3c1", "#c9f7a1", "#ffd580", "#d5b3ff", "#7fe3d4"];
 
@@ -397,6 +383,167 @@ function toUploadFile(input: ExpandInput): File {
     : new File([input.data as unknown as BlobPart], input.name, {
         type: "application/octet-stream",
       });
+}
+
+/** Um modelo na lista: cor, nome (liga/desliga), volume, opacidade e coordenadas. */
+function MeshRow({
+  mesh,
+  volumeLabel,
+  containerClassName,
+  onPatch,
+  onRemove,
+}: {
+  mesh: MeshFile;
+  volumeLabel?: string | null | undefined;
+  containerClassName?: string | undefined;
+  onPatch: (id: string, patch: Partial<MeshFile>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const m = mesh;
+  return (
+    <div className={cn("space-y-1", containerClassName)}>
+      <div className="flex items-center gap-1.5">
+        <input
+          type="color"
+          value={m.color}
+          onChange={(e) => onPatch(m.id, { color: e.target.value })}
+          className="h-5 w-6 shrink-0 cursor-pointer rounded border border-border bg-transparent"
+          aria-label={t("viewer.meshes.colorOf", { name: m.name })}
+        />
+        <button
+          className="min-w-0 flex-1 truncate text-left text-[11px]"
+          title={m.name}
+          onClick={() => onPatch(m.id, { visible: !m.visible })}
+          style={{ opacity: m.visible ? 1 : 0.4 }}
+          aria-pressed={m.visible}
+        >
+          {m.name}
+          {volumeLabel ? (
+            <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">
+              · {volumeLabel}
+            </span>
+          ) : null}
+        </button>
+        <button
+          className="icon-btn-sm"
+          onClick={() => onRemove(m.id)}
+          aria-label={t("viewer.meshes.remove", { name: m.name })}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      <input
+        type="range"
+        min={0.05}
+        max={1}
+        step={0.01}
+        value={m.opacity}
+        onChange={(e) => onPatch(m.id, { opacity: Number(e.target.value) })}
+        className="w-full accent-primary"
+        style={{ accentColor: "var(--primary)" }}
+        aria-label={t("viewer.meshes.opacityOf", { name: m.name })}
+      />
+      <button
+        className="btn-chip w-full py-1 text-[10px]"
+        onClick={() => onPatch(m.id, { coordSystem: m.coordSystem === "ras" ? "lps" : "ras" })}
+        title={t("viewer.panel.coordSystem")}
+      >
+        {m.coordSystem === "lps" ? "LPS (DICOM)" : "RAS (Slicer)"}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Lista de modelos agrupada por termo comum no nome (ver `lib/meshGroups`).
+ * Grupos podem ser recolhidos e ter a visibilidade alternada de uma vez.
+ */
+function MeshList({
+  meshes,
+  meshVolumes,
+  containerClassName,
+  onPatch,
+  onRemove,
+}: {
+  meshes: MeshFile[];
+  meshVolumes: Map<string, string | null>;
+  containerClassName?: string | undefined;
+  onPatch: (id: string, patch: Partial<MeshFile>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { t } = useTranslation();
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const groups = useMemo(() => groupMeshesByName(meshes), [meshes]);
+
+  const rows = (items: MeshFile[]) =>
+    items.map((m) => (
+      <MeshRow
+        key={m.id}
+        mesh={m}
+        volumeLabel={meshVolumes.get(m.id)}
+        containerClassName={containerClassName}
+        onPatch={onPatch}
+        onRemove={onRemove}
+      />
+    ));
+
+  return (
+    <>
+      {groups.map((group) => {
+        if (!group.label) {
+          return (
+            <div key="__ungrouped" className="space-y-1">
+              {rows(group.items)}
+            </div>
+          );
+        }
+        const isCollapsed = collapsed[group.key] ?? false;
+        const allVisible = group.items.every((m) => m.visible);
+        return (
+          <div key={group.key} className="space-y-1">
+            <div className="flex items-center gap-1">
+              <button
+                className="icon-btn-sm"
+                onClick={() => setCollapsed((c) => ({ ...c, [group.key]: !isCollapsed }))}
+                title={
+                  isCollapsed ? t("viewer.meshes.expandGroup") : t("viewer.meshes.collapseGroup")
+                }
+                aria-expanded={!isCollapsed}
+                aria-label={
+                  isCollapsed ? t("viewer.meshes.expandGroup") : t("viewer.meshes.collapseGroup")
+                }
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="h-3 w-3" />
+                ) : (
+                  <ChevronDown className="h-3 w-3" />
+                )}
+              </button>
+              <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {group.label}
+              </span>
+              <span className="data-mono text-[9px] text-muted-foreground">
+                {group.items.length}
+              </span>
+              <button
+                className="icon-btn-sm"
+                onClick={() => {
+                  const next = !allVisible;
+                  for (const m of group.items) onPatch(m.id, { visible: next });
+                }}
+                aria-label={t("viewer.meshes.toggleGroup", { name: group.label })}
+                aria-pressed={allVisible}
+              >
+                {allVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+              </button>
+            </div>
+            {!isCollapsed && <div className="space-y-1 pl-2">{rows(group.items)}</div>}
+          </div>
+        );
+      })}
+    </>
+  );
 }
 
 export function Viewer() {
@@ -603,6 +750,35 @@ export function Viewer() {
       volume ? toNormalized(volume, crosshair(volume, planeStates)) : { x: 0.5, y: 0.5, z: 0.5 },
     [volume, planeStates],
   );
+
+  /**
+   * Reaplica as cores especiais definidas no painel do WordPress quando a
+   * config fica disponível (chega de forma assíncrona, após decriptar). Evita
+   * que modelos carregados antes da config fiquem com a cor padrão.
+   */
+  useEffect(() => {
+    setMeshes((list) => {
+      let changed = false;
+      const next = list.map((m) => {
+        const forced = forcedMeshColor(m.name);
+        if (forced && m.color.toLowerCase() !== forced.toLowerCase()) {
+          changed = true;
+          return { ...m, color: forced };
+        }
+        return m;
+      });
+      return changed ? next : list;
+    });
+  }, [cfg]);
+
+  /** Atualiza campos de um modelo (cor, visibilidade, opacidade, coordenadas). */
+  const patchMesh = useCallback((id: string, patch: Partial<MeshFile>) => {
+    setMeshes((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+  }, []);
+
+  const removeMesh = useCallback((id: string) => {
+    setMeshes((list) => list.filter((x) => x.id !== id));
+  }, []);
 
   const addMeshFiles = useCallback(async (files: File[]) => {
     const geoms = files.filter((f) => /\.(stl|ply|obj)$/i.test(f.name));
@@ -2733,89 +2909,12 @@ export function Viewer() {
                             </span>
                           }
                         >
-                          {meshes.map((m) => (
-                            <div key={m.id} className="space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  type="color"
-                                  value={m.color}
-                                  onChange={(e) =>
-                                    setMeshes((list) =>
-                                      list.map((x) =>
-                                        x.id === m.id ? { ...x, color: e.target.value } : x,
-                                      ),
-                                    )
-                                  }
-                                  className="h-5 w-6 shrink-0 cursor-pointer rounded border border-border bg-transparent"
-                                  aria-label={t("viewer.meshes.colorOf", { name: m.name })}
-                                />
-                                <button
-                                  className="min-w-0 flex-1 truncate text-left text-[11px]"
-                                  title={m.name}
-                                  onClick={() =>
-                                    setMeshes((list) =>
-                                      list.map((x) =>
-                                        x.id === m.id ? { ...x, visible: !x.visible } : x,
-                                      ),
-                                    )
-                                  }
-                                  style={{ opacity: m.visible ? 1 : 0.4 }}
-                                  aria-pressed={m.visible}
-                                >
-                                  {m.name}
-                                  {meshVolumes.get(m.id) ? (
-                                    <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">
-                                      · {meshVolumes.get(m.id)}
-                                    </span>
-                                  ) : null}
-                                </button>
-                                <button
-                                  className="icon-btn-sm"
-                                  onClick={() =>
-                                    setMeshes((list) => list.filter((x) => x.id !== m.id))
-                                  }
-                                  aria-label={t("viewer.meshes.remove", { name: m.name })}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </div>
-                              <input
-                                type="range"
-                                min={0.05}
-                                max={1}
-                                step={0.01}
-                                value={m.opacity}
-                                onChange={(e) =>
-                                  setMeshes((list) =>
-                                    list.map((x) =>
-                                      x.id === m.id ? { ...x, opacity: Number(e.target.value) } : x,
-                                    ),
-                                  )
-                                }
-                                className="w-full accent-primary"
-                                style={{ accentColor: "var(--primary)" }}
-                                aria-label={t("viewer.meshes.opacityOf", { name: m.name })}
-                              />
-                              <button
-                                className="btn-chip w-full py-1 text-[10px]"
-                                onClick={() =>
-                                  setMeshes((list) =>
-                                    list.map((x) =>
-                                      x.id === m.id
-                                        ? {
-                                            ...x,
-                                            coordSystem: x.coordSystem === "ras" ? "lps" : "ras",
-                                          }
-                                        : x,
-                                    ),
-                                  )
-                                }
-                                title={t("viewer.panel.coordSystem")}
-                              >
-                                {m.coordSystem === "lps" ? "LPS (DICOM)" : "RAS (Slicer)"}
-                              </button>
-                            </div>
-                          ))}
+                          <MeshList
+                            meshes={meshes}
+                            meshVolumes={meshVolumes}
+                            onPatch={patchMesh}
+                            onRemove={removeMesh}
+                          />
                           {meshes.length > 1 && (
                             <button
                               className="btn-chip w-full"
@@ -3167,84 +3266,13 @@ export function Viewer() {
                       {t("viewer.panel.noModels")}
                     </p>
                   )}
-                  {meshes.map((m) => (
-                    <div
-                      key={m.id}
-                      className="space-y-1 rounded-md border border-border bg-panel p-2"
-                    >
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="color"
-                          value={m.color}
-                          onChange={(e) =>
-                            setMeshes((list) =>
-                              list.map((x) =>
-                                x.id === m.id ? { ...x, color: e.target.value } : x,
-                              ),
-                            )
-                          }
-                          className="h-5 w-6 shrink-0 cursor-pointer rounded border border-border bg-transparent"
-                          aria-label={t("viewer.meshes.colorOf", { name: m.name })}
-                        />
-                        <button
-                          className="min-w-0 flex-1 truncate text-left text-[11px]"
-                          title={m.name}
-                          onClick={() =>
-                            setMeshes((list) =>
-                              list.map((x) => (x.id === m.id ? { ...x, visible: !x.visible } : x)),
-                            )
-                          }
-                          style={{ opacity: m.visible ? 1 : 0.4 }}
-                          aria-pressed={m.visible}
-                        >
-                          {m.name}
-                          {meshVolumes.get(m.id) ? (
-                            <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">
-                              · {meshVolumes.get(m.id)}
-                            </span>
-                          ) : null}
-                        </button>
-                        <button
-                          className="icon-btn-sm"
-                          onClick={() => setMeshes((list) => list.filter((x) => x.id !== m.id))}
-                          aria-label={t("viewer.meshes.remove", { name: m.name })}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                      <input
-                        type="range"
-                        min={0.05}
-                        max={1}
-                        step={0.01}
-                        value={m.opacity}
-                        onChange={(e) =>
-                          setMeshes((list) =>
-                            list.map((x) =>
-                              x.id === m.id ? { ...x, opacity: Number(e.target.value) } : x,
-                            ),
-                          )
-                        }
-                        className="w-full"
-                        style={{ accentColor: "var(--primary)" }}
-                        aria-label={t("viewer.meshes.opacityOf", { name: m.name })}
-                      />
-                      <button
-                        className="btn-chip w-full py-1 text-[10px]"
-                        onClick={() =>
-                          setMeshes((list) =>
-                            list.map((x) =>
-                              x.id === m.id
-                                ? { ...x, coordSystem: x.coordSystem === "ras" ? "lps" : "ras" }
-                                : x,
-                            ),
-                          )
-                        }
-                      >
-                        {m.coordSystem === "lps" ? "LPS (DICOM)" : "RAS (Slicer)"}
-                      </button>
-                    </div>
-                  ))}
+                  <MeshList
+                    meshes={meshes}
+                    meshVolumes={meshVolumes}
+                    containerClassName="rounded-md border border-border bg-panel p-2"
+                    onPatch={patchMesh}
+                    onRemove={removeMesh}
+                  />
                   {meshes.length > 1 && (
                     <button
                       className="btn-chip w-full"

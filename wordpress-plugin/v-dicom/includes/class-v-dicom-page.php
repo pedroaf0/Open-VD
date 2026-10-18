@@ -307,6 +307,8 @@ $config = array(
 			'directDicomEnabled' => V_Dicom_Storage::direct_dicom_enabled(),
 			'segmentationCost' => V_Dicom_Storage::segmentation_cost(),
 			'segmentationTypes' => V_Dicom_Storage::get_public_segmentation_types(),
+			// Regras de cor especial por nome de malha (editáveis no painel).
+			'meshColors' => V_Dicom_Storage::get_mesh_colors(),
 			'locale'    => function_exists( 'determine_locale' ) ? determine_locale() : get_locale(),
 		);
 

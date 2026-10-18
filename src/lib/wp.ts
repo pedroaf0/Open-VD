@@ -11,6 +11,7 @@ import { useState, useEffect } from "react";
 import i18n from "@/i18n";
 import { expandArchives, isZipBuffer, type ExpandProgress, type ExpandInput } from "@/lib/zip";
 import type { Annotation } from "@/lib/annotations";
+import type { MeshColorRule } from "@/lib/meshColors";
 
 export type SegmentationType = {
   id: string;
@@ -52,6 +53,11 @@ export type WpConfig = {
   /** Cost in credits to run segmentation (admin config). */
   segmentationCost?: number;
   segmentationTypes?: SegmentationType[];
+  /**
+   * Regras "nome do modelo -> cor" definidas no painel do plugin. Forçam a cor
+   * de malhas STL/PLY/OBJ carregadas cujo nome combine com a regra.
+   */
+  meshColors?: MeshColorRule[];
   /** WordPress site locale (`get_locale()`), used as the viewer language. */
   locale?: string;
 };
@@ -250,6 +256,23 @@ export function wpConfig(): WpConfig | null {
         cost: Math.max(0, Math.floor(Number(t.cost ?? 0))),
         enabled: t.enabled !== false,
       }));
+  }
+  if (Array.isArray(raw.meshColors)) {
+    const rules: MeshColorRule[] = [];
+    for (const item of raw.meshColors as unknown[]) {
+      if (!item || typeof item !== "object") continue;
+      const name = (item as { name?: unknown }).name;
+      const color = (item as { color?: unknown }).color;
+      if (typeof name !== "string" || !name.trim()) continue;
+      if (typeof color !== "string" || !/^#[0-9a-f]{6}$/i.test(color.trim())) continue;
+      const rawMatch = (item as { match?: unknown }).match;
+      rules.push({
+        name: name.trim(),
+        color: color.trim().toUpperCase(),
+        match: rawMatch === "contains" || rawMatch === "regex" ? rawMatch : "exact",
+      });
+    }
+    cfg.meshColors = rules;
   }
   return cfg;
 }

@@ -72,6 +72,8 @@ Open-VD/
 │  │  ├─ zip.ts                 # Leitor ZIP em streaming (fflate/zip.js + CRC-32)
 │  │  ├─ wp.ts                  # ⭐ Ponte com o WordPress (REST, uploads, cenas, RunPod)
 │  │  ├─ meshVolume.ts          # Cálculo de volume de STL/PLY/OBJ (mm³/cm³)
+│  │  ├─ meshColors.ts          # ⭐ Regras "nome do modelo → cor" (config do painel)
+│  │  ├─ meshGroups.ts          # ⭐ Agrupa modelos por termo comum no nome
 │  │  ├─ pwa.ts                 # Service worker + prompt de instalação
 │  │  ├─ debuglog.ts            # Buffer de console.* na tela (iOS)
 │  │  ├─ format.ts, utils.ts
@@ -228,6 +230,29 @@ Parser ZIP em streaming (EOCD → Central Directory → entradas), ZIP64, com
 `computeGeometryVolumeInfo` (volume assinado + teste de "watertight"),
 `computeMeshFileVolume` (STL/PLY/OBJ, soma meshes de OBJ), `formatMeshVolume`.
 
+### `meshColors.ts`
+Regras de **cor especial por nome de modelo** (STL/PLY/OBJ), antes _hardcoded_
+(`FORCED_MESH_COLORS`) e agora **editáveis no painel do plugin**:
+`type MeshColorRule { name, color, match: "exact" | "contains" | "regex" }`,
+`DEFAULT_MESH_COLOR_RULES` (fallback local/standalone), `normalizeMeshName`,
+`meshColorRules()` (lê `wpConfig().meshColors`; lista vazia = nenhuma cor) e
+`forcedMeshColor(name, rules?)`. A primeira regra que combinar vence; `exact`
+compara o nome inteiro, `contains` casa trechos e `regex` casa uma expressão
+regular testada contra o nome normalizado (sem extensão/acento, minúsculas) com
+flag `i` (regex inválida é ignorada; cache de regex compiladas). Usado por
+`Viewer.tsx` e `Volume3D.tsx`.
+
+### `meshGroups.ts`
+Agrupa a lista de modelos do visualizador por **termo comum no nome**. O termo
+do grupo é o que aparece no maior número de nomes (desempate por termo mais
+longo, depois alfabético) — ex.: `polpa_01`/`polpa_02` → grupo `polpa`;
+`incisivo central dentes`/`incisivo lateral dentes`/`molar dentes` → grupo
+`dentes` (e não `incisivo`). API: `type MeshGroup<T>`, `meshNameTokens(name)`
+(normaliza, descarta dígitos, termos com < 3 letras e stopwords) e
+`groupMeshesByName(items)` (itens sem grupo vêm no balde `label: null`). A UI
+(`MeshList` em `Viewer.tsx`) mostra cabeçalho recolhível + contagem + liga/desliga
+do grupo.
+
 ### `pwa.ts`, `debuglog.ts`, `format.ts`
 - SW: `/v-dicom/sw.js` no WP, `/sw.js` fora; `useInstallPrompt()`.
 - `DEBUG_OVERLAY_ENABLED = false` (botão de debug removível em produção).
@@ -252,11 +277,12 @@ Concentra quase toda a lógica de UI (~3.5k linhas). Responsabilidades:
 - Segmentação: dispara job, faz polling de status, modal de progresso.
 - Responsividade via `useBreakpoint()` (mobile/tablet/desktop) e abas de plano no mobile.
 - Helpers: `withRetry`, `runPool` (`UPLOAD_CONCURRENCY = 6`), serialização de planos,
-  cores forçadas por nome de mesh (`FORCED_MESH_COLORS` — ex.: "mandibula").
+  cores forçadas por nome de mesh via `src/lib/meshColors.ts` (regras do painel
+  do plugin; padrões locais quando fora do WordPress — ex.: "mandibula").
 
-Sub-componentes no mesmo arquivo: `QuizLoadingPanel`, `useBreakpoint`,
-`Section`, `Range`. Componentes de viewport em arquivos próprios: `SliceView`,
-`Volume3D`.
+Sub-componentes no mesmo arquivo: `QuizLoadingPanel`, `MeshRow`/`MeshList`
+(lista de modelos agrupada por nome), `useBreakpoint`, `Section`, `Range`.
+Componentes de viewport em arquivos próprios: `SliceView`, `Volume3D`.
 
 ---
 
@@ -345,7 +371,8 @@ Sub-componentes no mesmo arquivo: `QuizLoadingPanel`, `useBreakpoint`,
   `set_segmentation/get_segmentation`, por tipo.
 - Opções: API key, URL-auth, carregamento direto de DICOM
   (`OPTION_DIRECT_DICOM_ENABLED`, padrão **desativado**), custo de segmentação,
-  defaults de novos usuários.
+  defaults de novos usuários, **cores dos modelos** (`OPTION_MESH_COLORS` via
+  `get_mesh_colors()` / `set_mesh_colors()` / `default_mesh_colors()`).
 - Sanitização: `sanitize_key`, `sanitize_files`, `sanitize_settings`,
   `sanitize_annotations`, `sanitize_plane_state`; upload em **chunks**
   (`parse_chunk_name`, `store_chunk`).
@@ -354,9 +381,18 @@ Sub-componentes no mesmo arquivo: `QuizLoadingPanel`, `useBreakpoint`,
 ### Admin — `class-v-dicom-admin.php`
 Menu top-level `v-dicom` (cap. `upload_files`). Ações via `admin_post_*`:
 delete, limite (`limit`), tema, **API key**, **tipos de segmentação**, URL-auth,
-**carregamento direto de DICOM** (`direct_dicom`), defaults de novos usuários.
+**carregamento direto de DICOM** (`direct_dicom`), defaults de novos usuários e
+**cores dos modelos** (`mesh_colors`).
 A tela lista cenas, gera/edita links, mostra debug do
 RunPod e faz polling do status de segmentação.
+
+**Submenu "Cores dos modelos"** (`page_mesh_colors()`, slug `v-dicom-colors`,
+cap. `edit_users`): editor das regras **nome do modelo → cor** (tabela com nome,
+seletor de cor, modo de correspondência `Exato`/`Contém`/`Regex`, excluir,
+adicionar regra e restaurar padrões). Regex é validada no servidor
+(`V_Dicom_Storage::is_valid_regex()`); inválida é descartada. Salvo por
+`handle_mesh_colors()` em `V_Dicom_Storage::set_mesh_colors()` e enviado ao
+viewer em `window.V_DICOM.meshColors`.
 
 **Listas com busca + paginação** (linhas por página: `PER_PAGE_USERS` /
 `PER_PAGE_SCENES` = 20): as listas de **usuários** (`query_quota_users()`,
@@ -474,6 +510,8 @@ npm run format         # prettier --write .
 | Novo endpoint REST | `wordpress-plugin/v-dicom/includes/class-v-dicom-rest.php` |
 | Persistência/quotas/créditos | `.../class-v-dicom-storage.php` |
 | Tela de admin | `.../class-v-dicom-admin.php` |
+| Cores especiais dos modelos (STL) | `.../class-v-dicom-admin.php` (`page_mesh_colors`) + `.../class-v-dicom-storage.php` (`OPTION_MESH_COLORS`) + `src/lib/meshColors.ts` |
+| Agrupar modelos por nome | `src/lib/meshGroups.ts` + `MeshList`/`MeshRow` em `src/components/Viewer.tsx` |
 | Config injetada / PWA / rota | `.../class-v-dicom-page.php` |
 | Proxy de download externo | `.../includes/download.php` |
 | Textos/idiomas da UI | `src/i18n/locales/<lang>/*.json` |

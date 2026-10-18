@@ -28,6 +28,8 @@ const OPTION_DEFAULT_CREDIT = 'v_dicom_default_credit';
 const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	const OPTION_SEG_COST = 'v_dicom_segmentation_cost';
 	const OPTION_SEG_TYPES = 'v_dicom_segmentation_types';
+	/** Regras nome-da-malha -> cor especial (dentes, mandíbula, canal, etc.). */
+	const OPTION_MESH_COLORS = 'v_dicom_mesh_colors';
 	const META_SEGMENTATIONS = '_v_dicom_segmentations';
 
 	/** Maximum number of recently accessed scenes to store */
@@ -301,6 +303,100 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 			$out[] = $san;
 		}
 		update_option( self::OPTION_SEG_TYPES, array_values( $out ) );
+		return array_values( $out );
+	}
+
+	/**
+	 * Regras padrão de cor por nome de malha (STL/PLY/OBJ). Usadas quando o
+	 * administrador ainda não personalizou a lista no painel.
+	 */
+	public static function default_mesh_colors() {
+		return array(
+			array( 'name' => 'maxila e cranio superior', 'color' => '#FFF3B0', 'match' => 'exact' ),
+			array( 'name' => 'mandibula', 'color' => '#FFF3B0', 'match' => 'exact' ),
+			array( 'name' => 'dentes superiores', 'color' => '#FFFFFF', 'match' => 'exact' ),
+			array( 'name' => 'dentes inferiores', 'color' => '#FFFFFF', 'match' => 'exact' ),
+			array( 'name' => 'canal mandibular', 'color' => '#FF0000', 'match' => 'exact' ),
+		);
+	}
+
+	/**
+	 * Sanitiza uma regra de cor. Retorna null quando o nome ou a cor são
+	 * inválidos (a regra é descartada). `match` aceita 'exact' (padrão),
+	 * 'contains' ou 'regex'. Em 'regex', o nome é tratado como expressão
+	 * regular; padrões inválidos são descartados.
+	 */
+	public static function sanitize_mesh_color_rule( $raw ) {
+		if ( ! is_array( $raw ) ) {
+			return null;
+		}
+		$raw_match = isset( $raw['match'] ) ? (string) $raw['match'] : 'exact';
+		$match     = in_array( $raw_match, array( 'exact', 'contains', 'regex' ), true ) ? $raw_match : 'exact';
+		if ( 'regex' === $match ) {
+			// Não passar por sanitize_text_field: preserva metacaracteres e
+			// grupos nomeados; removemos só controle/nulos e limitamos o tamanho.
+			$name = trim( (string) ( $raw['name'] ?? '' ) );
+			$name = (string) preg_replace( '/[\x00-\x1F\x7F]/', '', $name );
+			$name = substr( $name, 0, 200 );
+			if ( '' === $name || ! self::is_valid_regex( $name ) ) {
+				return null;
+			}
+		} else {
+			$name = sanitize_text_field( (string) ( $raw['name'] ?? '' ) );
+			if ( '' === trim( $name ) ) {
+				return null;
+			}
+		}
+		$hex = sanitize_hex_color( (string) ( $raw['color'] ?? '' ) );
+		if ( ! $hex ) {
+			return null;
+		}
+		return array(
+			'name'  => $name,
+			'color' => strtoupper( $hex ),
+			'match' => $match,
+		);
+	}
+
+	/** Valida um padrão regex para uso com delimitador próprio (sem guardar). */
+	private static function is_valid_regex( $pattern ) {
+		if ( '' === $pattern ) {
+			return false;
+		}
+		$delim   = '~';
+		$escaped = str_replace( $delim, '\\' . $delim, $pattern );
+		return false !== @preg_match( $delim . $escaped . $delim . 'i', '' );
+	}
+
+	/**
+	 * Lista de regras ativas. Quando a opção nunca foi salva, devolve os
+	 * padrões; quando foi salva (mesmo vazia), devolve exatamente o que o
+	 * administrador definiu.
+	 */
+	public static function get_mesh_colors() {
+		$raw = get_option( self::OPTION_MESH_COLORS, null );
+		if ( ! is_array( $raw ) ) {
+			return self::default_mesh_colors();
+		}
+		$out = array();
+		foreach ( $raw as $item ) {
+			$san = self::sanitize_mesh_color_rule( $item );
+			if ( $san ) {
+				$out[] = $san;
+			}
+		}
+		return array_values( $out );
+	}
+
+	public static function set_mesh_colors( $rules ) {
+		$out = array();
+		foreach ( (array) $rules as $item ) {
+			$san = self::sanitize_mesh_color_rule( $item );
+			if ( $san ) {
+				$out[] = $san;
+			}
+		}
+		update_option( self::OPTION_MESH_COLORS, array_values( $out ) );
 		return array_values( $out );
 	}
 

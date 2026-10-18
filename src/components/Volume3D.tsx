@@ -13,6 +13,7 @@ import {
   type PlaneState,
   type Vec3,
 } from "@/lib/mpr";
+import { forcedMeshColor } from "@/lib/meshColors";
 
 export type MeshFile = {
   id: string;
@@ -28,23 +29,6 @@ export type MeshFile = {
   /** OBJ only: texture file name (lowercase) -> object URL */
   textures?: Record<string, string>;
 };
-
-const FORCED_MESH_COLORS: Record<string, string> = {
-  "maxila e cranio superior": "#FFF3B0",
-  mandibula: "#FFF3B0",
-  "dentes superiores": "#FFFFFF",
-  "dentes inferiores": "#FFFFFF",
-  "canal mandibular": "#FF0000",
-};
-const normalizeMeshName = (n: string) =>
-  n
-    .replace(/\.(stl|ply|obj)$/i, "")
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-const forcedMeshColor = (name: string): string | undefined =>
-  FORCED_MESH_COLORS[normalizeMeshName(name)];
 
 type Props = {
   volume: Volume | null;

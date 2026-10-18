@@ -180,7 +180,10 @@
   "meshes": {
     "colorOf": "Color of {{name}}",
     "remove": "Remove {{name}}",
-    "opacityOf": "Opacity of {{name}}"
+    "opacityOf": "Opacity of {{name}}",
+    "toggleGroup": "Show / hide {{name}}",
+    "expandGroup": "Expand group",
+    "collapseGroup": "Collapse group"
   },
   "shortcuts": {
     "wheel": "Mouse wheel: navigate slices",
