@@ -41,17 +41,34 @@ const STOPWORDS = new Set([
 ]);
 
 /**
- * Termos de um nome para efeito de agrupamento: normaliza (sem extensão,
- * acento ou caixa), descarta dígitos, termos curtos, stopwords e repetições.
+ * Termos de um nome para efeito de agrupamento: remove a(s) extensão(ões),
+ * normaliza (sem acento ou caixa) e descarta dígitos, termos curtos, stopwords
+ * e repetições.
  */
 export function meshNameTokens(name: string): string[] {
   const tokens: string[] = [];
-  for (const token of normalizeMeshName(name).split(/[^a-z]+/)) {
+  const base = stripExtensions(name);
+  for (const token of normalizeMeshName(base).split(/[^a-z]+/)) {
     if (token.length < MIN_TOKEN_LENGTH) continue;
     if (STOPWORDS.has(token)) continue;
     if (!tokens.includes(token)) tokens.push(token);
   }
   return tokens;
+}
+
+/**
+ * Remove extensões do arquivo (inclusive compostas como `.nii.gz`). Aceita
+ * qualquer extensão alfanumérica curta, então serve para nomes de mesh
+ * (`.stl`) e de DICOM (`.dcm`), imagens e `.zip`.
+ */
+function stripExtensions(name: string): string {
+  let out = name.trim();
+  for (let i = 0; i < 3; i++) {
+    const next = out.replace(/\.[a-z0-9]{1,5}$/i, "");
+    if (next === out) break;
+    out = next;
+  }
+  return out;
 }
 
 /**

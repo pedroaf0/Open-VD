@@ -61,7 +61,7 @@ Open-VD/
 │  │  ├─ Volume3D.tsx           # Viewport 3D (Three.js): volume + meshes + planos
 │  │  ├─ SliceView.tsx          # Viewport 2D de um plano (MPR, navegação, anotações)
 │  │  ├─ ProfileView.tsx        # Dashboard do usuário logado (cenas, storage, créditos)
-│  │  ├─ SceneDownloadModal.tsx # Modal de download de cena (zip)
+│  │  ├─ SceneDownloadModal.tsx # Modal de download de cena (zip; lista agrupada por nome)
 │  │  ├─ MultiSeriesModal.tsx   # Seleção de série quando o estudo tem múltiplas
 │  │  ├─ LoadingIcons.tsx, UploadIcon.tsx, LanguageSwitcher.tsx, DebugPanel.tsx
 │  │  └─ ui/                    # Primitivas shadcn (dialog, dropdown-menu, input)
@@ -248,10 +248,13 @@ do grupo é o que aparece no maior número de nomes (desempate por termo mais
 longo, depois alfabético) — ex.: `polpa_01`/`polpa_02` → grupo `polpa`;
 `incisivo central dentes`/`incisivo lateral dentes`/`molar dentes` → grupo
 `dentes` (e não `incisivo`). API: `type MeshGroup<T>`, `meshNameTokens(name)`
-(normaliza, descarta dígitos, termos com < 3 letras e stopwords) e
-`groupMeshesByName(items)` (itens sem grupo vêm no balde `label: null`). A UI
-(`MeshList` em `Viewer.tsx`) mostra cabeçalho recolhível + contagem + liga/desliga
-do grupo.
+(remove a(s) extensão(ões) — `.stl`, `.dcm`, `.nii.gz`… — normaliza, descarta
+dígitos, termos com < 3 letras e stopwords) e `groupMeshesByName(items)` (itens
+sem grupo vêm no balde `label: null`). Usado em dois lugares: a lista de modelos
+(`MeshList` em `Viewer.tsx`) e a lista de arquivos do modal de download
+(`SceneDownloadModal.tsx`), ambas com cabeçalho recolhível + contagem (a lista de
+modelos também tem liga/desliga do grupo). No modal cada cabeçalho tem ainda um
+botão para **baixar só o grupo em .zip** (`downloadAllAsZip(group.items, safeTitle-label)`).
 
 ### `pwa.ts`, `debuglog.ts`, `format.ts`
 - SW: `/v-dicom/sw.js` no WP, `/sw.js` fora; `useInstallPrompt()`.
@@ -511,7 +514,7 @@ npm run format         # prettier --write .
 | Persistência/quotas/créditos | `.../class-v-dicom-storage.php` |
 | Tela de admin | `.../class-v-dicom-admin.php` |
 | Cores especiais dos modelos (STL) | `.../class-v-dicom-admin.php` (`page_mesh_colors`) + `.../class-v-dicom-storage.php` (`OPTION_MESH_COLORS`) + `src/lib/meshColors.ts` |
-| Agrupar modelos por nome | `src/lib/meshGroups.ts` + `MeshList`/`MeshRow` em `src/components/Viewer.tsx` |
+| Agrupar modelos por nome | `src/lib/meshGroups.ts` + `MeshList`/`MeshRow` em `src/components/Viewer.tsx` + `SceneDownloadModal.tsx` |
 | Config injetada / PWA / rota | `.../class-v-dicom-page.php` |
 | Proxy de download externo | `.../includes/download.php` |
 | Textos/idiomas da UI | `src/i18n/locales/<lang>/*.json` |

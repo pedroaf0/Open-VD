@@ -73,6 +73,7 @@
     "filesCountSuffix_one": "arquivo",
     "filesCountSuffix_other": "arquivos",
     "downloadAllZip": "Baixar tudo (.zip)",
+    "downloadGroupZip": "Baixar o grupo {{name}} (.zip)",
     "download": "Baixar"
   },
   "multiSeriesModal": {
