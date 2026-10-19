@@ -50,6 +50,12 @@ export type WpConfig = {
    * (and uploading them). When false, exams can only come from Drive/OneDrive.
    */
   directDicomEnabled?: boolean;
+  /**
+   * Whether the admin allows public loading of exams without login.
+   * When true, unauthenticated users can load and view exams (local files or URLs).
+   * Protected actions (share, segment) still require authentication.
+   */
+  publicLoadingEnabled?: boolean;
   /** Cost in credits to run segmentation (admin config). */
   segmentationCost?: number;
   segmentationTypes?: SegmentationType[];
@@ -228,6 +234,9 @@ export function wpConfig(): WpConfig | null {
   }
   if (typeof raw.directDicomEnabled === "boolean") {
     cfg.directDicomEnabled = raw.directDicomEnabled;
+  }
+  if (typeof raw.publicLoadingEnabled === "boolean") {
+    cfg.publicLoadingEnabled = raw.publicLoadingEnabled;
   }
   if (typeof raw.segmentationCost === "number") {
     cfg.segmentationCost = Math.max(0, Math.floor(raw.segmentationCost));
@@ -897,8 +906,9 @@ export async function fetchUrlFiles(
 
   // Garante que a URL está autorizada antes de passar pelo proxy.
   // A autorização consome 1 crédito na primeira vez; downloads subsequentes são gratuitos.
-  // Se o admin desativou a exigência de autorização, pula a etapa.
-  if (useProxy && cfg?.urlAuthEnabled !== false) {
+  // Se o admin desativou a exigência de autorização OU o carregamento público está habilitado, pula a etapa.
+  const skipAuth = cfg?.urlAuthEnabled === false || cfg?.publicLoadingEnabled === true;
+  if (useProxy && !skipAuth) {
     onProgress?.(i18n.t("lib.wp.checkingUrlAuth"));
     try {
       await authorizeUrl(url, onConfirmCredit);

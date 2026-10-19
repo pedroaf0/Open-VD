@@ -305,6 +305,8 @@ $config = array(
 			'urlAuthEnabled' => V_Dicom_Storage::url_auth_enabled(),
 			// Whether direct DICOM loading/upload from local files is allowed.
 			'directDicomEnabled' => V_Dicom_Storage::direct_dicom_enabled(),
+			// Whether public loading of exams without login is allowed.
+			'publicLoadingEnabled' => V_Dicom_Storage::public_loading_enabled(),
 			'segmentationCost' => V_Dicom_Storage::segmentation_cost(),
 			'segmentationTypes' => V_Dicom_Storage::get_public_segmentation_types(),
 			// Regras de cor especial por nome de malha (editáveis no painel).

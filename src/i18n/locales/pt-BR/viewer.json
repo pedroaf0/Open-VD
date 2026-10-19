@@ -340,5 +340,14 @@
     "etaSeconds": "~{{value}}s restantes",
     "etaMinutes": "~{{minutes}}min {{seconds}}s restantes",
     "etaHours": "~{{hours}}h {{minutes}}min restantes"
+  },
+  "auth": {
+    "loginRequired": "Esta ação requer autenticação. Uma janela de login será aberta.",
+    "loginPromptTitle": "Login necessário",
+    "loginPromptMessage": "Para compartilhar ou segmentar, você precisa estar logado. Abrindo login em nova aba…",
+    "checkingAuth": "Verificando status do login…",
+    "authDetected": "Login detectado! Atualizando…",
+    "authFailed": "Não foi possível verificar o login. Tente novamente.",
+    "openLogin": "Abrir login"
   }
 }

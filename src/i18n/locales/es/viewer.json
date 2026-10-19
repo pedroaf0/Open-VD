@@ -340,5 +340,14 @@
     "etaSeconds": "~{{value}}s restantes",
     "etaMinutes": "~{{minutes}}min {{seconds}}s restantes",
     "etaHours": "~{{hours}}h {{minutes}}min restantes"
+  },
+  "auth": {
+    "loginRequired": "Esta acción requiere autenticación. Se abrirá una ventana de inicio de sesión.",
+    "loginPromptTitle": "Inicio de sesión requerido",
+    "loginPromptMessage": "Para compartir o segmentar, debe haber iniciado sesión. Abriendo login en una nueva pestaña…",
+    "checkingAuth": "Comprobando estado del inicio de sesión…",
+    "authDetected": "¡Inicio de sesión detectado! Actualizando…",
+    "authFailed": "No se pudo verificar el inicio de sesión. Inténtelo de nuevo.",
+    "openLogin": "Abrir login"
   }
 }

@@ -2111,7 +2111,7 @@ if (!$v_dicom_service) {
 |--------------------------------------------------------------------------
 */
 
-if (V_Dicom_Storage::url_auth_enabled() && !v_dicom_is_url_authorized($v_dicom_url)) {
+if (V_Dicom_Storage::url_auth_enabled() && !V_Dicom_Storage::public_loading_enabled() && !v_dicom_is_url_authorized($v_dicom_url)) {
 
     if (!headers_sent()) {
         http_response_code(403);

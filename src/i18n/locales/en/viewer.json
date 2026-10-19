@@ -340,5 +340,14 @@
     "etaSeconds": "~{{value}}s left",
     "etaMinutes": "~{{minutes}}min {{seconds}}s left",
     "etaHours": "~{{hours}}h {{minutes}}min left"
+  },
+  "auth": {
+    "loginRequired": "This action requires authentication. A login window will open.",
+    "loginPromptTitle": "Login required",
+    "loginPromptMessage": "To share or segment, you need to be logged in. Opening login in a new tab…",
+    "checkingAuth": "Checking login status…",
+    "authDetected": "Login detected! Refreshing…",
+    "authFailed": "Could not verify login. Please try again.",
+    "openLogin": "Open login"
   }
 }

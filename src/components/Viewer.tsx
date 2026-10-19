@@ -92,6 +92,7 @@ import {
 import { Volume3D, type MeshFile } from "@/components/Volume3D";
 import { ProfileView } from "@/components/ProfileView";
 import { SceneDownloadModal } from "@/components/SceneDownloadModal";
+import { LoginRequiredModal } from "@/components/LoginRequiredModal";
 import { LoadingIcons } from "@/components/LoadingIcons";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import i18n from "@/i18n";
@@ -124,10 +125,36 @@ import {
   type UserPanel,
   type AuthorizeUrlResponse,
   type UrlProgress,
+  type WpConfig,
 } from "@/lib/wp";
 import { computeMeshFileVolume, formatMeshVolume } from "@/lib/meshVolume";
 import { forcedMeshColor } from "@/lib/meshColors";
 import { groupMeshesByName } from "@/lib/meshGroups";
+
+/** Polls for authentication after login page is opened. */
+async function pollForAuthentication(
+  onAuthChange: (authenticated: boolean, userPanel?: UserPanel) => void,
+  maxAttempts = 60,
+): Promise<boolean> {
+  onAuthChange(false); // Start checking
+
+  for (let attempts = 0; attempts < maxAttempts; attempts++) {
+    await new Promise((r) => setTimeout(r, 2000));
+
+    try {
+      const panel = await fetchUserPanel();
+      if (panel.isLoggedIn) {
+        onAuthChange(true, panel);
+        return true;
+      }
+    } catch {
+      // Ignore errors during polling (e.g., not logged in yet)
+    }
+  }
+
+  onAuthChange(false);
+  return false;
+}
 
 /** Retry a network step a couple of times before giving up. */
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
@@ -705,6 +732,10 @@ export function Viewer() {
   const cfg = useWpConfig();
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
 
+  // Flags derivados da configuração — declarados cedo para uso em callbacks
+  const canUpload = !cfg || cfg.canUpload;
+  const canLoadPublicly = !!(cfg && cfg.publicLoadingEnabled);
+
   /** Roteamento simples do app: visor DICOM ou perfil (dashboard).
    *  Usuário logado sem cena aberta começa no perfil; o visor só é exibido
    *  ao criar/abrir uma cena (?scene=key) ou pelo botão Visor do cabeçalho. */
@@ -737,6 +768,11 @@ export function Viewer() {
   const [activeSheet, setActiveSheet] = useState<
     "cortes" | "janela" | "3d" | "modelos" | "anotar" | null
   >(null);
+
+  /** Modal de login necessário para ações protegidas (compartilhar, segmentar). */
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [loginModalChecking, setLoginModalChecking] = useState(false);
+  const loginModalResolve = useRef<((value: boolean) => void) | null>(null);
 
   /** Ícone animado de upload no estado vazio (ativa no hover e no arraste). */
   const uploadIconRef = useRef<UploadIconHandle>(null);
@@ -1277,13 +1313,62 @@ export function Viewer() {
     registerServiceWorker();
   }, []);
 
-  const openShare = useCallback(() => {
+  /** Inicia polling de autenticação quando o modal solicita login */
+  useEffect(() => {
+    if (!loginModalChecking || !cfg?.loginUrl) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const authenticated = await pollForAuthentication(
+        async (authed, panel) => {
+          if (cancelled) return;
+          if (authed && panel) {
+            setUserPanel(panel);
+            await loadPanel();
+            loginModalResolve.current?.(true);
+          } else {
+            loginModalResolve.current?.(false);
+          }
+        },
+      );
+
+      if (cancelled) return;
+      if (!authenticated) {
+        setLoginModalChecking(false);
+        alert(t("viewer.auth.authFailed"));
+      }
+      // Fecha o modal após polling (sucesso ou falha)
+      setLoginModalOpen(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loginModalChecking, cfg, loadPanel, t]);
+
+  const openShare = useCallback(async () => {
+    // Se carregamento público está habilitado mas usuário não está logado, exige autenticação via modal
+    if (!cfg?.canUpload && canLoadPublicly && cfg?.loginUrl) {
+      const authenticated = await new Promise<boolean>((resolve) => {
+        loginModalResolve.current = resolve;
+        setLoginModalOpen(true);
+        setLoginModalChecking(false);
+      });
+
+      if (authenticated) {
+        // O onAuthChange já atualizou userPanel e chamou loadPanel
+      } else {
+        return;
+      }
+    }
+
     setSceneName((n) => n || "");
 
     // Exibe nome do paciente automaticamente em todas as telas
     setShareOpen(true);
     void loadPanel();
-  }, [loadPanel]);
+  }, [cfg, canLoadPublicly, loadPanel, t]);
 
   const handleDeleteScene = useCallback(
     async (s: SceneSummary) => {
@@ -1781,15 +1866,21 @@ export function Viewer() {
     resetFlip();
   }, [volume, resetAllPlanes, resetFlip]);
 
-  const canUpload = !cfg || cfg.canUpload;
   const hasData = !!volume || meshes.length > 0;
 
   /**
    * Carregamento direto de DICOM a partir de arquivos/pasta do disco.
    * No modo local (sem WordPress) é sempre permitido; dentro do WordPress
    * depende da opção do administrador (padrão: desativado = só Drive/OneDrive).
+   * Quando o carregamento público está habilitado, também permite sem login.
    */
-  const allowDirectDicom = !cfg || cfg.directDicomEnabled === true;
+  const allowDirectDicom = !cfg || cfg.directDicomEnabled === true || canLoadPublicly;
+
+  /**
+   * Permite abrir exames por URL (Drive/OneDrive) sem login quando o
+   * carregamento público está habilitado.
+   */
+  const allowUrlLoading = canLoadPublicly;
 
   /**
    * `webkitdirectory` é um atributo não padronizado e não consta nos tipos do
@@ -1809,6 +1900,22 @@ export function Viewer() {
       return;
     }
     if (!hasAvailableSegType && sceneKey) return;
+
+    // Se carregamento público está habilitado mas usuário não está logado, exige autenticação via modal
+    if (!cfg.canUpload && canLoadPublicly && cfg?.loginUrl) {
+      const authenticated = await new Promise<boolean>((resolve) => {
+        loginModalResolve.current = resolve;
+        setLoginModalOpen(true);
+        setLoginModalChecking(false);
+      });
+
+      if (authenticated) {
+        // O onAuthChange já atualizou userPanel e chamou loadPanel
+      } else {
+        return;
+      }
+    }
+
     let targetKey: string | null = sceneKey;
     if (!targetKey) {
       const created = await publishScene();
@@ -1844,6 +1951,7 @@ export function Viewer() {
     }
   }, [
     cfg,
+    canLoadPublicly,
     segBusy,
     busy,
     hasData,
@@ -1854,6 +1962,7 @@ export function Viewer() {
     handleSegmentScene,
     segTypesEnabled,
     hasAvailableSegType,
+    loadPanel,
     t,
   ]);
 
@@ -2131,7 +2240,7 @@ export function Viewer() {
             )}
 
             {/* Compartilhar */}
-            {cfg?.canUpload && hasData && (
+            {(cfg?.canUpload || canLoadPublicly) && hasData && (
               <button
                 className="btn-primary"
                 onClick={openShare}
@@ -2159,7 +2268,7 @@ export function Viewer() {
                 <span className="hidden sm:inline">{t("viewer.header.download")}</span>
               </button>
             )}
-            {cfg?.canUpload && hasData && (canSegmentCurrentScene || !sceneKey) && (
+            {(cfg?.canUpload || canLoadPublicly) && hasData && (canSegmentCurrentScene || !sceneKey) && (
               <button
                 className="btn-ghost gap-1.5"
                 disabled={!!segBusy || !!busy}
@@ -2413,6 +2522,14 @@ export function Viewer() {
           />
         )}
 
+        <LoginRequiredModal
+          open={loginModalOpen}
+          onOpenChange={setLoginModalOpen}
+          loginUrl={cfg?.loginUrl || ""}
+          onLoginClick={() => setLoginModalChecking(true)}
+          isChecking={loginModalChecking}
+        />
+
         <div className="flex min-h-0 flex-1">
           {route === "viewer" && (
             <>
@@ -2621,16 +2738,16 @@ export function Viewer() {
                             aria-hidden
                           />
                           <h2 className="font-display text-xl font-bold">
-                            {canUpload ? t("viewer.empty.loadStudy") : t("viewer.empty.noScene")}
+                            {(canUpload || canLoadPublicly) ? t("viewer.empty.loadStudy") : t("viewer.empty.noScene")}
                           </h2>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            {canUpload
+                            {(canUpload || canLoadPublicly)
                               ? allowDirectDicom
                                 ? t("viewer.empty.loadStudyHintDirect")
                                 : t("viewer.empty.loadStudyHint")
                               : t("viewer.empty.loginHint")}
                           </p>
-                          {canUpload && (
+                          {(canUpload || canLoadPublicly) && (
                             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                               {allowDirectDicom && (
                                 <button
@@ -2650,18 +2767,20 @@ export function Viewer() {
                                   {t("viewer.header.openDicomFolder")}
                                 </button>
                               )}
-                              <button
-                                className={
-                                  allowDirectDicom ? "btn-ghost gap-1.5" : "btn-primary gap-1.5"
-                                }
-                                onClick={() => {
-                                  setUrlValue("");
-                                  setUrlOpen(true);
-                                }}
-                              >
-                                <Link2 className="h-3.5 w-3.5" />
-                                {t("viewer.header.openByUrl")}
-                              </button>
+                              {(allowUrlLoading || allowDirectDicom) && (
+                                <button
+                                  className={
+                                    allowDirectDicom ? "btn-ghost gap-1.5" : "btn-primary gap-1.5"
+                                  }
+                                  onClick={() => {
+                                    setUrlValue("");
+                                    setUrlOpen(true);
+                                  }}
+                                >
+                                  <Link2 className="h-3.5 w-3.5" />
+                                  {t("viewer.header.openByUrl")}
+                                </button>
+                              )}
                               <button
                                 className="btn-ghost"
                                 onClick={() => stlInput.current?.click()}
@@ -2671,7 +2790,7 @@ export function Viewer() {
                               </button>
                             </div>
                           )}
-                          {!canUpload && (
+                          {!canUpload && !canLoadPublicly && (
                             <button
                               className="btn-primary mt-4"
                               onClick={() => {

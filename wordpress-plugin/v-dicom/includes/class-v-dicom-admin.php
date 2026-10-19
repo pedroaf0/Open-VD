@@ -24,6 +24,7 @@ class V_Dicom_Admin {
 		add_action( 'admin_post_v_dicom_direct_dicom', array( $this, 'handle_direct_dicom' ) );
 		add_action( 'admin_post_v_dicom_newuser_defaults', array( $this, 'handle_newuser_defaults' ) );
 		add_action( 'admin_post_v_dicom_mesh_colors', array( $this, 'handle_mesh_colors' ) );
+		add_action( 'admin_post_v_dicom_public_loading', array( $this, 'handle_public_loading' ) );
 	}
 
 	/** Load the media library only on the plugin screen (logo picker). */
@@ -247,6 +248,17 @@ class V_Dicom_Admin {
 		check_admin_referer( 'v_dicom_direct_dicom' );
 		V_Dicom_Storage::set_direct_dicom_enabled( isset( $_POST['v_dicom_direct_dicom'] ) );
 		wp_safe_redirect( add_query_arg( 'directdicomsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
+		exit;
+	}
+
+	/** Toggle public loading of exams without login on/off. */
+	public function handle_public_loading() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		check_admin_referer( 'v_dicom_public_loading' );
+		V_Dicom_Storage::set_public_loading_enabled( isset( $_POST['v_dicom_public_loading'] ) );
+		wp_safe_redirect( add_query_arg( 'publicloadingsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
 		exit;
 	}
 
@@ -748,6 +760,32 @@ class V_Dicom_Admin {
 						</tr>
 					</table>
 					<?php submit_button( __( 'Salvar carregamento de DICOM', 'v-dicom' ) ); ?>
+				</form>
+
+				<h2><?php esc_html_e( 'Carregamento público sem login', 'v-dicom' ); ?></h2>
+				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
+				<?php if ( isset( $_GET['publicloadingsaved'] ) ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração atualizada.', 'v-dicom' ); ?></p></div>
+				<?php endif; ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="v_dicom_public_loading" />
+					<?php wp_nonce_field( 'v_dicom_public_loading' ); ?>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="v-dicom-public-loading-enabled"><?php esc_html_e( 'Permitir carregamento público de exames', 'v-dicom' ); ?></label></th>
+							<td>
+								<label>
+									<input type="checkbox" id="v-dicom-public-loading-enabled" name="v_dicom_public_loading" value="1"
+										<?php checked( V_Dicom_Storage::public_loading_enabled() ); ?> />
+									<?php esc_html_e( 'Permitir que visitantes não autenticados carreguem e visualizem exames (arquivos locais ou URLs suportados) sem fazer login.', 'v-dicom' ); ?>
+								</label>
+								<p class="description">
+									<?php esc_html_e( 'Quando ativado, qualquer pessoa pode abrir o visualizador e carregar exames. Ações protegidas (compartilhar, segmentar) continuam exigindo login. Quando desativado (padrão), o visualizador exige autenticação para carregar exames.', 'v-dicom' ); ?>
+								</p>
+							</td>
+						</tr>
+					</table>
+					<?php submit_button( __( 'Salvar carregamento público', 'v-dicom' ) ); ?>
 				</form>
 
 				<h2><?php esc_html_e( 'Tipos de segmentação (RunPod)', 'v-dicom' ); ?></h2>

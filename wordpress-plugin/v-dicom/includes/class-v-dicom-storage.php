@@ -30,6 +30,8 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	const OPTION_SEG_TYPES = 'v_dicom_segmentation_types';
 	/** Regras nome-da-malha -> cor especial (dentes, mandíbula, canal, etc.). */
 	const OPTION_MESH_COLORS = 'v_dicom_mesh_colors';
+	/** Permite carregamento público de exames sem login (arquivo local ou URL). */
+	const OPTION_PUBLIC_LOADING_ENABLED = 'v_dicom_public_loading_enabled';
 	const META_SEGMENTATIONS = '_v_dicom_segmentations';
 
 	/** Maximum number of recently accessed scenes to store */
@@ -152,6 +154,16 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	/** Enable or disable direct DICOM loading/upload. */
 	public static function set_direct_dicom_enabled( $enabled ) {
 		update_option( self::OPTION_DIRECT_DICOM_ENABLED, $enabled ? 1 : 0 );
+	}
+
+	/** Whether public loading of exams without login is enabled (admin toggle). */
+	public static function public_loading_enabled() {
+		return (bool) get_option( self::OPTION_PUBLIC_LOADING_ENABLED, false );
+	}
+
+	/** Enable or disable public loading of exams without login. */
+	public static function set_public_loading_enabled( $enabled ) {
+		update_option( self::OPTION_PUBLIC_LOADING_ENABLED, $enabled ? 1 : 0 );
 	}
 
 	public static function default_new_user_credit() {
