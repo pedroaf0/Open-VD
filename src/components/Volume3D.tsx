@@ -1,10 +1,36 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
 import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Check,
+  ChevronDown,
+  Gauge,
+  Info,
+  Minus,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  X,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { makeTextureVolume, type Plane, type Volume } from "@/lib/dicom";
 import {
   defaultPlaneStates,
@@ -14,6 +40,16 @@ import {
   type Vec3,
 } from "@/lib/mpr";
 import { forcedMeshColor } from "@/lib/meshColors";
+import { setRenderMode, useRenderMode, type RenderMode } from "@/lib/renderMode";
+import {
+  createStaticDepthTarget,
+  createTransparencyUniforms,
+  DepthPeeling,
+  patchTransparencyMaterial,
+  setMaterialFast,
+  WeightedOIT,
+} from "@/lib/transparency";
+import { cn } from "@/lib/utils";
 
 export type MeshFile = {
   id: string;
@@ -44,6 +80,36 @@ type Props = {
   ww: number;
   invert: boolean;
 };
+
+const TIP_STORAGE_KEY = "openvd:transparency-tip-seen:v1";
+let tipShownThisSession = false;
+
+const AZIMUTH_STEP = 10;
+const ELEVATION_STEP = 5;
+const ZOOM_FACTOR = 1.14;
+const PRECISE_MIN_FRAME_MS = 110;
+
+const RENDER_MODE_META: Array<{
+  id: RenderMode;
+  icon: LucideIcon;
+  badgeClass: string;
+}> = [
+  {
+    id: "balanced",
+    icon: Gauge,
+    badgeClass: "border-sky-400/30 bg-sky-400/10 text-sky-200",
+  },
+  {
+    id: "precise",
+    icon: Sparkles,
+    badgeClass: "border-emerald-400/30 bg-emerald-400/10 text-emerald-200",
+  },
+  {
+    id: "fast",
+    icon: Zap,
+    badgeClass: "border-amber-400/30 bg-amber-400/10 text-amber-200",
+  },
+];
 
 const vert = /* glsl */ `
 out vec3 vOrigin;
@@ -159,6 +225,75 @@ export function Volume3D({
 
   const meshKey = useMemo(() => meshes.map((m) => `${m.id}:${m.coordSystem}`).join("|"), [meshes]);
 
+  const { t } = useTranslation();
+  const mode = useRenderMode();
+  const [showTip, setShowTip] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
+  const transparencyUniforms = useMemo(() => createTransparencyUniforms(), []);
+  const modeRef = useRef<RenderMode>(mode);
+  const invalidateRef = useRef<() => void>(() => {});
+  const warningRef = useRef<() => void>(() => {});
+  const controlsRef = useRef<OrbitControls | null>(null);
+  const viewControlRef = useRef<{
+    step: (deltaAzimuth: number, deltaElevation: number) => void;
+    zoom: (factor: number) => void;
+    reset: () => void;
+  } | null>(null);
+
+  // ---- first-run hint -------------------------------------------------
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled || tipShownThisSession) return;
+      try {
+        if (window.localStorage.getItem(TIP_STORAGE_KEY) === "1") return;
+      } catch {
+        /* armazenamento indisponível */
+      }
+      tipShownThisSession = true;
+      setShowTip(true);
+    }, 900);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!warningOpen) return;
+    const timer = window.setTimeout(() => setWarningOpen(false), 9000);
+    return () => window.clearTimeout(timer);
+  }, [warningOpen]);
+
+  useEffect(() => {
+    warningRef.current = () => setWarningOpen(true);
+  }, []);
+
+  const dismissTip = () => {
+    setShowTip(false);
+    try {
+      window.localStorage.setItem(TIP_STORAGE_KEY, "1");
+    } catch {
+      /* armazenamento indisponível */
+    }
+  };
+
+  const changeMode = (next: RenderMode) => {
+    dismissTip();
+    setRenderMode(next);
+  };
+
+  useEffect(() => {
+    modeRef.current = mode;
+    const controls = controlsRef.current;
+    if (controls) {
+      controls.enabled = mode !== "precise";
+      if (mode !== "precise") controls.update();
+    }
+    if (mode !== "precise") setWarningOpen(false);
+    invalidateRef.current();
+  }, [mode]);
+
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -166,6 +301,10 @@ export function Volume3D({
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     mount.appendChild(renderer.domElement);
+
+    const canvas = renderer.domElement;
+    canvas.tabIndex = 0;
+    canvas.style.outline = "none";
 
     const scene = new THREE.Scene();
     scene.add(new THREE.AmbientLight(0xffffff, 1.1));
@@ -207,31 +346,315 @@ export function Volume3D({
     camera.up.set(0, 0, 1);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.enabled = modeRef.current !== "precise";
+    controlsRef.current = controls;
+    const homePosition = camera.position.clone();
+    const homeTarget = controls.target.clone();
+
+    const weightedOit = new WeightedOIT(renderer, transparencyUniforms);
+    const depthPeeling = new DepthPeeling(renderer, transparencyUniforms, 8);
+    let depthTarget: THREE.WebGLRenderTarget | null = null;
+    let configuredMode: RenderMode | null = null;
+    let dirty = true;
+    let lastPreciseRender = Number.NEGATIVE_INFINITY;
+
+    const collectMeshes = (): THREE.Mesh[] => {
+      const result: THREE.Mesh[] = [];
+      meshGroupRef.current?.traverse((object) => {
+        if (object instanceof THREE.Mesh) result.push(object);
+      });
+      return result;
+    };
+
+    const collectMaterials = (): THREE.Material[] => {
+      const result = new Set<THREE.Material>();
+      for (const mesh of collectMeshes()) {
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const material of materials) result.add(material);
+      }
+      return [...result];
+    };
+
+    const hasVisibleMeshes = (): boolean =>
+      meshGroupRef.current?.children.some((child) => child.visible) ?? false;
+
+    const configureMaterials = (activeMode: RenderMode) => {
+      if (configuredMode === activeMode) return;
+      configuredMode = activeMode;
+      transparencyUniforms.mode.value = 0;
+      transparencyUniforms.peelHasPrev.value = 0;
+      transparencyUniforms.peelPrev.value = null;
+      if (activeMode === "fast") {
+        for (const material of collectMaterials()) setMaterialFast(material);
+      }
+    };
+
+    /**
+     * Renderiza somente os planos de corte num target de profundidade. O
+     * shader de OIT/peeling usa essa textura para descartar a metade da malha
+     * que está atrás do corte, mantendo a oclusão dos planos.
+     */
+    const prepareStaticDepth = () => {
+      if (!depthTarget) {
+        transparencyUniforms.hasStaticDepth.value = 0;
+        transparencyUniforms.staticDepth.value = null;
+        return;
+      }
+      const planeMeshes = Object.values(planeRefs.current).filter(
+        (mesh): mesh is THREE.Mesh => !!mesh && mesh.visible,
+      );
+      if (!planeMeshes.length) {
+        transparencyUniforms.hasStaticDepth.value = 0;
+        transparencyUniforms.staticDepth.value = null;
+        return;
+      }
+
+      const volumeMesh = volMeshRef.current;
+      const savedVolumeVisible = volumeMesh?.visible ?? false;
+      if (volumeMesh) volumeMesh.visible = false;
+
+      const outlines = Object.values(planeOutlineRefs.current).filter(
+        (outline): outline is THREE.LineSegments => !!outline,
+      );
+      const outlineVisibility = outlines.map((outline) => outline.visible);
+      for (const outline of outlines) outline.visible = false;
+
+      const colorWrites: Array<[THREE.Material, boolean]> = [];
+      for (const mesh of planeMeshes) {
+        const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const material of materials) {
+          colorWrites.push([material, material.colorWrite]);
+          material.colorWrite = false;
+        }
+      }
+
+      const savedAutoClear = renderer.autoClear;
+      const savedClearColor = renderer.getClearColor(new THREE.Color());
+      const savedClearAlpha = renderer.getClearAlpha();
+
+      renderer.autoClear = false;
+      renderer.setRenderTarget(depthTarget);
+      renderer.setClearColor(0x000000, 0);
+      renderer.clear(true, true, false);
+      renderer.render(scene, camera);
+
+      for (const [material, colorWrite] of colorWrites) material.colorWrite = colorWrite;
+      outlines.forEach((outline, index) => {
+        outline.visible = outlineVisibility[index] ?? true;
+      });
+      if (volumeMesh) volumeMesh.visible = savedVolumeVisible;
+      renderer.setClearColor(savedClearColor, savedClearAlpha);
+      renderer.autoClear = savedAutoClear;
+      renderer.setRenderTarget(null);
+
+      transparencyUniforms.staticDepth.value = depthTarget.depthTexture;
+      transparencyUniforms.hasStaticDepth.value = 1;
+    };
+
+    const renderFrame = () => {
+      const activeMode = modeRef.current;
+      configureMaterials(activeMode);
+
+      if (activeMode === "fast" || !hasVisibleMeshes()) {
+        meshGroup.visible = true;
+        renderer.autoClear = true;
+        renderer.setRenderTarget(null);
+        renderer.render(scene, camera);
+        return;
+      }
+
+      // Fundo: volume, planos de corte e contornos, sem as malhas.
+      meshGroup.visible = false;
+      renderer.autoClear = true;
+      renderer.setRenderTarget(null);
+      renderer.render(scene, camera);
+
+      // Profundidade dos planos para os shaders de transparência.
+      prepareStaticDepth();
+      meshGroup.visible = true;
+
+      const volumeMesh = volMeshRef.current;
+      const savedVolumeVisible = volumeMesh?.visible ?? false;
+      const savedPlanesVisible = planes.visible;
+      if (volumeMesh) volumeMesh.visible = false;
+      planes.visible = false;
+
+      if (activeMode === "balanced") {
+        weightedOit.render(scene, camera, collectMaterials());
+      } else {
+        depthPeeling.render(scene, camera, collectMaterials());
+      }
+
+      planes.visible = savedPlanesVisible;
+      if (volumeMesh) volumeMesh.visible = savedVolumeVisible;
+      meshGroup.visible = true;
+    };
+
+    invalidateRef.current = () => {
+      dirty = true;
+    };
+
+    const stepView = (deltaAzimuth: number, deltaElevation: number) => {
+      const target = controls.target;
+      const offset = camera.position.clone().sub(target);
+      const distance = Math.max(1e-4, offset.length());
+      let azimuth = Math.atan2(offset.x, -offset.y);
+      let elevation = Math.asin(THREE.MathUtils.clamp(offset.z / distance, -1, 1));
+      azimuth += THREE.MathUtils.degToRad(deltaAzimuth);
+      elevation = THREE.MathUtils.clamp(
+        elevation + THREE.MathUtils.degToRad(deltaElevation),
+        -Math.PI * 0.47,
+        Math.PI * 0.47,
+      );
+      const cosElevation = Math.cos(elevation);
+      camera.position.set(
+        target.x + distance * cosElevation * Math.sin(azimuth),
+        target.y - distance * cosElevation * Math.cos(azimuth),
+        target.z + distance * Math.sin(elevation),
+      );
+      camera.lookAt(target);
+      controls.update();
+      dirty = true;
+    };
+
+    const zoomView = (factor: number) => {
+      const offset = camera.position.clone().sub(controls.target);
+      const distance = THREE.MathUtils.clamp(offset.length() * factor, 0.05, 12);
+      offset.setLength(distance);
+      camera.position.copy(controls.target).add(offset);
+      camera.lookAt(controls.target);
+      controls.update();
+      dirty = true;
+    };
+
+    const resetView = () => {
+      camera.position.copy(homePosition);
+      controls.target.copy(homeTarget);
+      camera.lookAt(homeTarget);
+      controls.update();
+      dirty = true;
+    };
+
+    viewControlRef.current = { step: stepView, zoom: zoomView, reset: resetView };
+
+    const resize = () => {
+      const width = mount.clientWidth;
+      const height = mount.clientHeight;
+      if (!width || !height) return;
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      weightedOit.setSize();
+      depthPeeling.setSize();
+      depthTarget?.dispose();
+      const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+      depthTarget = createStaticDepthTarget(
+        Math.max(1, Math.floor(size.x)),
+        Math.max(1, Math.floor(size.y)),
+      );
+      transparencyUniforms.hasStaticDepth.value = 0;
+      transparencyUniforms.staticDepth.value = null;
+      dirty = true;
+    };
+    resize();
 
     let raf = 0;
-    const loop = () => {
-      controls.update();
-      renderer.render(scene, camera);
+    const loop = (now: number) => {
       raf = requestAnimationFrame(loop);
+      controls.update();
+      const preciseHeavy = modeRef.current === "precise" && hasVisibleMeshes();
+      if (preciseHeavy) {
+        // Modo preciso: prioriza imagens estáticas. Só redesenha quando algo
+        // muda, com um limite modesto de atualizações por segundo.
+        if (dirty && now - lastPreciseRender >= PRECISE_MIN_FRAME_MS) {
+          dirty = false;
+          lastPreciseRender = now;
+          renderFrame();
+        }
+      } else {
+        renderFrame();
+        dirty = false;
+      }
     };
-    loop();
+    raf = requestAnimationFrame(loop);
 
-    const ro = new ResizeObserver(() => {
-      if (!mount.clientWidth) return;
-      renderer.setSize(mount.clientWidth, mount.clientHeight);
-      camera.aspect = mount.clientWidth / mount.clientHeight;
-      camera.updateProjectionMatrix();
-    });
+    const ro = new ResizeObserver(resize);
     ro.observe(mount);
+
+    let dragStart: { x: number; y: number } | null = null;
+    const onPointerDown = (event: PointerEvent) => {
+      canvas.focus({ preventScroll: true });
+      if (modeRef.current !== "precise") return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      dragStart = { x: event.clientX, y: event.clientY };
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!dragStart || modeRef.current !== "precise") return;
+      if (Math.hypot(event.clientX - dragStart.x, event.clientY - dragStart.y) > 6) {
+        dragStart = null;
+        warningRef.current();
+      }
+    };
+    const onPointerUp = () => {
+      dragStart = null;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (modeRef.current !== "precise" || document.activeElement !== canvas) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      let handled = true;
+      switch (event.key) {
+        case "ArrowLeft":
+          stepView(-AZIMUTH_STEP, 0);
+          break;
+        case "ArrowRight":
+          stepView(AZIMUTH_STEP, 0);
+          break;
+        case "ArrowUp":
+          stepView(0, ELEVATION_STEP);
+          break;
+        case "ArrowDown":
+          stepView(0, -ELEVATION_STEP);
+          break;
+        case "+":
+        case "=":
+          zoomView(1 / ZOOM_FACTOR);
+          break;
+        case "-":
+        case "_":
+          zoomView(ZOOM_FACTOR);
+          break;
+        default:
+          handled = false;
+      }
+      if (handled) event.preventDefault();
+    };
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("keydown", onKeyDown);
 
     return () => {
       cancelAnimationFrame(raf);
       ro.disconnect();
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("keydown", onKeyDown);
       controls.dispose();
+      weightedOit.dispose();
+      depthPeeling.dispose();
+      depthTarget?.dispose();
       renderer.dispose();
-      mount.removeChild(renderer.domElement);
+      if (canvas.parentElement === mount) mount.removeChild(canvas);
+      controlsRef.current = null;
+      viewControlRef.current = null;
+      invalidateRef.current = () => {};
     };
-  }, []);
+  }, [transparencyUniforms]);
 
   // ---- volume rendering ------------------------------------------------
   useEffect(() => {
@@ -287,6 +710,7 @@ export function Volume3D({
     mesh.frustumCulled = false;
     lps.add(mesh);
     volMeshRef.current = mesh;
+    invalidateRef.current();
 
     return () => {
       tex.dispose();
@@ -302,6 +726,7 @@ export function Volume3D({
       u["uOpacity"]!.value = opacity;
     }
     if (volMeshRef.current) volMeshRef.current.visible = showVolume;
+    invalidateRef.current();
   }, [threshold, opacity, showVolume]);
 
   // ---- slice planes in 3D ---------------------------------------------
@@ -359,6 +784,7 @@ export function Volume3D({
       group.add(outline);
       planeOutlineRefs.current[plane] = outline;
     });
+    invalidateRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [volume]);
 
@@ -413,6 +839,7 @@ export function Volume3D({
       }
       mesh.visible = showPlanes[plane];
     });
+    invalidateRef.current();
   }, [volume, planes, wc, ww, invert, showPlanes]);
 
   // ---- meshes (STL / PLY / OBJ+MTL) -----------------------------------
@@ -463,6 +890,7 @@ export function Volume3D({
               mm.opacity = item.opacity ?? 0.95;
               mm.depthWrite = true;
               if (!mm.map) mm.color.set(effectiveColor);
+              patchTransparencyMaterial(mm, transparencyUniforms);
               mm.needsUpdate = true;
             }
           });
@@ -487,19 +915,18 @@ export function Volume3D({
         geo.computeBoundingBox();
         geo.computeBoundingSphere();
         if (!geo.boundingSphere || !Number.isFinite(geo.boundingSphere.radius)) continue;
-        object = new THREE.Mesh(
-          geo,
-          new THREE.MeshStandardMaterial({
-            color: hasColors ? 0xffffff : new THREE.Color(effectiveColor),
-            vertexColors: hasColors,
-            metalness: 0.1,
-            roughness: 0.45,
-            transparent: true,
-            opacity: item.opacity ?? 0.95,
-            depthWrite: true,
-            side: THREE.DoubleSide,
-          }),
-        );
+        const material = new THREE.MeshStandardMaterial({
+          color: hasColors ? 0xffffff : new THREE.Color(effectiveColor),
+          vertexColors: hasColors,
+          metalness: 0.1,
+          roughness: 0.45,
+          transparent: true,
+          opacity: item.opacity ?? 0.95,
+          depthWrite: true,
+          side: THREE.DoubleSide,
+        });
+        patchTransparencyMaterial(material, transparencyUniforms);
+        object = new THREE.Mesh(geo, material);
       }
 
       if (!object) continue;
@@ -514,6 +941,7 @@ export function Volume3D({
       if (item.coordSystem === "lps") object.scale.set(-1, -1, 1);
       group.add(object);
     }
+    invalidateRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meshKey]);
 
@@ -533,12 +961,11 @@ export function Volume3D({
           const m = mat as THREE.MeshStandardMaterial;
           m.opacity = item.opacity;
           m.transparent = true;
-          m.depthWrite = true;
           if (!m.vertexColors && !m.map) m.color.set(effectiveColor);
-          m.needsUpdate = true;
         }
       });
     }
+    invalidateRef.current();
   }, [meshes]);
 
   // ---- framing ---------------------------------------------------------
@@ -592,7 +1019,234 @@ export function Volume3D({
       .makeTranslation(-centre.x, -centre.y, -centre.z)
       .premultiply(new THREE.Matrix4().makeScale(scale, scale, scale));
     root.updateMatrixWorld(true);
+    invalidateRef.current();
   }, [volume, meshKey]);
 
-  return <div ref={mountRef} className="h-full w-full bg-black" />;
+  const modeName = t(`viewer.renderMode.modes.${mode}.name`);
+  const controlButton =
+    "flex h-7 w-7 items-center justify-center rounded-md border border-white/10 bg-white/5 text-white/85 transition hover:bg-white/15 active:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400";
+
+  return (
+    <div className="relative h-full w-full overflow-hidden bg-black">
+      <div ref={mountRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 z-10">
+        <div className="pointer-events-auto absolute right-2 top-2">
+          <DropdownMenu
+            onOpenChange={(open) => {
+              if (open) dismissTip();
+            }}
+          >
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={t("viewer.renderMode.button")}
+                title={t("viewer.renderMode.button")}
+                className="flex items-center gap-1.5 rounded-md border border-white/15 bg-black/60 px-2 py-1.5 text-[10px] font-medium text-white/85 shadow-lg backdrop-blur-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              >
+                <Gauge className="h-3.5 w-3.5 text-sky-300" />
+                <span className="hidden text-white/55 sm:inline">
+                  {t("viewer.renderMode.label")}
+                </span>
+                <span className="max-w-36 truncate text-white/95">{modeName}</span>
+                <ChevronDown className="h-3 w-3 opacity-60" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={6} className="w-[19rem] p-1.5">
+              <DropdownMenuLabel className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                {t("viewer.renderMode.title")}
+              </DropdownMenuLabel>
+              {RENDER_MODE_META.map((meta) => {
+                const Icon = meta.icon;
+                const active = mode === meta.id;
+                return (
+                  <DropdownMenuItem
+                    key={meta.id}
+                    onSelect={() => changeMode(meta.id)}
+                    className="flex cursor-pointer items-start gap-2.5 px-2 py-2 focus:bg-white/10"
+                  >
+                    <Icon
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0",
+                        active ? "text-sky-300" : "text-white/45",
+                      )}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold">
+                          {t(`viewer.renderMode.modes.${meta.id}.name`)}
+                        </span>
+                        <span
+                          className={cn(
+                            "rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide",
+                            meta.badgeClass,
+                          )}
+                        >
+                          {t(`viewer.renderMode.modes.${meta.id}.badge`)}
+                        </span>
+                        {active && <Check className="ml-auto h-3.5 w-3.5 text-sky-300" />}
+                      </span>
+                      <span className="mt-0.5 block text-[10.5px] leading-snug text-muted-foreground">
+                        {t(`viewer.renderMode.modes.${meta.id}.desc`)}
+                      </span>
+                    </span>
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {showTip && (
+          <div className="pointer-events-auto absolute right-2 top-14 z-20 w-[min(19rem,calc(100%-1rem))] rounded-lg border border-white/15 bg-zinc-950/95 p-3 text-white shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-2">
+              <Info className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold">{t("viewer.renderMode.tipTitle")}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-white/70">
+                  {t("viewer.renderMode.tipBody")}
+                </p>
+                <button
+                  type="button"
+                  onClick={dismissTip}
+                  className="mt-2 rounded-md bg-white/10 px-2 py-1 text-[10px] font-semibold text-white transition hover:bg-white/20"
+                >
+                  {t("viewer.renderMode.tipDismiss")}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={dismissTip}
+                aria-label={t("viewer.renderMode.closeTip")}
+                className="rounded p-0.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {warningOpen && mode === "precise" && (
+          <div className="pointer-events-auto absolute left-1/2 top-12 z-30 w-[min(30rem,calc(100%-1rem))] -translate-x-1/2 rounded-lg border border-amber-400/40 bg-zinc-950/95 p-3 text-amber-50 shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold">{t("viewer.renderMode.dragBlockedTitle")}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-amber-100/80">
+                  {t("viewer.renderMode.dragBlocked")}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => changeMode("balanced")}
+                    className="rounded-md bg-amber-300 px-2 py-1 text-[10px] font-semibold text-zinc-950 transition hover:bg-amber-200"
+                  >
+                    {t("viewer.renderMode.switchBalanced")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setWarningOpen(false)}
+                    className="rounded-md border border-white/15 px-2 py-1 text-[10px] font-medium text-white/80 transition hover:bg-white/10"
+                  >
+                    {t("viewer.common.close")}
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setWarningOpen(false)}
+                aria-label={t("viewer.common.close")}
+                className="rounded p-0.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {mode === "precise" && (
+          <div className="pointer-events-auto absolute bottom-2 left-1/2 z-20 -translate-x-1/2 select-none">
+            <div className="flex items-end gap-1.5">
+              <div className="grid grid-cols-3 grid-rows-3 gap-1 rounded-xl border border-white/10 bg-black/60 p-1.5 backdrop-blur-md">
+                <span />
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.rotateUp")}
+                  title={t("viewer.renderMode.rotateUp")}
+                  onClick={() => viewControlRef.current?.step(0, ELEVATION_STEP)}
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+                <span />
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.rotateLeft")}
+                  title={t("viewer.renderMode.rotateLeft")}
+                  onClick={() => viewControlRef.current?.step(-AZIMUTH_STEP, 0)}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                </button>
+                <span className="flex items-center justify-center text-[8px] font-semibold uppercase tracking-wide text-white/45">
+                  {t("viewer.renderMode.dpadLabel")}
+                </span>
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.rotateRight")}
+                  title={t("viewer.renderMode.rotateRight")}
+                  onClick={() => viewControlRef.current?.step(AZIMUTH_STEP, 0)}
+                >
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+                <span />
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.rotateDown")}
+                  title={t("viewer.renderMode.rotateDown")}
+                  onClick={() => viewControlRef.current?.step(0, -ELEVATION_STEP)}
+                >
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+                <span />
+              </div>
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.zoomIn")}
+                  title={t("viewer.renderMode.zoomIn")}
+                  onClick={() => viewControlRef.current?.zoom(1 / ZOOM_FACTOR)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.zoomOut")}
+                  title={t("viewer.renderMode.zoomOut")}
+                  onClick={() => viewControlRef.current?.zoom(ZOOM_FACTOR)}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  className={controlButton}
+                  aria-label={t("viewer.renderMode.reset")}
+                  title={t("viewer.renderMode.reset")}
+                  onClick={() => viewControlRef.current?.reset()}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <p className="mt-1 text-center text-[9px] text-white/45">
+              {t("viewer.renderMode.stepHint")}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

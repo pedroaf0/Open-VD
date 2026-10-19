@@ -2,7 +2,8 @@
 
 > Arquivo de contexto para reaproveitar em novos chats/agentes. Resume o que é o
 > projeto, sua arquitetura, onde fica cada coisa e as convenções a seguir.
-> Última atualização: revisão do repositório local.
+> Última atualização: 19/10/2026 — modos de transparência 3D (Equilibrada/Mais
+> precisa/Mais rápida) no `Volume3D`.
 
 ---
 
@@ -22,8 +23,8 @@ Dois modos de uso:
 
 - Licença: **GPL-2.0-or-later**
 - Idiomas da UI: **pt-BR (padrão/fonte)**, `en`, `es`
-- Versionamento do plugin: `1.67.0` em `wordpress-plugin/v-dicom/v-dicom.php`
-  (o `README.md` está com badge `1.71.0`, possivelmente desatualizado).
+- Versionamento do plugin: `1.78.0` em `wordpress-plugin/v-dicom/v-dicom.php`
+  (o `README.md` segue com badge `1.71.0`, desatualizado).
 - Repositório é um clone de `h-share-insight-3d-viewer` (pasta `Open-VD`), branch `main`.
 
 ---
@@ -58,7 +59,7 @@ Open-VD/
 │  │  └─ index.tsx              # Rota "/" → <Viewer/> (meta/SEO em pt)
 │  ├─ components/
 │  │  ├─ Viewer.tsx             # ⭐ Componente central (~3.5k linhas): toda a lógica de UI
-│  │  ├─ Volume3D.tsx           # Viewport 3D (Three.js): volume + meshes + planos
+│  │  ├─ Volume3D.tsx           # Viewport 3D (Three.js): volume + meshes + planos + modos de transparência
 │  │  ├─ SliceView.tsx          # Viewport 2D de um plano (MPR, navegação, anotações)
 │  │  ├─ ProfileView.tsx        # Dashboard do usuário logado (cenas, storage, créditos)
 │  │  ├─ SceneDownloadModal.tsx # Modal de download de cena (zip; lista agrupada por nome)
@@ -74,6 +75,8 @@ Open-VD/
 │  │  ├─ meshVolume.ts          # Cálculo de volume de STL/PLY/OBJ (mm³/cm³)
 │  │  ├─ meshColors.ts          # ⭐ Regras "nome do modelo → cor" (config do painel)
 │  │  ├─ meshGroups.ts          # ⭐ Agrupa modelos por termo comum no nome
+│  │  ├─ renderMode.ts          # ⭐ Modo de renderização 3D (Equilibrada/Mais precisa/Mais rápida)
+│  │  ├─ transparency.ts        # ⭐ Weighted Blended OIT + Depth Peeling + depth dos planos
 │  │  ├─ pwa.ts                 # Service worker + prompt de instalação
 │  │  ├─ debuglog.ts            # Buffer de console.* na tela (iOS)
 │  │  ├─ format.ts, utils.ts
@@ -164,6 +167,42 @@ Definido em `src/lib/mpr.ts`:
 - `renderPlane` reamostra sempre do volume original por **interpolação trilinear**.
 - Helpers: `rotatePlane`, `rotateAllPlanes`, `rotateOtherPlanes`, `clampPlane`,
   `planesIntersection`, `crosshair`, `setPlaneIndex`, `movePlaneThrough`.
+
+### 4.5 Modos de transparência 3D (Equilibrada / Mais precisa / Mais rápida)
+
+As malhas STL/PLY/OBJ são transparentes e contêm estruturas internas (polpas etc.).
+Para a relação de profundidade ficar correta de qualquer ângulo, o `Volume3D`
+oferece três modos, trocados no **botão de renderização** no canto do viewport 3D:
+
+| Modo | Técnica | Comportamento |
+| --- | --- | --- |
+| **Equilibrada** (padrão) | Weighted Blended OIT | ordem independente aproximada, navegação fluida, profundidade estável |
+| **Mais precisa** | Depth Peeling (8 camadas) | ordem exata por pixel; atualiza a imagem sob demanda |
+| **Mais rápida** | técnica antiga (`depthWrite: true`) | navegação fluida, mas pode esconder/trocar estruturas internas |
+
+- O modo é **compartilhado e persistido** em `localStorage`
+  (`openvd:transparency-mode:v1`) via `useRenderMode()`/`setRenderMode()` em
+  `src/lib/renderMode.ts` (padrão `balanced`).
+- Técnicas em `src/lib/transparency.ts`: o material original
+  (`MeshStandardMaterial`/`MeshPhongMaterial`) é preservado e recebe um trecho de
+  shader (`onBeforeCompile`) com teste de profundidade e acumulação OIT/peeling.
+- **Oclusão dos cortes**: antes da transparência, os planos de corte são
+  renderizados num target só de profundidade (`createStaticDepthTarget` +
+  `prepareStaticDepth` em `Volume3D`); o shader descarta a metade da malha atrás
+  do corte.
+- **Ordem de render**: fundo (volume + planos + contornos) → depth só dos planos
+  → OIT/peeling só das malhas → composição por cima do framebuffer.
+- **Modo Mais precisa**: desativa o `OrbitControls` (sem clique-e-arraste) e
+  mostra controles direcionais — D-pad em passos de 10° (horizontal) e 5°
+  (vertical), zoom e reset. Tentar arrastar exibe aviso sugerindo usar as setas e
+  trocar para Equilibrada para achar o ângulo. A imagem só é redesenhada quando
+  algo muda (opacidade, cortes, câmera, resize), limitada a ~9 atualizações/s.
+- **Primeira abertura**: dica breve exibida uma única vez
+  (`localStorage: openvd:transparency-tip-seen:v1`).
+- Textos em `viewer.renderMode.*` nos três idiomas.
+- Validação: laboratório temporário em `%TEMP%/opencode/transparency-lab`
+  comparou as técnicas com as malhas reais do `Scene.zip`; com opacidade 0.35,
+  8 camadas ficaram idênticas a 12 e o OIT ficou ~3× mais rápido que o peeling.
 
 ---
 
@@ -256,6 +295,22 @@ sem grupo vêm no balde `label: null`). Usado em dois lugares: a lista de modelo
 modelos também tem liga/desliga do grupo). No modal cada cabeçalho tem ainda um
 botão para **baixar só o grupo em .zip** (`downloadAllAsZip(group.items, safeTitle-label)`).
 
+### `renderMode.ts`
+Modo de renderização 3D compartilhado pelas vistas: `type RenderMode =
+"balanced" | "precise" | "fast"`, `DEFAULT_RENDER_MODE = "balanced"`,
+`useRenderMode()` (hook via `useSyncExternalStore`; snapshot de servidor sempre
+`balanced`) e `setRenderMode()`. Persiste em `localStorage`
+(`openvd:transparency-mode:v1`) e sincroniza entre abas (evento `storage`).
+
+### `transparency.ts`
+Técnicas de transparência *order-independent* do viewport 3D:
+`createTransparencyUniforms()`, `patchTransparencyMaterial(material, uniforms)`
+(injeta teste de profundidade + acumulação OIT/peeling no shader do material),
+`WeightedOIT`, `DepthPeeling` (padrão 8 camadas, máx. 12),
+`setMaterialFast/OitAccum/OitReveal/Peel` e `createStaticDepthTarget()`
+(profundidade apenas dos planos de corte). As malhas são renderizadas à parte,
+sem volume/planos, e a composição final é feita por cima do framebuffer.
+
 ### `pwa.ts`, `debuglog.ts`, `format.ts`
 - SW: `/v-dicom/sw.js` no WP, `/sw.js` fora; `useInstallPrompt()`.
 - `DEBUG_OVERLAY_ENABLED = false` (botão de debug removível em produção).
@@ -279,6 +334,10 @@ Concentra quase toda a lógica de UI (~3.5k linhas). Responsabilidades:
 - Anotações: modo, ferramenta, cor, ativas, linhas.
 - Segmentação: dispara job, faz polling de status, modal de progresso.
 - Responsividade via `useBreakpoint()` (mobile/tablet/desktop) e abas de plano no mobile.
+- Modos de transparência 3D: o seletor no canto do 3D, a dica de primeira abertura
+  e os controles direcionais do modo preciso vivem no `Volume3D`; o cabeçalho do
+  viewport troca “arraste para girar” por “use as setas para girar”
+  (`viewer.renderMode.preciseHint`) quando o modo é `precise`.
 - Helpers: `withRetry`, `runPool` (`UPLOAD_CONCURRENCY = 6`), serialização de planos,
   cores forçadas por nome de mesh via `src/lib/meshColors.ts` (regras do painel
   do plugin; padrões locais quando fora do WordPress — ex.: "mandibula").
@@ -300,7 +359,7 @@ Componentes de viewport em arquivos próprios: `SliceView`, `Volume3D`.
   3) locale do WordPress (`V_DICOM_LOCALE`) → 4) pt-BR**.
 - **SSR sempre renderiza pt-BR**; o idioma detectado é aplicado após a hidratação
   (em `__root.tsx` e em `embed.tsx` antes do primeiro render).
-- Áreas por idioma: `common`, `lib`, `ui`, `viewer` (272 chaves em `viewer`).
+- Áreas por idioma: `common`, `lib`, `ui`, `viewer` (~300 chaves em `viewer`).
 
 ---
 
@@ -484,8 +543,9 @@ npm run format         # prettier --write .
 
 ## 12. Pontos de atenção / divergências conhecidas
 
-- `README.md` cita versão **1.71.0**; `v-dicom.php` está em **1.67.0**. O bump só
-  ocorre via `npm run build:plugin` (minor, `X.Y.0`).
+- `README.md` cita versão **1.71.0**; `v-dicom.php`/`readme.txt` estão em
+  **1.78.0** (o bump é esperado e ocorre via `npm run build:plugin`, minor,
+  `X.Y.0`).
 - `assets/v-dicom.js|css` são **gerados** e gitignored — não edite à mão.
 - `src/routeTree.gen.ts` é gerado pelo TanStack Router (não editar).
 - `Viewer.tsx` é muito grande (~3.5k linhas) — mudanças pontuais exigem âncoras de
@@ -497,6 +557,15 @@ npm run format         # prettier --write .
   (`minimumReleaseAge = 86400`).
 - `@dimforge/rapier3d-compat` está em dependências mas **não há uso evidente** no
   código de `src/` — verificar antes de remover.
+- O botão de tela cheia do `Viewer.tsx` (`canFullscreen`, checado com
+  `typeof document`) causa aviso de **hydration mismatch** no console em dev
+  (o servidor não renderiza o botão; o cliente sim). Pré-existente, não quebra o
+  build SSR; correção simples é renderizar após o mount ou usar
+  `suppressHydrationWarning`.
+- O modo `precise` mantém buffers de camadas + acumulação e faz 8 passadas de
+  geometria por atualização; o consumo de GPU/memória é maior que `balanced`.
+  Ele também desativa o `OrbitControls` — novas interações 3D precisam respeitar
+  esse estado.
 
 ---
 
@@ -507,6 +576,7 @@ npm run format         # prettier --write .
 | UI/fluxo do visualizador | `src/components/Viewer.tsx` |
 | Render 2D de um plano | `src/components/SliceView.tsx` + `src/lib/mpr.ts` |
 | Reconstrução 3D / meshes | `src/components/Volume3D.tsx` + `src/lib/meshVolume.ts` |
+| Modos de transparência/velocidade do 3D | `src/lib/renderMode.ts` + `src/lib/transparency.ts` + `src/components/Volume3D.tsx` |
 | Decodificar novo formato DICOM | `src/lib/dicom.ts` (`decodePixels`) |
 | Ler ZIP / robustez mobile | `src/lib/zip.ts` |
 | Comunicação com WordPress | `src/lib/wp.ts` |
@@ -535,3 +605,9 @@ npm run format         # prettier --write .
 - **RunPod**: serviço externo de **segmentação automática por IA** (gera STL).
 - **Segmentação**: geração automática de modelos (meshes) a partir do volume.
 - **Proxy**: `download.php`, resolve links Google Drive/OneDrive contornando CORS.
+- **OIT (Weighted Blended Order-Independent Transparency)**: transparência com
+  ordem aproximada e ponderação por profundidade; rápida e sem "pops".
+- **Depth Peeling**: transparência com a ordem exata por pixel, renderizando a
+  geometria em camadas; mais fiel e mais lenta.
+- **Depth mask dos planos**: textura de profundidade só dos cortes, usada pelas
+  técnicas de transparência para as malhas não aparecerem atrás do plano.

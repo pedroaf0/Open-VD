@@ -142,6 +142,45 @@
     "tabsAria": "Planos",
     "dragToRotate": "arrastra para girar"
   },
+  "renderMode": {
+    "button": "Modo de representación 3D",
+    "label": "Representación",
+    "title": "Modo de representación 3D",
+    "preciseHint": "usa las flechas para girar",
+    "tipTitle": "Elige cómo se representa el 3D",
+    "tipBody": "Usa el botón de representación para alternar entre navegar más rápido y obtener una imagen más precisa. El modo Equilibrada es el predeterminado.",
+    "tipDismiss": "Entendido",
+    "closeTip": "Cerrar consejo",
+    "dragBlockedTitle": "Modo Más precisa activo",
+    "dragBlocked": "Este modo es más pesado y no admite arrastrar. Usa las flechas para girar. Consejo: encuentra el ángulo en el modo Equilibrada y cambia a Más precisa al capturar.",
+    "switchBalanced": "Usar Equilibrada",
+    "dpadLabel": "Girar",
+    "stepHint": "Pasos de 10°",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "reset": "Reiniciar vista",
+    "rotateUp": "Girar hacia arriba",
+    "rotateDown": "Girar hacia abajo",
+    "rotateLeft": "Girar a la izquierda",
+    "rotateRight": "Girar a la derecha",
+    "modes": {
+      "balanced": {
+        "name": "Equilibrada",
+        "badge": "Predeterminado",
+        "desc": "Buena calidad de profundidad con navegación fluida. Recomendada para la mayoría de los casos."
+      },
+      "precise": {
+        "name": "Más precisa",
+        "badge": "Calidad",
+        "desc": "Orden exacto de las capas e imagen más fiel. Más lenta: usa las flechas para girar."
+      },
+      "fast": {
+        "name": "Más rápida",
+        "badge": "Velocidad",
+        "desc": "Navegación muy fluida. Las estructuras internas pueden desaparecer o aparecer delante."
+      }
+    }
+  },
   "mpr": {
     "resetOblique": "Restablecer MPR oblicuo"
   },

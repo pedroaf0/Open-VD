@@ -142,6 +142,45 @@
     "tabsAria": "Planos",
     "dragToRotate": "arraste para girar"
   },
+  "renderMode": {
+    "button": "Modo de renderização 3D",
+    "label": "Renderização",
+    "title": "Modo de renderização 3D",
+    "preciseHint": "use as setas para girar",
+    "tipTitle": "Escolha como o 3D é renderizado",
+    "tipBody": "No botão de renderização, você escolhe entre navegar com mais rapidez ou obter uma imagem mais precisa. O modo Equilibrada é o padrão.",
+    "tipDismiss": "Entendi",
+    "closeTip": "Fechar dica",
+    "dragBlockedTitle": "Modo Mais precisa ativo",
+    "dragBlocked": "Este modo é mais pesado e não aceita arrastar. Use as setas para girar. Dica: encontre o ângulo no modo Equilibrada e troque para Mais precisa na hora de capturar.",
+    "switchBalanced": "Usar Equilibrada",
+    "dpadLabel": "Girar",
+    "stepHint": "Passos de 10°",
+    "zoomIn": "Aproximar",
+    "zoomOut": "Afastar",
+    "reset": "Reiniciar vista",
+    "rotateUp": "Girar para cima",
+    "rotateDown": "Girar para baixo",
+    "rotateLeft": "Girar para a esquerda",
+    "rotateRight": "Girar para a direita",
+    "modes": {
+      "balanced": {
+        "name": "Equilibrada",
+        "badge": "Padrão",
+        "desc": "Boa qualidade de profundidade com navegação fluida. Recomendada para a maioria dos casos."
+      },
+      "precise": {
+        "name": "Mais precisa",
+        "badge": "Qualidade",
+        "desc": "Ordem exata das camadas e imagem mais fiel. Mais lenta: use as setas para girar."
+      },
+      "fast": {
+        "name": "Mais rápida",
+        "badge": "Velocidade",
+        "desc": "Navegação muito fluida. Estruturas internas podem sumir ou aparecer na frente."
+      }
+    }
+  },
   "mpr": {
     "resetOblique": "Zerar MPR oblíquo"
   },

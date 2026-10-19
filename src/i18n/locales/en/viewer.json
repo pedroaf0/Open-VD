@@ -142,6 +142,45 @@
     "tabsAria": "Planes",
     "dragToRotate": "drag to rotate"
   },
+  "renderMode": {
+    "button": "3D render mode",
+    "label": "Rendering",
+    "title": "3D rendering mode",
+    "preciseHint": "use the arrows to rotate",
+    "tipTitle": "Choose how 3D is rendered",
+    "tipBody": "Use the rendering button to choose between faster navigation and a more accurate image. Balanced is the default.",
+    "tipDismiss": "Got it",
+    "closeTip": "Close tip",
+    "dragBlockedTitle": "More accurate mode is on",
+    "dragBlocked": "This mode is heavier and does not support dragging. Use the arrow controls to rotate. Tip: find the angle in Balanced mode, then switch to More accurate when capturing.",
+    "switchBalanced": "Use Balanced",
+    "dpadLabel": "Rotate",
+    "stepHint": "10° steps",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "reset": "Reset view",
+    "rotateUp": "Rotate up",
+    "rotateDown": "Rotate down",
+    "rotateLeft": "Rotate left",
+    "rotateRight": "Rotate right",
+    "modes": {
+      "balanced": {
+        "name": "Balanced",
+        "badge": "Default",
+        "desc": "Good depth quality with smooth navigation. Recommended for most cases."
+      },
+      "precise": {
+        "name": "More accurate",
+        "badge": "Quality",
+        "desc": "Exact layer order and a more faithful image. Slower: use the arrows to rotate."
+      },
+      "fast": {
+        "name": "Faster",
+        "badge": "Speed",
+        "desc": "Very smooth navigation. Internal structures may disappear or appear in front."
+      }
+    }
+  },
   "mpr": {
     "resetOblique": "Reset oblique MPR"
   },

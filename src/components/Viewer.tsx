@@ -65,6 +65,7 @@ import {
   type VolumeAxis,
 } from "@/lib/dicom";
 import { expandArchives, isZipBuffer, type ExpandInput } from "@/lib/zip";
+import { useRenderMode } from "@/lib/renderMode";
 import { MultiSeriesModal } from "@/components/MultiSeriesModal";
 import { hookConsole, DEBUG_OVERLAY_ENABLED } from "@/lib/debuglog";
 import { DebugOverlay } from "@/components/DebugPanel";
@@ -548,6 +549,7 @@ function MeshList({
 
 export function Viewer() {
   const { t } = useTranslation();
+  const renderMode = useRenderMode();
   const [volume, setVolume] = useState<Volume | null>(null);
   /** referência do volume atual, usada pelos controles de orientação */
   const volumeRef = useRef<Volume | null>(null);
@@ -2747,7 +2749,9 @@ export function Viewer() {
                               <span className="plane-label text-muted-foreground">3D / STL</span>
                               <span className="flex items-center gap-1">
                                 <span className="data-mono text-[9px] text-muted-foreground">
-                                  {t("viewer.planes.dragToRotate")}
+                                  {renderMode === "precise"
+                                    ? t("viewer.renderMode.preciseHint")
+                                    : t("viewer.planes.dragToRotate")}
                                 </span>
                                 {!isMobile && (
                                   <button
