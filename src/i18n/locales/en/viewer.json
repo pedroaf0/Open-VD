@@ -156,6 +156,8 @@
     "switchBalanced": "Use Balanced",
     "dpadLabel": "Rotate",
     "stepHint": "10° steps",
+    "showControls": "Show controls",
+    "hideControls": "Minimize controls",
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "reset": "Reset view",

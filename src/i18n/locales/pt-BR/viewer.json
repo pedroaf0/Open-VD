@@ -156,6 +156,8 @@
     "switchBalanced": "Usar Equilibrada",
     "dpadLabel": "Girar",
     "stepHint": "Passos de 10°",
+    "showControls": "Mostrar controles",
+    "hideControls": "Minimizar controles",
     "zoomIn": "Aproximar",
     "zoomOut": "Afastar",
     "reset": "Reiniciar vista",

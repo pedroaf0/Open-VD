@@ -14,6 +14,7 @@ import {
   ArrowUp,
   Check,
   ChevronDown,
+  ChevronUp,
   Gauge,
   Info,
   Minus,
@@ -229,6 +230,7 @@ export function Volume3D({
   const mode = useRenderMode();
   const [showTip, setShowTip] = useState(false);
   const [warningOpen, setWarningOpen] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const transparencyUniforms = useMemo(() => createTransparencyUniforms(), []);
   const modeRef = useRef<RenderMode>(mode);
   const invalidateRef = useRef<() => void>(() => {});
@@ -1164,86 +1166,117 @@ export function Volume3D({
         )}
 
         {mode === "precise" && (
-          <div className="pointer-events-auto absolute bottom-2 left-1/2 z-20 -translate-x-1/2 select-none">
-            <div className="flex items-end gap-1.5">
-              <div className="grid grid-cols-3 grid-rows-3 gap-1 rounded-xl border border-white/10 bg-black/60 p-1.5 backdrop-blur-md">
-                <span />
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.rotateUp")}
-                  title={t("viewer.renderMode.rotateUp")}
-                  onClick={() => viewControlRef.current?.step(0, ELEVATION_STEP)}
-                >
-                  <ArrowUp className="h-3.5 w-3.5" />
-                </button>
-                <span />
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.rotateLeft")}
-                  title={t("viewer.renderMode.rotateLeft")}
-                  onClick={() => viewControlRef.current?.step(-AZIMUTH_STEP, 0)}
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" />
-                </button>
-                <span className="flex items-center justify-center text-[8px] font-semibold uppercase tracking-wide text-white/45">
-                  {t("viewer.renderMode.dpadLabel")}
-                </span>
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.rotateRight")}
-                  title={t("viewer.renderMode.rotateRight")}
-                  onClick={() => viewControlRef.current?.step(AZIMUTH_STEP, 0)}
-                >
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-                <span />
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.rotateDown")}
-                  title={t("viewer.renderMode.rotateDown")}
-                  onClick={() => viewControlRef.current?.step(0, -ELEVATION_STEP)}
-                >
-                  <ArrowDown className="h-3.5 w-3.5" />
-                </button>
-                <span />
+          <div className="pointer-events-auto absolute bottom-2 left-2 z-20 select-none">
+            {controlsCollapsed ? (
+              <button
+                type="button"
+                className={cn(
+                  controlButton,
+                  "h-8 w-8 rounded-lg bg-black/60 shadow-lg backdrop-blur-md",
+                )}
+                aria-label={t("viewer.renderMode.showControls")}
+                title={t("viewer.renderMode.showControls")}
+                onClick={() => setControlsCollapsed(false)}
+              >
+                <ChevronUp className="h-4 w-4" />
+              </button>
+            ) : (
+              <div className="rounded-xl border border-white/10 bg-black/60 p-1.5 backdrop-blur-md">
+                <div className="mb-1 flex items-center justify-between gap-2 pl-1 pr-0.5">
+                  <span className="text-[9px] font-semibold uppercase tracking-wide text-white/45">
+                    {t("viewer.renderMode.dpadLabel")}
+                  </span>
+                  <button
+                    type="button"
+                    className="flex h-5 w-5 items-center justify-center rounded text-white/50 transition hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+                    aria-label={t("viewer.renderMode.hideControls")}
+                    title={t("viewer.renderMode.hideControls")}
+                    onClick={() => setControlsCollapsed(true)}
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="flex items-end gap-1.5">
+                  <div className="grid grid-cols-3 grid-rows-3 gap-1">
+                    <span />
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.rotateUp")}
+                      title={t("viewer.renderMode.rotateUp")}
+                      onClick={() => viewControlRef.current?.step(0, ELEVATION_STEP)}
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <span />
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.rotateLeft")}
+                      title={t("viewer.renderMode.rotateLeft")}
+                      onClick={() => viewControlRef.current?.step(-AZIMUTH_STEP, 0)}
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                    </button>
+                    <span aria-hidden className="flex items-center justify-center">
+                      <span className="h-1 w-1 rounded-full bg-white/30" />
+                    </span>
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.rotateRight")}
+                      title={t("viewer.renderMode.rotateRight")}
+                      onClick={() => viewControlRef.current?.step(AZIMUTH_STEP, 0)}
+                    >
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                    <span />
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.rotateDown")}
+                      title={t("viewer.renderMode.rotateDown")}
+                      onClick={() => viewControlRef.current?.step(0, -ELEVATION_STEP)}
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                    <span />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.zoomIn")}
+                      title={t("viewer.renderMode.zoomIn")}
+                      onClick={() => viewControlRef.current?.zoom(1 / ZOOM_FACTOR)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.zoomOut")}
+                      title={t("viewer.renderMode.zoomOut")}
+                      onClick={() => viewControlRef.current?.zoom(ZOOM_FACTOR)}
+                    >
+                      <Minus className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className={controlButton}
+                      aria-label={t("viewer.renderMode.reset")}
+                      title={t("viewer.renderMode.reset")}
+                      onClick={() => viewControlRef.current?.reset()}
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-1 max-w-[9.5rem] text-center text-[9px] leading-tight text-white/45">
+                  {t("viewer.renderMode.stepHint")}
+                </p>
               </div>
-              <div className="flex flex-col gap-1">
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.zoomIn")}
-                  title={t("viewer.renderMode.zoomIn")}
-                  onClick={() => viewControlRef.current?.zoom(1 / ZOOM_FACTOR)}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.zoomOut")}
-                  title={t("viewer.renderMode.zoomOut")}
-                  onClick={() => viewControlRef.current?.zoom(ZOOM_FACTOR)}
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className={controlButton}
-                  aria-label={t("viewer.renderMode.reset")}
-                  title={t("viewer.renderMode.reset")}
-                  onClick={() => viewControlRef.current?.reset()}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-            <p className="mt-1 text-center text-[9px] text-white/45">
-              {t("viewer.renderMode.stepHint")}
-            </p>
+            )}
           </div>
         )}
       </div>
