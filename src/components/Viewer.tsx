@@ -612,6 +612,15 @@ export function Viewer() {
     for (const k of [...cache.keys()]) if (!out.has(k)) cache.delete(k);
     return out;
   }, [meshes]);
+  /**
+   * Visibilidade real dos modelos (nome do arquivo → visível), usada pelo
+   * módulo de download para priorizar os STL que aparecem na cena 3D.
+   */
+  const meshVisibility = useMemo(() => {
+    const map = new Map<string, boolean>();
+    for (const m of meshes) map.set(m.name, (map.get(m.name) ?? false) || m.visible);
+    return map;
+  }, [meshes]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Redireciona console.* para um buffer exibível na página (depuração no celular).
@@ -2400,6 +2409,7 @@ export function Viewer() {
             open={downloadOpen}
             onOpenChange={setDownloadOpen}
             scene={sceneKey ? { key: sceneKey, title: sceneName } : null}
+            meshVisibility={meshVisibility}
           />
         )}
 

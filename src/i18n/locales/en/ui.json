@@ -74,6 +74,9 @@
     "filesCountSuffix_other": "files",
     "downloadAllZip": "Download all (.zip)",
     "downloadGroupZip": "Download {{name}} group (.zip)",
+    "visibleSection": "Visible in the 3D view",
+    "hiddenSection": "Hidden",
+    "visibleBadge": "Visible in the 3D view",
     "download": "Download"
   },
   "multiSeriesModal": {

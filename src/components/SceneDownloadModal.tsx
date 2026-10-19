@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown, ChevronRight, Download, FileDown, Loader2, Package } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  Eye,
+  EyeOff,
+  FileDown,
+  Loader2,
+  Package,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -168,10 +177,17 @@ export function SceneDownloadModal({
   open,
   onOpenChange,
   scene,
+  meshVisibility,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   scene: SceneSummary | { key: string; title: string } | null;
+  /**
+   * Estado real de visibilidade dos modelos na cena 3D (nome do arquivo →
+   * visível). Ausente quando não há cena aberta (ex.: download pelo perfil),
+   * caso em que a listagem mantém o comportamento original.
+   */
+  meshVisibility?: ReadonlyMap<string, boolean> | null;
 }) {
   const { t } = useTranslation();
   const { files, loading, err } = useSceneFiles(scene?.key ?? null, open);
@@ -179,12 +195,41 @@ export function SceneDownloadModal({
   const [busyOne, setBusyOne] = useState<string | null>(null);
   const [busyGroup, setBusyGroup] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const groups = useMemo(() => groupMeshesByName(files ?? []), [files]);
+
+  /**
+   * Prioriza os STL visíveis na cena: geometrias (stl/ply/obj) visíveis vêm
+   * primeiro, as ocultas numa seção abaixo e os demais arquivos seguem o
+   * agrupamento por nome de sempre. A visibilidade vem do estado real da cena
+   * (nunca de nome, número de dente ou ordem de carregamento).
+   */
+  const { visibleMeshes, hiddenMeshes, groups } = useMemo(() => {
+    const all = files ?? [];
+    if (!meshVisibility) {
+      return {
+        visibleMeshes: [] as SceneFile[],
+        hiddenMeshes: [] as SceneFile[],
+        groups: groupMeshesByName(all),
+      };
+    }
+    const visibleMeshes: SceneFile[] = [];
+    const hiddenMeshes: SceneFile[] = [];
+    const rest: SceneFile[] = [];
+    for (const f of all) {
+      if (!/\.(stl|ply|obj)$/i.test(f.name)) {
+        rest.push(f);
+        continue;
+      }
+      if (meshVisibility.get(f.name) === true) visibleMeshes.push(f);
+      else hiddenMeshes.push(f);
+    }
+    return { visibleMeshes, hiddenMeshes, groups: groupMeshesByName(rest) };
+  }, [files, meshVisibility]);
+
   const safeTitle =
     (scene?.title?.trim() || scene?.key || "cena").replace(/[^a-zA-Z0-9-_ ]/g, "").slice(0, 60) ||
     "cena";
 
-  const renderFile = (f: SceneFile) => (
+  const renderFile = (f: SceneFile, visible = false) => (
     <div
       key={f.url}
       className="flex items-center gap-2 rounded border border-border bg-panel px-2 py-1.5"
@@ -196,6 +241,16 @@ export function SceneDownloadModal({
           {f.kind} · {f.size ? formatBytes(f.size) : "—"}
         </p>
       </div>
+      {visible && (
+        <span
+          className="shrink-0 text-muted-foreground"
+          role="img"
+          aria-label={t("ui.sceneDownloadModal.visibleBadge")}
+          title={t("ui.sceneDownloadModal.visibleBadge")}
+        >
+          <Eye className="h-3 w-3" />
+        </span>
+      )}
       <button
         className="btn-chip shrink-0"
         disabled={busyOne === f.url || busyAll}
@@ -278,11 +333,43 @@ export function SceneDownloadModal({
                   </button>
                 </div>
                 <div className="max-h-[45vh] space-y-1.5 overflow-y-auto pr-1">
+                  {visibleMeshes.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1">
+                        <Eye className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {t("ui.sceneDownloadModal.visibleSection")}
+                        </span>
+                        <span className="data-mono text-[9px] text-muted-foreground">
+                          {visibleMeshes.length}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {visibleMeshes.map((f) => renderFile(f, true))}
+                      </div>
+                    </div>
+                  )}
+                  {hiddenMeshes.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1">
+                        <EyeOff className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {t("ui.sceneDownloadModal.hiddenSection")}
+                        </span>
+                        <span className="data-mono text-[9px] text-muted-foreground">
+                          {hiddenMeshes.length}
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {hiddenMeshes.map((f) => renderFile(f, false))}
+                      </div>
+                    </div>
+                  )}
                   {groups.map((group) => {
                     if (!group.label) {
                       return (
                         <div key="__ungrouped" className="space-y-1.5">
-                          {group.items.map(renderFile)}
+                          {group.items.map((f) => renderFile(f))}
                         </div>
                       );
                     }
@@ -345,7 +432,9 @@ export function SceneDownloadModal({
                           </button>
                         </div>
                         {!isCollapsed && (
-                          <div className="space-y-1.5 pl-2">{group.items.map(renderFile)}</div>
+                          <div className="space-y-1.5 pl-2">
+                            {group.items.map((f) => renderFile(f))}
+                          </div>
                         )}
                       </div>
                     );

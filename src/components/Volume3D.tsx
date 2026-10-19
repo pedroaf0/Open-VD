@@ -12,9 +12,12 @@ import {
   ArrowLeft,
   ArrowRight,
   ArrowUp,
+  Camera,
   Check,
   ChevronDown,
   ChevronUp,
+  Copy,
+  Download,
   Gauge,
   Info,
   Minus,
@@ -32,6 +35,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { makeTextureVolume, type Plane, type Volume } from "@/lib/dicom";
 import {
   defaultPlaneStates,
@@ -185,6 +195,21 @@ function basisMatrix(x: THREE.Vector3, y: THREE.Vector3, z: THREE.Vector3, c: TH
   return m;
 }
 
+/** Converte um data URL PNG em Blob (usado ao copiar a captura). */
+function dataUrlToBlob(dataUrl: string): Blob | null {
+  const match = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(dataUrl);
+  if (!match) return null;
+  let raw: string;
+  try {
+    raw = match[2] ? atob(match[3] ?? "") : decodeURIComponent(match[3] ?? "");
+  } catch {
+    return null;
+  }
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return new Blob([bytes as unknown as BlobPart], { type: match[1] || "image/png" });
+}
+
 export function Volume3D({
   volume,
   meshes,
@@ -244,6 +269,12 @@ export function Volume3D({
     zoom: (factor: number) => void;
     reset: () => void;
   } | null>(null);
+  /** Captura a cena e devolve um data URL PNG (ou null em caso de falha). */
+  const captureRef = useRef<() => string | null>(() => null);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureUrl, setCaptureUrl] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "unsupported" | "error">("idle");
 
   // ---- first-run hint -------------------------------------------------
   useEffect(() => {
@@ -286,6 +317,56 @@ export function Volume3D({
   const changeMode = (next: RenderMode) => {
     dismissTip();
     setRenderMode(next);
+  };
+
+  const handleCapture = () => {
+    const dataUrl = captureRef.current();
+    if (!dataUrl) {
+      setCaptureError(t("viewer.capture.failed"));
+      return;
+    }
+    setCaptureError(null);
+    setCopyStatus("idle");
+    setCaptureUrl(dataUrl);
+    setCaptureOpen(true);
+  };
+
+  const handleCopyCapture = async () => {
+    if (!captureUrl) return;
+    if (
+      !window.isSecureContext ||
+      typeof ClipboardItem === "undefined" ||
+      !navigator.clipboard?.write
+    ) {
+      setCopyStatus("unsupported");
+      return;
+    }
+    const blob = dataUrlToBlob(captureUrl);
+    if (!blob) {
+      setCopyStatus("error");
+      return;
+    }
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
+  };
+
+  const handleDownloadCapture = () => {
+    if (!captureUrl) return;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(
+      now.getHours(),
+    )}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const link = document.createElement("a");
+    link.href = captureUrl;
+    link.download = `openvd-3d-${stamp}.png`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   useEffect(() => {
@@ -542,6 +623,24 @@ export function Volume3D({
 
     viewControlRef.current = { step: stepView, zoom: zoomView, reset: resetView };
 
+    /**
+     * Captura a cena 3D. O renderer é criado sem `preserveDrawingBuffer`, então
+     * o conteúdo do canvas só é confiável dentro do mesmo task do desenho:
+     * forçamos um frame completo (mesmo caminho do loop, incluindo OIT/peeling
+     * e a composição final) e lemos o canvas de forma síncrona em seguida.
+     * Nada é alterado na cena — só um frame extra é renderizado.
+     */
+    captureRef.current = (): string | null => {
+      try {
+        if (renderer.getContext().isContextLost()) return null;
+        renderFrame();
+        return renderer.domElement.toDataURL("image/png");
+      } catch (error) {
+        console.warn("Falha ao capturar a cena 3D:", error);
+        return null;
+      }
+    };
+
     const resize = () => {
       const width = mount.clientWidth;
       const height = mount.clientHeight;
@@ -657,6 +756,7 @@ export function Volume3D({
       if (canvas.parentElement === mount) mount.removeChild(canvas);
       controlsRef.current = null;
       viewControlRef.current = null;
+      captureRef.current = () => null;
       invalidateRef.current = () => {};
     };
   }, [transparencyUniforms]);
@@ -1051,7 +1151,16 @@ export function Volume3D({
     <div className="relative h-full w-full overflow-hidden bg-black">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 z-10">
-        <div className="pointer-events-auto absolute right-2 top-2">
+        <div className="pointer-events-auto absolute right-2 top-2 flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label={t("viewer.capture.button")}
+            title={t("viewer.capture.button")}
+            onClick={handleCapture}
+            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-black/60 text-white/85 shadow-lg backdrop-blur-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          >
+            <Camera className="h-3.5 w-3.5 text-sky-300" />
+          </button>
           <DropdownMenu
             onOpenChange={(open) => {
               if (open) dismissTip();
@@ -1116,6 +1225,23 @@ export function Volume3D({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {captureError && (
+          <div className="pointer-events-auto absolute right-2 top-14 z-40 w-[min(19rem,calc(100%-1rem))] rounded-lg border border-destructive/40 bg-zinc-950/95 p-2.5 text-destructive shadow-2xl backdrop-blur-md">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span className="min-w-0 flex-1 text-[11px] leading-relaxed">{captureError}</span>
+              <button
+                type="button"
+                onClick={() => setCaptureError(null)}
+                aria-label={t("viewer.common.close")}
+                className="rounded p-0.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {showTip && (
           <div className="pointer-events-auto absolute right-2 top-14 z-20 w-[min(19rem,calc(100%-1rem))] rounded-lg border border-white/15 bg-zinc-950/95 p-3 text-white shadow-2xl backdrop-blur-md">
@@ -1299,6 +1425,59 @@ export function Volume3D({
           </div>
         )}
       </div>
+
+      <Dialog
+        open={captureOpen}
+        onOpenChange={(open) => {
+          setCaptureOpen(open);
+          if (!open) setCopyStatus("idle");
+        }}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t("viewer.capture.previewTitle")}</DialogTitle>
+            <DialogDescription>{t("viewer.capture.previewDesc")}</DialogDescription>
+          </DialogHeader>
+          {captureUrl && (
+            <img
+              src={captureUrl}
+              alt={t("viewer.capture.previewTitle")}
+              className="mx-auto max-h-[60vh] w-auto max-w-full rounded-md border border-white/10 bg-black"
+            />
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="btn-primary gap-1.5 text-xs"
+              onClick={() => void handleCopyCapture()}
+            >
+              <Copy className="h-3.5 w-3.5" />
+              {t("viewer.capture.copy")}
+            </button>
+            <button
+              type="button"
+              className="btn-chip gap-1.5 text-xs"
+              onClick={handleDownloadCapture}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {t("viewer.capture.download")}
+            </button>
+            {copyStatus === "copied" && (
+              <span className="text-[11px] font-medium text-emerald-400">
+                {t("viewer.capture.copied")}
+              </span>
+            )}
+            {copyStatus === "unsupported" && (
+              <span className="text-[11px] text-amber-300">
+                {t("viewer.capture.copyUnsupported")}
+              </span>
+            )}
+            {copyStatus === "error" && (
+              <span className="text-[11px] text-destructive">{t("viewer.capture.copyFailed")}</span>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

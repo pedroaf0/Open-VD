@@ -183,6 +183,17 @@
       }
     }
   },
+  "capture": {
+    "button": "Capture scene image",
+    "previewTitle": "3D scene capture",
+    "previewDesc": "Preview of the current framing. The image does not include the interface controls.",
+    "copy": "Copy image",
+    "copied": "Image copied to the clipboard.",
+    "copyUnsupported": "This browser does not support copying images to the clipboard.",
+    "copyFailed": "Could not copy the image.",
+    "download": "Download image",
+    "failed": "Could not capture the scene image."
+  },
   "mpr": {
     "resetOblique": "Reset oblique MPR"
   },

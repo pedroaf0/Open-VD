@@ -183,6 +183,17 @@
       }
     }
   },
+  "capture": {
+    "button": "Capturar imagem da cena",
+    "previewTitle": "Captura da cena 3D",
+    "previewDesc": "Prévia do enquadramento atual. A imagem não inclui os controles da interface.",
+    "copy": "Copiar imagem",
+    "copied": "Imagem copiada para a área de transferência.",
+    "copyUnsupported": "Este navegador não permite copiar imagens para a área de transferência.",
+    "copyFailed": "Não foi possível copiar a imagem.",
+    "download": "Baixar imagem",
+    "failed": "Não foi possível capturar a imagem da cena."
+  },
   "mpr": {
     "resetOblique": "Zerar MPR oblíquo"
   },

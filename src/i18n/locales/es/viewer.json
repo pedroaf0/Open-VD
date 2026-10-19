@@ -183,6 +183,17 @@
       }
     }
   },
+  "capture": {
+    "button": "Capturar imagen de la escena",
+    "previewTitle": "Captura de la escena 3D",
+    "previewDesc": "Vista previa del encuadre actual. La imagen no incluye los controles de la interfaz.",
+    "copy": "Copiar imagen",
+    "copied": "Imagen copiada al portapapeles.",
+    "copyUnsupported": "Este navegador no permite copiar imágenes al portapapeles.",
+    "copyFailed": "No se pudo copiar la imagen.",
+    "download": "Descargar imagen",
+    "failed": "No se pudo capturar la imagen de la escena."
+  },
   "mpr": {
     "resetOblique": "Restablecer MPR oblicuo"
   },
