@@ -21,7 +21,11 @@
     "zoomIn": "Aumentar zoom",
     "zoomOut": "Diminuir zoom",
     "resetZoom": "Redefinir zoom",
-    "sliceAria": "Corte {{label}}"
+    "sliceAria": "Corte {{label}}",
+    "capture": "Capturar imagem do corte",
+    "captureFailed": "Não foi possível capturar o corte.",
+    "capturePreviewTitle": "Captura do corte {{label}}",
+    "capturePreviewDesc": "Prévia do corte atual com as anotações visíveis. Os controles da interface não fazem parte da imagem."
   },
   "profileView": {
     "title": "Meu perfil",

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
+  AlertTriangle,
+  Camera,
   Eye,
   EyeOff,
   Lock,
@@ -10,8 +12,10 @@ import {
   Plus,
   RotateCcw,
   RotateCw,
+  X,
 } from "lucide-react";
 import type { Plane, Volume } from "@/lib/dicom";
+import { CapturePreviewDialog } from "@/components/CapturePreviewDialog";
 import {
   clampPlane,
   cross3,
@@ -100,6 +104,38 @@ function clipLine(A: number, B: number, c: number, halfW: number, halfH: number)
   return [pts[0]!, pts[1]!] as [[number, number], [number, number]];
 }
 
+/** Serializa o overlay SVG (anotações/linhas) em um Blob URL rasterizável. */
+function svgToObjectUrl(
+  svg: SVGSVGElement,
+  options: { width: number; height: number; viewBox?: string },
+): string {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", String(options.width));
+  clone.setAttribute("height", String(options.height));
+  if (options.viewBox) clone.setAttribute("viewBox", options.viewBox);
+
+  let xml = new XMLSerializer().serializeToString(clone);
+  // O SVG vira uma imagem isolada, sem acesso ao documento: resolve as
+  // variáveis CSS usadas nas cores (ex.: var(--axial)) para valores reais.
+  const computed = getComputedStyle(svg);
+  xml = xml.replace(/var\((--[A-Za-z0-9_-]+)\)/g, (match, name: string) => {
+    const value = computed.getPropertyValue(name).trim();
+    return value || match;
+  });
+
+  return URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+}
+
+function loadImageElement(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("overlay-svg"));
+    image.src = url;
+  });
+}
+
 type Drag =
   | { mode: "all" }
   | { mode: "translate"; target: Plane }
@@ -120,6 +156,11 @@ export function SliceView(props: Props) {
   const [rotateOpen, setRotateOpen] = useState(false);
   const [rotateDeg, setRotateDeg] = useState(0);
   const drag = useRef<Drag | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureUrl, setCaptureUrl] = useState<string | null>(null);
+  const [captureError, setCaptureError] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
 
   const annotating = !!props.annotating;
   const tool = props.tool ?? "select";
@@ -451,6 +492,95 @@ export function SliceView(props: Props) {
     updateStates((s) => rotateOtherPlanes(s, plane, geom.n, delta, pivot));
   }
 
+  /**
+   * Compõe a captura do corte no estado exibido: imagem nativa do slice,
+   * pan/zoom atuais e o overlay SVG (anotações, linhas de referência e
+   * cursor). Nada do estado do visualizador é alterado.
+   */
+  async function composeCapture(): Promise<string | null> {
+    const wrap = wrapRef.current;
+    const sliceCanvas = canvasRef.current;
+    const svg = svgRef.current;
+    if (!wrap || !sliceCanvas || !svg || !box.w || !box.h) return null;
+    const width = wrap.clientWidth;
+    const height = wrap.clientHeight;
+    if (!width || !height) return null;
+
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const out = document.createElement("canvas");
+    out.width = Math.max(1, Math.round(width * dpr));
+    out.height = Math.max(1, Math.round(height * dpr));
+    const ctx = out.getContext("2d");
+    if (!ctx) return null;
+
+    // Mesma composição do viewport: fundo preto, centro e pan/zoom do SliceView.
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, width, height);
+    ctx.translate(width / 2 + pan.x + zx, height / 2 + pan.y + zy);
+    ctx.scale(zoom, zoom);
+
+    const left = -box.w / 2;
+    const top = -box.h / 2;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(sliceCanvas, left, top, box.w, box.h);
+
+    // Recorte visível da caixa (coordenadas locais), para rasterizar o
+    // overlay apenas na área que aparece — memória limitada pelo viewport.
+    const px = pan.x + zx;
+    const py = pan.y + zy;
+    const viewLeft = Math.max(0, Math.min(box.w, box.w / 2 + (-width / 2 - px) / zoom));
+    const viewTop = Math.max(0, Math.min(box.h, box.h / 2 + (-height / 2 - py) / zoom));
+    const viewRight = Math.max(viewLeft, Math.min(box.w, box.w / 2 + (width / 2 - px) / zoom));
+    const viewBottom = Math.max(viewTop, Math.min(box.h, box.h / 2 + (height / 2 - py) / zoom));
+    const viewW = viewRight - viewLeft;
+    const viewH = viewBottom - viewTop;
+
+    if (viewW > 0.5 && viewH > 0.5) {
+      // viewBox correspondente em pixels nativos do corte.
+      const sx = (viewLeft / box.w) * geom.w;
+      const sy = (viewTop / box.h) * geom.h;
+      const sw = (viewW / box.w) * geom.w;
+      const sh = (viewH / box.h) * geom.h;
+      // O overlay é vetorial; rasteriza na resolução final para manter
+      // alinhamento, escala e nitidez sobre a imagem do corte.
+      const overlayUrl = svgToObjectUrl(svg, {
+        viewBox: `${sx} ${sy} ${sw} ${sh}`,
+        width: Math.max(1, Math.round(viewW * zoom * dpr)),
+        height: Math.max(1, Math.round(viewH * zoom * dpr)),
+      });
+      try {
+        const overlay = await loadImageElement(overlayUrl);
+        ctx.drawImage(overlay, left + viewLeft, top + viewTop, viewW, viewH);
+      } finally {
+        URL.revokeObjectURL(overlayUrl);
+      }
+    }
+
+    return out.toDataURL("image/png");
+  }
+
+  async function handleCapture() {
+    if (capturing) return;
+    setCapturing(true);
+    setCaptureError(null);
+    try {
+      const dataUrl = await composeCapture();
+      if (!dataUrl) {
+        setCaptureError(t("ui.sliceView.captureFailed"));
+        return;
+      }
+      setCaptureUrl(dataUrl);
+      setCaptureOpen(true);
+    } catch (error) {
+      console.warn("Falha ao capturar o corte:", error);
+      setCaptureError(t("ui.sliceView.captureFailed"));
+    } finally {
+      setCapturing(false);
+    }
+  }
+
   const oblique = isOblique(volume, plane, st);
   const cursor = annotating
     ? "crosshair"
@@ -561,6 +691,7 @@ export function SliceView(props: Props) {
           <div ref={imgRef} className="relative" style={{ width: box.w || 1, height: box.h || 1 }}>
             <canvas ref={canvasRef} className="block h-full w-full" />
             <svg
+              ref={svgRef}
               className="pointer-events-none absolute inset-0 h-full w-full"
               viewBox={`0 0 ${geom.w} ${geom.h}`}
               preserveAspectRatio="none"
@@ -642,6 +773,15 @@ export function SliceView(props: Props) {
           onWheel={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
+          <button
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-white/15 bg-black/60 text-white/85 shadow-lg backdrop-blur-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 disabled:cursor-wait disabled:opacity-60"
+            onClick={() => void handleCapture()}
+            disabled={capturing}
+            aria-label={t("ui.sliceView.capture")}
+            title={t("ui.sliceView.capture")}
+          >
+            <Camera className="h-4 w-4 text-sky-300" />
+          </button>
           {!annotating && (
             <button
               className="flex h-8 w-8 items-center justify-center rounded-md border backdrop-blur-sm transition"
@@ -708,6 +848,21 @@ export function SliceView(props: Props) {
         <div className="data-mono pointer-events-none absolute bottom-1 left-2 text-[10px] text-white/50">
           WL {Math.round(wc)} / WW {Math.round(ww)}
         </div>
+
+        {captureError && (
+          <div className="pointer-events-auto absolute bottom-6 left-1/2 z-20 flex max-w-[calc(100%-1rem)] -translate-x-1/2 items-start gap-2 rounded-lg border border-destructive/40 bg-zinc-950/95 px-2.5 py-2 text-[11px] text-destructive shadow-2xl backdrop-blur-md">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 flex-1">{captureError}</span>
+            <button
+              type="button"
+              onClick={() => setCaptureError(null)}
+              aria-label={t("ui.dialog.close")}
+              className="rounded p-0.5 text-white/50 transition hover:bg-white/10 hover:text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
       {!annotating && (
         <input
@@ -721,6 +876,22 @@ export function SliceView(props: Props) {
           aria-label={t("ui.sliceView.sliceAria", { label: props.label })}
         />
       )}
+
+      <CapturePreviewDialog
+        open={captureOpen}
+        onOpenChange={setCaptureOpen}
+        imageUrl={captureUrl}
+        fileNamePrefix={`openvd-mpr-${plane}`}
+        title={t("ui.sliceView.capturePreviewTitle", { label: props.label })}
+        description={t("ui.sliceView.capturePreviewDesc")}
+        labels={{
+          copy: t("viewer.capture.copy"),
+          copied: t("viewer.capture.copied"),
+          copyUnsupported: t("viewer.capture.copyUnsupported"),
+          copyFailed: t("viewer.capture.copyFailed"),
+          download: t("viewer.capture.download"),
+        }}
+      />
     </div>
   );
 }

@@ -21,7 +21,11 @@
     "zoomIn": "Zoom in",
     "zoomOut": "Zoom out",
     "resetZoom": "Reset zoom",
-    "sliceAria": "Slice {{label}}"
+    "sliceAria": "Slice {{label}}",
+    "capture": "Capture slice image",
+    "captureFailed": "Could not capture the slice.",
+    "capturePreviewTitle": "{{label}} slice capture",
+    "capturePreviewDesc": "Preview of the current slice with visible annotations. Interface controls are not part of the image."
   },
   "profileView": {
     "title": "My profile",

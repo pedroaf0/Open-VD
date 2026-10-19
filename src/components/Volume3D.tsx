@@ -16,8 +16,6 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
-  Copy,
-  Download,
   Gauge,
   Info,
   Minus,
@@ -35,13 +33,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CapturePreviewDialog } from "@/components/CapturePreviewDialog";
 import { makeTextureVolume, type Plane, type Volume } from "@/lib/dicom";
 import {
   defaultPlaneStates,
@@ -195,21 +187,6 @@ function basisMatrix(x: THREE.Vector3, y: THREE.Vector3, z: THREE.Vector3, c: TH
   return m;
 }
 
-/** Converte um data URL PNG em Blob (usado ao copiar a captura). */
-function dataUrlToBlob(dataUrl: string): Blob | null {
-  const match = /^data:([^;,]+)?(;base64)?,([\s\S]*)$/.exec(dataUrl);
-  if (!match) return null;
-  let raw: string;
-  try {
-    raw = match[2] ? atob(match[3] ?? "") : decodeURIComponent(match[3] ?? "");
-  } catch {
-    return null;
-  }
-  const bytes = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-  return new Blob([bytes as unknown as BlobPart], { type: match[1] || "image/png" });
-}
-
 export function Volume3D({
   volume,
   meshes,
@@ -274,7 +251,6 @@ export function Volume3D({
   const [captureOpen, setCaptureOpen] = useState(false);
   const [captureUrl, setCaptureUrl] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "unsupported" | "error">("idle");
 
   // ---- first-run hint -------------------------------------------------
   useEffect(() => {
@@ -326,47 +302,8 @@ export function Volume3D({
       return;
     }
     setCaptureError(null);
-    setCopyStatus("idle");
     setCaptureUrl(dataUrl);
     setCaptureOpen(true);
-  };
-
-  const handleCopyCapture = async () => {
-    if (!captureUrl) return;
-    if (
-      !window.isSecureContext ||
-      typeof ClipboardItem === "undefined" ||
-      !navigator.clipboard?.write
-    ) {
-      setCopyStatus("unsupported");
-      return;
-    }
-    const blob = dataUrlToBlob(captureUrl);
-    if (!blob) {
-      setCopyStatus("error");
-      return;
-    }
-    try {
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-      setCopyStatus("copied");
-    } catch {
-      setCopyStatus("error");
-    }
-  };
-
-  const handleDownloadCapture = () => {
-    if (!captureUrl) return;
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const now = new Date();
-    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(
-      now.getHours(),
-    )}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    const link = document.createElement("a");
-    link.href = captureUrl;
-    link.download = `openvd-3d-${stamp}.png`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
   };
 
   useEffect(() => {
@@ -1426,58 +1363,21 @@ export function Volume3D({
         )}
       </div>
 
-      <Dialog
+      <CapturePreviewDialog
         open={captureOpen}
-        onOpenChange={(open) => {
-          setCaptureOpen(open);
-          if (!open) setCopyStatus("idle");
+        onOpenChange={setCaptureOpen}
+        imageUrl={captureUrl}
+        fileNamePrefix="openvd-3d"
+        title={t("viewer.capture.previewTitle")}
+        description={t("viewer.capture.previewDesc")}
+        labels={{
+          copy: t("viewer.capture.copy"),
+          copied: t("viewer.capture.copied"),
+          copyUnsupported: t("viewer.capture.copyUnsupported"),
+          copyFailed: t("viewer.capture.copyFailed"),
+          download: t("viewer.capture.download"),
         }}
-      >
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.capture.previewTitle")}</DialogTitle>
-            <DialogDescription>{t("viewer.capture.previewDesc")}</DialogDescription>
-          </DialogHeader>
-          {captureUrl && (
-            <img
-              src={captureUrl}
-              alt={t("viewer.capture.previewTitle")}
-              className="mx-auto max-h-[60vh] w-auto max-w-full rounded-md border border-white/10 bg-black"
-            />
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="btn-primary gap-1.5 text-xs"
-              onClick={() => void handleCopyCapture()}
-            >
-              <Copy className="h-3.5 w-3.5" />
-              {t("viewer.capture.copy")}
-            </button>
-            <button
-              type="button"
-              className="btn-chip gap-1.5 text-xs"
-              onClick={handleDownloadCapture}
-            >
-              <Download className="h-3.5 w-3.5" />
-              {t("viewer.capture.download")}
-            </button>
-            {copyStatus === "copied" && (
-              <span className="text-[11px] font-medium text-emerald-400">
-                {t("viewer.capture.copied")}
-              </span>
-            )}
-            {copyStatus === "unsupported" && (
-              <span className="text-[11px] text-amber-300">
-                {t("viewer.capture.copyUnsupported")}
-              </span>
-            )}
-            {copyStatus === "error" && (
-              <span className="text-[11px] text-destructive">{t("viewer.capture.copyFailed")}</span>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      />
     </div>
   );
 }
