@@ -80,6 +80,8 @@ type Props = {
   wc: number;
   ww: number;
   invert: boolean;
+  /** pedido de centralização da rotação num modelo (gera novo objeto a cada clique) */
+  centerRequest?: { id: string; seq: number } | null;
 };
 
 const TIP_STORAGE_KEY = "openvd:transparency-tip-seen:v1";
@@ -194,6 +196,7 @@ export function Volume3D({
   wc,
   ww,
   invert,
+  centerRequest,
 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const matRef = useRef<THREE.ShaderMaterial | null>(null);
@@ -969,6 +972,22 @@ export function Volume3D({
     }
     invalidateRef.current();
   }, [meshes]);
+
+  // ---- centralizar a rotação num modelo solicitado ---------------------
+  useEffect(() => {
+    if (!centerRequest) return;
+    const group = meshGroupRef.current;
+    const controls = controlsRef.current;
+    if (!group || !controls) return;
+    const object = group.getObjectByName(centerRequest.id);
+    if (!object) return;
+    group.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(object);
+    if (box.isEmpty()) return;
+    controls.target.copy(box.getCenter(new THREE.Vector3()));
+    controls.update();
+    invalidateRef.current();
+  }, [centerRequest]);
 
   // ---- framing ---------------------------------------------------------
   useEffect(() => {

@@ -33,6 +33,7 @@ import {
   RotateCcw,
   Share2,
   SlidersHorizontal,
+  Target,
   Type,
   User,
   X,
@@ -393,12 +394,14 @@ function MeshRow({
   containerClassName,
   onPatch,
   onRemove,
+  onCenter,
 }: {
   mesh: MeshFile;
   volumeLabel?: string | null | undefined;
   containerClassName?: string | undefined;
   onPatch: (id: string, patch: Partial<MeshFile>) => void;
   onRemove: (id: string) => void;
+  onCenter: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const m = mesh;
@@ -425,6 +428,31 @@ function MeshRow({
               · {volumeLabel}
             </span>
           ) : null}
+        </button>
+        <button
+          className={cn("icon-btn-sm", !m.visible && "opacity-40")}
+          onClick={() => onPatch(m.id, { visible: !m.visible })}
+          aria-pressed={m.visible}
+          aria-label={
+            m.visible
+              ? t("viewer.meshes.hide", { name: m.name })
+              : t("viewer.meshes.show", { name: m.name })
+          }
+          title={
+            m.visible
+              ? t("viewer.meshes.hide", { name: m.name })
+              : t("viewer.meshes.show", { name: m.name })
+          }
+        >
+          {m.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+        </button>
+        <button
+          className="icon-btn-sm"
+          onClick={() => onCenter(m.id)}
+          aria-label={t("viewer.meshes.center", { name: m.name })}
+          title={t("viewer.meshes.center", { name: m.name })}
+        >
+          <Target className="h-3 w-3" />
         </button>
         <button
           className="icon-btn-sm"
@@ -466,12 +494,14 @@ function MeshList({
   containerClassName,
   onPatch,
   onRemove,
+  onCenter,
 }: {
   meshes: MeshFile[];
   meshVolumes: Map<string, string | null>;
   containerClassName?: string | undefined;
   onPatch: (id: string, patch: Partial<MeshFile>) => void;
   onRemove: (id: string) => void;
+  onCenter: (id: string) => void;
 }) {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -486,6 +516,7 @@ function MeshList({
         containerClassName={containerClassName}
         onPatch={onPatch}
         onRemove={onRemove}
+        onCenter={onCenter}
       />
     ));
 
@@ -559,6 +590,11 @@ export function Viewer() {
   const volumeFlipRef = useRef(volumeFlip);
   volumeFlipRef.current = volumeFlip;
   const [meshes, setMeshes] = useState<MeshFile[]>([]);
+  /** Espelho de `meshes` para uso em callbacks sem criar dependências. */
+  const meshesRef = useRef(meshes);
+  useEffect(() => {
+    meshesRef.current = meshes;
+  }, [meshes]);
   const meshVolumeCacheRef = useRef<Map<string, string | null>>(new Map());
   const meshVolumes = useMemo(() => {
     const cache = meshVolumeCacheRef.current;
@@ -604,6 +640,11 @@ export function Viewer() {
   statesRef.current = planeStates;
   const [threshold, setThreshold] = useState(0.45);
   const [opacity, setOpacity] = useState(0.35);
+  /**
+   * Visibilidade da renderização volumétrica no 3D. Afeta somente a
+   * representação visual do volume: os dados da tomografia e os cortes MPR
+   * (que usam `volume`) permanecem intactos.
+   */
   const [showVolume, setShowVolume] = useState(true);
   const [showPlanes, setShowPlanes] = useState({ axial: true, coronal: true, sagittal: true });
   /** Painel lateral de parâmetros (desktop/tablet). */
@@ -782,6 +823,16 @@ export function Viewer() {
     setMeshes((list) => list.filter((x) => x.id !== id));
   }, []);
 
+  /**
+   * Pedido de centralização da rotação num modelo. O `seq` garante que clicar
+   * novamente no mesmo modelo dispare uma nova centralização.
+   */
+  const [centerRequest, setCenterRequest] = useState<{ id: string; seq: number } | null>(null);
+
+  const centerMesh = useCallback((id: string) => {
+    setCenterRequest((prev) => ({ id, seq: (prev?.seq ?? 0) + 1 }));
+  }, []);
+
   const addMeshFiles = useCallback(async (files: File[]) => {
     const geoms = files.filter((f) => /\.(stl|ply|obj)$/i.test(f.name));
     if (!geoms.length) return;
@@ -815,6 +866,12 @@ export function Viewer() {
         ...(mtl ? { mtl, textures } : {}),
       });
     }
+    if (!loaded.length) return;
+    // Regra automática: o PRIMEIRO modelo inserido numa cena sem modelos oculta
+    // a renderização volumétrica (apenas a representação 3D; os voxels e os
+    // cortes MPR não mudam). Inserções seguintes preservam a escolha atual do
+    // usuário — reabilitar o volume pelo controle existente continua valendo.
+    if (meshesRef.current.length === 0) setShowVolume(false);
     setMeshes((m) => [
       ...m,
       ...loaded.map((x, i) => ({
@@ -1301,11 +1358,7 @@ export function Viewer() {
     title: string;
     summary: SceneSummary | null;
   } | null>(null);
-  const meshesRef = useRef(meshes);
   const sceneKeyRef = useRef(sceneKey);
-  useEffect(() => {
-    meshesRef.current = meshes;
-  }, [meshes]);
   useEffect(() => {
     sceneKeyRef.current = sceneKey;
   }, [sceneKey]);
@@ -2510,6 +2563,7 @@ export function Viewer() {
                             wc={wc}
                             ww={ww}
                             invert={invert}
+                            centerRequest={centerRequest}
                           />
                         </div>
                       </div>
@@ -2790,6 +2844,7 @@ export function Viewer() {
                                 wc={wc}
                                 ww={ww}
                                 invert={invert}
+                                centerRequest={centerRequest}
                               />
                             </div>
                           </div>
@@ -2918,6 +2973,7 @@ export function Viewer() {
                             meshVolumes={meshVolumes}
                             onPatch={patchMesh}
                             onRemove={removeMesh}
+                            onCenter={centerMesh}
                           />
                           {meshes.length > 1 && (
                             <button
@@ -3276,6 +3332,7 @@ export function Viewer() {
                     containerClassName="rounded-md border border-border bg-panel p-2"
                     onPatch={patchMesh}
                     onRemove={removeMesh}
+                    onCenter={centerMesh}
                   />
                   {meshes.length > 1 && (
                     <button

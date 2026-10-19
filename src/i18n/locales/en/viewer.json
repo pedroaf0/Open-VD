@@ -223,6 +223,9 @@
     "remove": "Remove {{name}}",
     "opacityOf": "Opacity of {{name}}",
     "toggleGroup": "Show / hide {{name}}",
+    "hide": "Hide {{name}}",
+    "show": "Show {{name}}",
+    "center": "Center {{name}}",
     "expandGroup": "Expand group",
     "collapseGroup": "Collapse group"
   },
