@@ -11,7 +11,6 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pluginDir = path.join(root, "wordpress-plugin", "v-dicom");
-const outZip = path.join(root, "v-dicom.zip");
 
 const BOM = new Uint8Array([0xef, 0xbb, 0xbf]);
 
@@ -113,6 +112,7 @@ function step(msg) {
 
 const pluginMain = path.join(pluginDir, "v-dicom.php");
 const pluginReadme = path.join(pluginDir, "readme.txt");
+const testPluginDir = "C:\\xampp\\htdocs\\wp-content\\plugins\\v-dicom";
 
 function bumpVersion() {
   const php = fs.readFileSync(pluginMain, "utf-8");
@@ -194,9 +194,8 @@ try {
   console.log("  OK: todas as chamadas gettext com placeholders tem comentario translators:");
 
   step("5/5 Empacotando v-dicom.zip");
-  if (fs.existsSync(outZip)) {
-    fs.rmSync(outZip, { force: true });
-  }
+  const version = fs.readFileSync(pluginMain, "utf-8").match(/V_DICOM_VERSION',\s*'(\d+\.\d+\.\d+)'/)[1];
+  const outZip = path.join(root, `v-dicom-${version}.zip`);
 
   const { zipSync } = await import("fflate");
   const files = {};
@@ -216,6 +215,13 @@ try {
 
   const sizeKb = (fs.statSync(outZip).size / 1024).toFixed(1);
   step(`5/5 Pronto: ${path.relative(root, outZip)} (${sizeKb} KB)`);
+
+  step("6/5 Atualizando ambiente de testes");
+  if (fs.existsSync(testPluginDir)) {
+    fs.rmSync(testPluginDir, { recursive: true, force: true });
+  }
+  fs.cpSync(pluginDir, testPluginDir, { recursive: true });
+  console.log(`  Plugin copiado para: ${testPluginDir}`);
 } catch (err) {
   console.error("\nFalha no build do plugin:", err.message || err);
   process.exitCode = 1;
