@@ -25,6 +25,7 @@ class V_Dicom_Admin {
 		add_action( 'admin_post_v_dicom_newuser_defaults', array( $this, 'handle_newuser_defaults' ) );
 		add_action( 'admin_post_v_dicom_mesh_colors', array( $this, 'handle_mesh_colors' ) );
 		add_action( 'admin_post_v_dicom_public_loading', array( $this, 'handle_public_loading' ) );
+		add_action( 'admin_post_v_dicom_general_settings', array( $this, 'handle_general_settings' ) );
 	}
 
 	/** Load the media library only on the plugin screen (logo picker). */
@@ -259,6 +260,21 @@ class V_Dicom_Admin {
 		check_admin_referer( 'v_dicom_public_loading' );
 		V_Dicom_Storage::set_public_loading_enabled( isset( $_POST['v_dicom_public_loading'] ) );
 		wp_safe_redirect( add_query_arg( 'publicloadingsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
+		exit;
+	}
+
+	/**
+	 * Save general settings (URL auth, direct DICOM, public loading) in a single submission.
+	 */
+	public function handle_general_settings() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		check_admin_referer( 'v_dicom_general_settings' );
+		V_Dicom_Storage::set_url_auth_enabled( isset( $_POST['v_dicom_url_auth'] ) );
+		V_Dicom_Storage::set_direct_dicom_enabled( isset( $_POST['v_dicom_direct_dicom'] ) );
+		V_Dicom_Storage::set_public_loading_enabled( isset( $_POST['v_dicom_public_loading'] ) );
+		wp_safe_redirect( add_query_arg( 'generalsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
 		exit;
 	}
 
@@ -710,14 +726,23 @@ class V_Dicom_Admin {
 				})();
 				</script>
 
-				<h2><?php esc_html_e( 'Autorização de URLs externas', 'v-dicom' ); ?></h2>
+				<h2><?php esc_html_e( 'Configurações gerais', 'v-dicom' ); ?></h2>
 				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
+				<?php if ( isset( $_GET['generalsaved'] ) ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configurações salvas.', 'v-dicom' ); ?></p></div>
+				<?php endif; ?>
 				<?php if ( isset( $_GET['urlauthsaved'] ) ) : ?>
-					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração atualizada.', 'v-dicom' ); ?></p></div>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração de autorização de URL atualizada.', 'v-dicom' ); ?></p></div>
+				<?php endif; ?>
+				<?php if ( isset( $_GET['directdicomsaved'] ) ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração de carregamento de DICOM atualizada.', 'v-dicom' ); ?></p></div>
+				<?php endif; ?>
+				<?php if ( isset( $_GET['publicloadingsaved'] ) ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração de carregamento público atualizada.', 'v-dicom' ); ?></p></div>
 				<?php endif; ?>
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="v_dicom_url_auth" />
-					<?php wp_nonce_field( 'v_dicom_url_auth' ); ?>
+					<input type="hidden" name="action" value="v_dicom_general_settings" />
+					<?php wp_nonce_field( 'v_dicom_general_settings' ); ?>
 					<table class="form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="v-dicom-url-auth-enabled"><?php esc_html_e( 'Exigir autorização de URL', 'v-dicom' ); ?></label></th>
@@ -732,19 +757,6 @@ class V_Dicom_Admin {
 								</p>
 							</td>
 						</tr>
-					</table>
-					<?php submit_button( __( 'Salvar autorização de URL', 'v-dicom' ) ); ?>
-				</form>
-
-				<h2><?php esc_html_e( 'Carregamento de DICOM', 'v-dicom' ); ?></h2>
-				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
-				<?php if ( isset( $_GET['directdicomsaved'] ) ) : ?>
-					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração atualizada.', 'v-dicom' ); ?></p></div>
-				<?php endif; ?>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="v_dicom_direct_dicom" />
-					<?php wp_nonce_field( 'v_dicom_direct_dicom' ); ?>
-					<table class="form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="v-dicom-direct-dicom-enabled"><?php esc_html_e( 'Permitir carregamento direto de DICOM', 'v-dicom' ); ?></label></th>
 							<td>
@@ -758,19 +770,6 @@ class V_Dicom_Admin {
 								</p>
 							</td>
 						</tr>
-					</table>
-					<?php submit_button( __( 'Salvar carregamento de DICOM', 'v-dicom' ) ); ?>
-				</form>
-
-				<h2><?php esc_html_e( 'Carregamento público sem login', 'v-dicom' ); ?></h2>
-				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
-				<?php if ( isset( $_GET['publicloadingsaved'] ) ) : ?>
-					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Configuração atualizada.', 'v-dicom' ); ?></p></div>
-				<?php endif; ?>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="v_dicom_public_loading" />
-					<?php wp_nonce_field( 'v_dicom_public_loading' ); ?>
-					<table class="form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="v-dicom-public-loading-enabled"><?php esc_html_e( 'Permitir carregamento público de exames', 'v-dicom' ); ?></label></th>
 							<td>
@@ -785,7 +784,7 @@ class V_Dicom_Admin {
 							</td>
 						</tr>
 					</table>
-					<?php submit_button( __( 'Salvar carregamento público', 'v-dicom' ) ); ?>
+					<?php submit_button( __( 'Salvar configurações', 'v-dicom' ) ); ?>
 				</form>
 
 				<h2><?php esc_html_e( 'Tipos de segmentação (RunPod)', 'v-dicom' ); ?></h2>
