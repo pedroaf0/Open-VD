@@ -34,6 +34,7 @@ import {
   Share2,
   SlidersHorizontal,
   Target,
+  Trash2,
   Type,
   User,
   X,
@@ -427,7 +428,7 @@ function MeshRow({
   volumeLabel?: string | null | undefined;
   containerClassName?: string | undefined;
   onPatch: (id: string, patch: Partial<MeshFile>) => void;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, name: string) => void;
   onCenter: (id: string) => void;
 }) {
   const { t } = useTranslation();
@@ -483,7 +484,7 @@ function MeshRow({
         </button>
         <button
           className="icon-btn-sm"
-          onClick={() => onRemove(m.id)}
+          onClick={() => onRemove(m.id, m.name)}
           aria-label={t("viewer.meshes.remove", { name: m.name })}
         >
           <X className="h-3 w-3" />
@@ -527,7 +528,7 @@ function MeshList({
   meshVolumes: Map<string, string | null>;
   containerClassName?: string | undefined;
   onPatch: (id: string, patch: Partial<MeshFile>) => void;
-  onRemove: (id: string) => void;
+  onRemove: (id: string, name: string) => void;
   onCenter: (id: string) => void;
 }) {
   const { t } = useTranslation();
@@ -717,6 +718,12 @@ export function Viewer() {
   const [creditConfirmOpen, setCreditConfirmOpen] = useState(false);
   const creditConfirmResolve = useRef<(value: boolean) => void>(() => {});
   const creditConfirmData = useRef<{ credits: number; shopUrl: string } | null>(null);
+
+  // Diálogo de confirmação antes de excluir um modelo STL
+  const [meshDeleteConfirmOpen, setMeshDeleteConfirmOpen] = useState(false);
+  const meshDeleteConfirmResolve = useRef<(value: boolean) => void>(() => {});
+  const meshDeleteConfirmData = useRef<{ id: string; name: string } | null>(null);
+
   /** original files currently loaded (used when saving the scene to WordPress) */
   const sourceFiles = useRef<ExpandInput[]>([]);
   const sceneLoaded = useRef(false);
@@ -864,8 +871,29 @@ export function Viewer() {
     setMeshes((list) => list.map((x) => (x.id === id ? { ...x, ...patch } : x)));
   }, []);
 
-  const removeMesh = useCallback((id: string) => {
-    setMeshes((list) => list.filter((x) => x.id !== id));
+  /** Abre o diálogo de confirmação para excluir um modelo STL. */
+  const requestMeshDelete = useCallback((id: string, name: string) => {
+    meshDeleteConfirmData.current = { id, name };
+    meshDeleteConfirmResolve.current = () => {};
+    setMeshDeleteConfirmOpen(true);
+  }, []);
+
+  /** Executa a exclusão do modelo STL após confirmação. */
+  const confirmMeshDelete = useCallback(() => {
+    const data = meshDeleteConfirmData.current;
+    if (data) {
+      setMeshes((list) => list.filter((x) => x.id !== data.id));
+    }
+    meshDeleteConfirmResolve.current(true);
+    setMeshDeleteConfirmOpen(false);
+    meshDeleteConfirmData.current = null;
+  }, []);
+
+  /** Cancela a exclusão do modelo STL. */
+  const cancelMeshDelete = useCallback(() => {
+    meshDeleteConfirmResolve.current(false);
+    setMeshDeleteConfirmOpen(false);
+    meshDeleteConfirmData.current = null;
   }, []);
 
   /**
@@ -1320,18 +1348,16 @@ export function Viewer() {
     let cancelled = false;
 
     (async () => {
-      const authenticated = await pollForAuthentication(
-        async (authed, panel) => {
-          if (cancelled) return;
-          if (authed && panel) {
-            setUserPanel(panel);
-            await loadPanel();
-            loginModalResolve.current?.(true);
-          } else {
-            loginModalResolve.current?.(false);
-          }
-        },
-      );
+      const authenticated = await pollForAuthentication(async (authed, panel) => {
+        if (cancelled) return;
+        if (authed && panel) {
+          setUserPanel(panel);
+          await loadPanel();
+          loginModalResolve.current?.(true);
+        } else {
+          loginModalResolve.current?.(false);
+        }
+      });
 
       if (cancelled) return;
       if (!authenticated) {
@@ -2268,25 +2294,27 @@ export function Viewer() {
                 <span className="hidden sm:inline">{t("viewer.header.download")}</span>
               </button>
             )}
-            {(cfg?.canUpload || canLoadPublicly) && hasData && (canSegmentCurrentScene || !sceneKey) && (
-              <button
-                className="btn-ghost gap-1.5"
-                disabled={!!segBusy || !!busy}
-                onClick={() => void handleSegmentAction()}
-                title={t("viewer.segmentation.chooseType")}
-              >
-                <Boxes className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">
-                  {segBusy || busy
-                    ? t("viewer.segmentation.segmenting")
-                    : segTypesEnabled.length > 1
-                      ? t("viewer.segmentation.segment")
-                      : segCost === 0
+            {(cfg?.canUpload || canLoadPublicly) &&
+              hasData &&
+              (canSegmentCurrentScene || !sceneKey) && (
+                <button
+                  className="btn-ghost gap-1.5"
+                  disabled={!!segBusy || !!busy}
+                  onClick={() => void handleSegmentAction()}
+                  title={t("viewer.segmentation.chooseType")}
+                >
+                  <Boxes className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">
+                    {segBusy || busy
+                      ? t("viewer.segmentation.segmenting")
+                      : segTypesEnabled.length > 1
                         ? t("viewer.segmentation.segment")
-                        : t("viewer.segmentation.segmentWithCost", { cost: segCost })}
-                </span>
-              </button>
-            )}
+                        : segCost === 0
+                          ? t("viewer.segmentation.segment")
+                          : t("viewer.segmentation.segmentWithCost", { cost: segCost })}
+                  </span>
+                </button>
+              )}
             {sceneKey &&
             currentSceneSummary &&
             currentSceneSummary.segmentations &&
@@ -2738,10 +2766,12 @@ export function Viewer() {
                             aria-hidden
                           />
                           <h2 className="font-display text-xl font-bold">
-                            {(canUpload || canLoadPublicly) ? t("viewer.empty.loadStudy") : t("viewer.empty.noScene")}
+                            {canUpload || canLoadPublicly
+                              ? t("viewer.empty.loadStudy")
+                              : t("viewer.empty.noScene")}
                           </h2>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            {(canUpload || canLoadPublicly)
+                            {canUpload || canLoadPublicly
                               ? allowDirectDicom
                                 ? t("viewer.empty.loadStudyHintDirect")
                                 : t("viewer.empty.loadStudyHint")
@@ -3101,7 +3131,7 @@ export function Viewer() {
                             meshes={meshes}
                             meshVolumes={meshVolumes}
                             onPatch={patchMesh}
-                            onRemove={removeMesh}
+                            onRemove={requestMeshDelete}
                             onCenter={centerMesh}
                           />
                           {meshes.length > 1 && (
@@ -3460,7 +3490,7 @@ export function Viewer() {
                     meshVolumes={meshVolumes}
                     containerClassName="rounded-md border border-border bg-panel p-2"
                     onPatch={patchMesh}
-                    onRemove={removeMesh}
+                    onRemove={requestMeshDelete}
                     onCenter={centerMesh}
                   />
                   {meshes.length > 1 && (
@@ -3931,6 +3961,41 @@ export function Viewer() {
               }}
             >
               {t("viewer.credit.confirm")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={meshDeleteConfirmOpen} onOpenChange={setMeshDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("viewer.meshes.confirmDeleteTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("viewer.meshes.confirmDeleteMessage", {
+                name: meshDeleteConfirmData.current?.name,
+              })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button className="btn-ghost w-full sm:w-auto" onClick={cancelMeshDelete}>
+              {t("viewer.common.cancel")}
+            </button>
+            <button
+              className="btn-outline w-full sm:w-auto"
+              onClick={() => {
+                const data = meshDeleteConfirmData.current;
+                if (data) {
+                  patchMesh(data.id, { visible: false });
+                }
+                cancelMeshDelete();
+              }}
+            >
+              <Eye className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+              {t("viewer.meshes.hide", { name: meshDeleteConfirmData.current?.name })}
+            </button>
+            <button className="btn-destructive w-full sm:w-auto" onClick={confirmMeshDelete}>
+              <Trash2 className="h-3.5 w-3.5 text-white" aria-hidden="true" />
+              {t("viewer.meshes.remove", { name: meshDeleteConfirmData.current?.name })}
             </button>
           </DialogFooter>
         </DialogContent>

@@ -238,7 +238,9 @@
     "show": "Show {{name}}",
     "center": "Center {{name}}",
     "expandGroup": "Expand group",
-    "collapseGroup": "Collapse group"
+    "collapseGroup": "Collapse group",
+    "confirmDeleteTitle": "Delete STL model?",
+    "confirmDeleteMessage": "Are you sure you want to delete this STL model? If you only want to remove it from view, you can hide it using the eye button instead."
   },
   "shortcuts": {
     "wheel": "Mouse wheel: navigate slices",

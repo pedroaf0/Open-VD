@@ -238,7 +238,9 @@
     "show": "Mostrar {{name}}",
     "center": "Centralizar {{name}}",
     "expandGroup": "Expandir grupo",
-    "collapseGroup": "Recolher grupo"
+    "collapseGroup": "Recolher grupo",
+    "confirmDeleteTitle": "Excluir modelo STL?",
+    "confirmDeleteMessage": "Tem certeza de que deseja excluir este modelo STL? Se quiser apenas removê-lo da visualização, pode ocultá-lo usando o botão de olho."
   },
   "shortcuts": {
     "wheel": "Roda do mouse: navegar cortes",
