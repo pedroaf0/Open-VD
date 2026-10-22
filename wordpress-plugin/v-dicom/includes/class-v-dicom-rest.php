@@ -1002,7 +1002,10 @@ $settings = V_Dicom_Storage::sanitize_settings( $request->get_param( 'settings' 
 		if ( is_wp_error( $post ) ) {
 			return $post;
 		}
-		$settings = V_Dicom_Storage::sanitize_settings( $request->get_param( 'settings' ) );
+		$raw_settings = $request->get_param( 'settings' );
+		error_log( "[v-dicom] save_settings: raw meshes count=" . ( isset( $raw_settings['meshes'] ) ? count( $raw_settings['meshes'] ) : 'not set' ) );
+		$settings = V_Dicom_Storage::sanitize_settings( $raw_settings );
+		error_log( "[v-dicom] save_settings: sanitized meshes count=" . ( isset( $settings['meshes'] ) ? count( $settings['meshes'] ) : 'not set' ) );
 		// Save urls array if present, maintaining backward compatibility
 		if ( array_key_exists( 'urls', $request->get_params() ) && is_array( $request->get_params()['urls'] ) ) {
 			update_post_meta( $post->ID, '_v_dicom_urls', array_map( 'esc_url_raw', $request->get_params()['urls'] ) );
@@ -1032,6 +1035,15 @@ $settings = V_Dicom_Storage::sanitize_settings( $request->get_param( 'settings' 
 				)
 			);
 		}
+
+		// Clean up orphaned files in the scene directory
+		$key = V_Dicom_Storage::sanitize_key( $request['key'] );
+		if ( $key ) {
+			error_log( "[v-dicom] save_settings: calling cleanup_orphaned_files for key=$key" );
+			$deleted = V_Dicom_Storage::cleanup_orphaned_files( $key, $settings );
+			error_log( "[v-dicom] save_settings: cleanup_orphaned_files returned deleted_count=$deleted" );
+		}
+
 		return rest_ensure_response( array( 'ok' => true ) );
 	}
 

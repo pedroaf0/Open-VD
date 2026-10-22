@@ -1080,6 +1080,137 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	}
 
 	/**
+	 * Remove files from the scene directory that are no longer referenced
+	 * by the scene's files meta or mesh settings.
+	 *
+	 * @param string $key       Scene key.
+	 * @param array  $settings  Sanitized settings array (may contain 'meshes').
+	 */
+	public static function cleanup_orphaned_files( $key, $settings ) {
+		$key  = self::sanitize_key( $key );
+		if ( '' === $key ) {
+			error_log( "[v-dicom] cleanup_orphaned_files: empty key" );
+			return 0;
+		}
+
+		$post = self::find_scene( $key );
+		if ( ! $post ) {
+			error_log( "[v-dicom] cleanup_orphaned_files: post not found for key=$key" );
+			return 0;
+		}
+
+		$dir = self::base_dir() . '/' . $key;
+		if ( ! is_dir( $dir ) ) {
+			error_log( "[v-dicom] cleanup_orphaned_files: directory not found: $dir" );
+			return 0;
+		}
+
+		// Collect all referenced filenames (basenames only)
+		$referenced = array();
+
+		// 1. Files explicitly tracked in _v_dicom_files meta
+		$files_meta = get_post_meta( $post->ID, self::META_FILES, true );
+		error_log( "[v-dicom] cleanup_orphaned_files: files_meta count=" . count( is_array( $files_meta ) ? $files_meta : array() ) );
+		
+		// Collect mesh names from settings for STL filtering
+		$mesh_names = array();
+		if ( isset( $settings['meshes'] ) && is_array( $settings['meshes'] ) ) {
+			error_log( "[v-dicom] cleanup_orphaned_files: settings.meshes count=" . count( $settings['meshes'] ) );
+			foreach ( $settings['meshes'] as $mesh ) {
+				if ( isset( $mesh['name'] ) ) {
+					$mesh_names[] = sanitize_file_name( $mesh['name'] );
+				}
+			}
+		} else {
+			error_log( "[v-dicom] cleanup_orphaned_files: settings.meshes not set or not array" );
+		}
+		
+		if ( is_array( $files_meta ) ) {
+			foreach ( $files_meta as $f ) {
+				if ( isset( $f['url'] ) ) {
+					$basename = wp_basename( $f['url'] );
+					// For STL files, only include if still referenced in settings.meshes
+					// DICOM and other files are always included
+					$is_stl = ( strtolower( pathinfo( $basename, PATHINFO_EXTENSION ) ) === 'stl' );
+					if ( $is_stl ) {
+						if ( in_array( $basename, $mesh_names, true ) ) {
+							$referenced[] = $basename;
+						} else {
+							error_log( "[v-dicom] cleanup_orphaned_files: excluding STL not in settings.meshes: $basename" );
+						}
+					} else {
+						$referenced[] = $basename;
+					}
+				}
+			}
+		}
+
+		// 2. Mesh files referenced in settings.meshes (already added via mesh_names above)
+		// Also add to referenced to ensure any mesh not in files_meta is still tracked
+		foreach ( $mesh_names as $name ) {
+			$referenced[] = $name;
+		}
+
+		// 3. Annotation PNGs referenced in annotations meta
+		$annotations = get_post_meta( $post->ID, self::META_ANNOTATIONS, true );
+		if ( is_array( $annotations ) ) {
+			foreach ( $annotations as $ann ) {
+				if ( isset( $ann['png'] ) ) {
+					$referenced[] = wp_basename( $ann['png'] );
+				}
+			}
+		}
+
+		// Normalize and deduplicate
+		$referenced = array_unique( array_filter( $referenced ) );
+		error_log( "[v-dicom] cleanup_orphaned_files: referenced files: " . implode( ', ', $referenced ) );
+
+		// Scan directory for actual files
+		$all_files = array();
+		foreach ( (array) glob( $dir . '/*' ) as $file ) {
+			if ( is_file( $file ) ) {
+				$all_files[] = wp_basename( $file );
+			}
+		}
+		error_log( "[v-dicom] cleanup_orphaned_files: directory files: " . implode( ', ', $all_files ) );
+
+		$deleted_count = 0;
+		$deleted_files = array();
+		foreach ( $all_files as $name ) {
+			$file = $dir . '/' . $name;
+
+			// Skip hidden/temp files (chunks, .htaccess, index.php)
+			if ( str_starts_with( $name, '.' ) || str_starts_with( $name, 'index.php' ) ) {
+				continue;
+			}
+
+			// If file not in referenced list, delete it
+			if ( ! in_array( $name, $referenced, true ) ) {
+				error_log( "[v-dicom] cleanup_orphaned_files: deleting orphaned file: $name" );
+				wp_delete_file( $file );
+				$deleted_files[] = $name;
+				$deleted_count++;
+			}
+		}
+
+		// Update _v_dicom_files meta to remove entries for deleted files
+		if ( ! empty( $deleted_files ) && is_array( $files_meta ) ) {
+			$files_meta = array_filter( $files_meta, function( $f ) use ( $deleted_files ) {
+				if ( ! isset( $f['url'] ) ) {
+					return true;
+				}
+				$basename = wp_basename( $f['url'] );
+				return ! in_array( $basename, $deleted_files, true );
+			} );
+			update_post_meta( $post->ID, self::META_FILES, array_values( $files_meta ) );
+			error_log( "[v-dicom] cleanup_orphaned_files: updated files_meta, removed " . count( $deleted_files ) . " entries" );
+		}
+
+		error_log( "[v-dicom] cleanup_orphaned_files: deleted $deleted_count files" );
+		return $deleted_count;
+	}
+
+	/**
 	 * Storage limit of a user in MB: the admin-defined base limit plus the MB
 	 * of every purchased plan that has not expired yet. The base limit alone
 	 * being 0 blocks the user only while no plans are active.
@@ -1575,7 +1706,7 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 		) );
 		
 		// Limit to MAX_RECENT_SCENES
-		$recent = array_slice( $recent, 0, MAX_RECENT_SCENES );
+		$recent = array_slice( $recent, 0, self::MAX_RECENT_SCENES );
 		
 		update_user_meta( $user_id, self::OPTION_RECENT_SCENES, array_values( $recent ) );
 		return true;
