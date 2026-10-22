@@ -2035,7 +2035,7 @@ if (
 |
 | O proxy só deve ser consumido pelo próprio viewer (que envia o
 | _wpnonce gerado no frontend) ou por integrações server-to-server
-| autenticadas com a API key do plugin (ex.: RunPod baixando a cena).
+| autenticadas com a API key do plugin (ex.: serviço de segmentação baixando a cena).
 |--------------------------------------------------------------------------
 */
 

@@ -117,11 +117,12 @@ access at any time.
 ### Automatic AI segmentation (cloud processing)
 
 v-dicom supports **automatic AI segmentation**, with **processing performed in
-the cloud** (via a configurable RunPod server). The administrator sets the server
-URL, the authorization header, and the voxel and triangle limits. In the panel,
-the **Segment** button sends the scene for processing and, when it finishes, the
-generated **STL** models are displayed in the viewer. Each segmentation consumes
-1 credit from the scene owner, refunded in case of failure.
+the cloud** (via a configurable serverless cloud service). The administrator sets
+the server URL, optional authorization header, run/status endpoints, and a custom
+JSON payload template with placeholders. In the panel, the **Segment** button sends
+the scene for processing and, when it finishes, the generated **STL** models are
+displayed in the viewer. Each segmentation consumes 1 credit from the scene owner,
+refunded in case of failure.
 
 ### Architecture
 

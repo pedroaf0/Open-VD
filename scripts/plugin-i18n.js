@@ -65,8 +65,8 @@ const EN = {
   Buscar: "Search",
   "Buscar por nome, usuário ou e-mail…": "Search by name, username or e-mail…",
   "Buscar por título, chave ou dono…": "Search by title, key or owner…",
-  'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.':
-    'Each type has a name, description (rich text), URL, Authorization, max-voxels, max-triangles and cost. Uncheck "Active" to disable without deleting. The same scene can use several types.',
+  "Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque \"Ativo\" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.":
+    "Each type represents a serverless cloud service. The run URL receives the payload, the status URL is polled while processing and the callback reports completion. Uncheck \"Active\" to disable a type without deleting it. The same scene can use several types.",
   "Campo status ausente.": "Missing status field.",
   "Carregamento de DICOM": "DICOM loading",
   "Cena DICOM": "DICOM Scene",
@@ -74,13 +74,16 @@ const EN = {
   "Cena removida.": "Scene removed.",
   "Cenas DICOM": "DICOM Scenes",
   "Cenas salvas": "Saved scenes",
+  "Chave da cena.": "Scene key.",
   "Chave de API": "API key",
   "Chave de API inválida.": "Invalid API key.",
   "Chave inválida.": "Invalid key.",
   "Chunk %1$d de %2$d não encontrado.": "Chunk %1$d of %2$d not found.",
   "Configuração atualizada.": "Settings updated.",
-  "Configuração do RunPod ausente para este tipo.": "RunPod configuration missing for this type.",
-  "Configuração do RunPod ausente.": "RunPod configuration missing.",
+  "Configuração do serviço de segmentação ausente para este tipo.":
+    "Segmentation service configuration missing for this type.",
+  "Corpo enviado na requisição de execução. Use os placeholders acima para montar o formato esperado pelo serviço.":
+    "Body sent in the run request. Use the placeholders above to build the format expected by the service.",
   "Contratado em": "Purchased on",
   "Cor da interface": "Interface color",
   "Cor de destaque": "Accent color",
@@ -94,7 +97,7 @@ const EN = {
   "Créditos de processamento:": "Processing credits:",
   "Créditos iniciais": "Initial credits",
   Custo: "Cost",
-  "Debug RunPod — por cena (admin)": "RunPod Debug — per scene (admin)",
+  "Debug da segmentação — por cena (admin)": "Segmentation debug — per scene (admin)",
   "Deixe vazio para desativar. Endpoints aceitos com a chave:":
     "Leave empty to disable. Endpoints accepted with the key:",
   "Descrição (texto rico — exibida no painel de segmentação)":
@@ -106,7 +109,10 @@ const EN = {
   Duração: "Duration",
   "Em uso agora": "In use now",
   "Enviando…": "Sending…",
-  "Erro ao iniciar a segmentação.": "Error starting segmentation.",
+  "Endereço de execução do serviço de segmentação ausente.":
+    "Segmentation service run address missing.",
+  "Endereço de status do serviço de segmentação ausente.":
+    "Segmentation service status address missing.",
   "Erro ao ler chunk.": "Error reading chunk.",
   "Erro ao resolver OneDrive: ": "Error resolving OneDrive: ",
   "Erro de rede ao iniciar a segmentação.": "Network error while starting segmentation.",
@@ -125,7 +131,12 @@ const EN = {
   Expirado: "Expired",
   "Falha ao consultar o arquivo no OneDrive.": "Failed to query the file on OneDrive.",
   "Fim:": "End:",
+  "Fora de aspas o placeholder vira um valor JSON (texto com aspas, número ou array). Dentro de aspas ele vira texto já escapado. Exemplo de payload:":
+    "Outside quotes the placeholder becomes a JSON value (quoted text, number or array). Inside quotes it becomes already escaped text. Example payload:",
   "Gerar chave": "Generate key",
+  "Identificador deste tipo de segmentação.": "Identifier of this segmentation type.",
+  "Identificador do job (disponível na URL de status e no callback).":
+    "Job identifier (available in the status URL and the callback).",
   "Informe ?url=": "Provide ?url=",
   "Informe o tipo de segmentação (type).": "Provide the segmentation type (type).",
   "Iniciar %s? Confirme para consumir os créditos do tipo.":
@@ -146,10 +157,8 @@ const EN = {
   "Link não reconhecido. Use Google Drive ou OneDrive.":
     "Unrecognized link. Use Google Drive or OneDrive.",
   Logo: "Logo",
-  "Logs salvos no post meta da cena. DEBUG_RUNPOD=true também inclui debug na resposta JSON de /run e /segmentation-status.":
-    "Logs saved in the scene's post meta. DEBUG_RUNPOD=true also includes debug in the JSON response of /run and /segmentation-status.",
-  "Max triângulos": "Max triangles",
-  "Max voxels": "Max voxels",
+  "Logs salvos no post meta da cena. DEBUG_SEGMENTATION=true também inclui debug na resposta JSON de /run e /segmentation-status.":
+    "Logs saved in the scene's post meta. DEBUG_SEGMENTATION=true also includes debug in the JSON response of /run and /segmentation-status.",
   "Meu armazenamento": "My storage",
   "Meus planos de armazenamento": "My storage plans",
   "Microsoft não forneceu o token Badger.": "Microsoft did not provide the Badger token.",
@@ -165,6 +174,7 @@ const EN = {
   "Nenhum usuário encontrado para a busca.": "No user found for the search.",
   "Nenhuma cena encontrada para a busca.": "No scene found for the search.",
   "Nenhuma cena salva ainda.": "No saved scene yet.",
+  "Nome deste tipo de segmentação.": "Name of this segmentation type.",
   "Nome do visualizador": "Viewer name",
   "Nome*": "Name*",
   "Novo tipo ganha editor rico após salvar.": "A new type gets a rich editor after saving.",
@@ -200,9 +210,9 @@ const EN = {
   "Redirect inválido do OneDrive.": "Invalid OneDrive redirect.",
   "Remover esta cena e seus arquivos?": "Remove this scene and its files?",
   "Requisição não autorizada.": "Unauthorized request.",
-  "Resposta RunPod:": "RunPod response:",
+  "Resposta do serviço:": "Service response:",
   "Resposta inválida do OneDrive.": "Invalid OneDrive response.",
-  "Resposta inválida do RunPod": "Invalid RunPod response",
+  "Resposta inválida do serviço de segmentação.": "Invalid segmentation service response.",
   "Salvar API key": "Save API key",
   "Salvar autorização de URL": "Save URL authorization",
   "Salvar carregamento de DICOM": "Save DICOM loading",
@@ -229,7 +239,7 @@ const EN = {
   "Tipo de segmentação não encontrado.": "Segmentation type not found.",
   "Tipo migrado automaticamente da configuração anterior.":
     "Type automatically migrated from the previous configuration.",
-  "Tipos de segmentação (RunPod)": "Segmentation types (RunPod)",
+  "Segmentação automática": "Automatic segmentation",
   "Tipos de segmentação atualizados.": "Segmentation types updated.",
   "Total:": "Total:",
   Título: "Title",
@@ -244,7 +254,7 @@ const EN = {
   "Usado: %1$s de %2$s (%3$s disponíveis).": "Used: %1$s of %2$s (%3$s available).",
   Usuário: "User",
   "Usuário removido": "Removed user",
-  "Ver logs RunPod": "View RunPod logs",
+  "Ver logs da segmentação": "View segmentation logs",
   "v-dicom": "v-dicom",
   "Visual / White label": "Visual / White label",
   "Visual atualizado.": "Visual updated.",
@@ -268,6 +278,37 @@ const EN = {
   "✓ Concluída": "✓ Completed",
   "✕ Falhou": "✕ Failed",
   "✕ Falhou — crédito devolvido": "✕ Failed — credit refunded",
+  "Authorization (opcional)": "Authorization (optional)",
+  "Lista de URLs de download da cena (array JSON).": "List of scene download URLs (JSON array).",
+  "O payload da segmentação está vazio.": "The segmentation payload is empty.",
+  "O payload renderizado não é um JSON válido.": "The rendered payload is not valid JSON.",
+  "O serviço de segmentação não retornou um identificador de job.":
+    "The segmentation service did not return a job identifier.",
+  "O serviço de segmentação respondeu com HTTP %d.":
+    "The segmentation service responded with HTTP %d.",
+  "Payload (template)": "Payload (template)",
+  "Payload enviado:": "Payload sent:",
+  Placeholder: "Placeholder",
+  "Placeholders disponíveis": "Available placeholders",
+  "Se ficar vazia, o plugin usa {{url}}/run.":
+    "If empty, the plugin uses {{url}}/run.",
+  "Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}.":
+    "If empty, the plugin uses {{url}}/status/{{job_id}}.",
+  "Timestamp Unix do envio.": "Unix timestamp of the request.",
+  "URL base do serviço": "Service base URL",
+  "URL base do serviço.": "Service base URL.",
+  "URL de callback para o serviço informar o status.":
+    "Callback URL for the service to report status.",
+  "URL de execução (opcional)": "Run URL (optional)",
+  "URL de status (opcional)": "Status URL (optional)",
+  "URL do ZIP da cena (texto).": "Scene ZIP URL (text).",
+  "URL do site WordPress.": "WordPress site URL.",
+  "URL para o serviço enviar os modelos STL gerados.":
+    "URL for the service to upload the generated STL models.",
+  "Usar payload padrão": "Use default payload",
+  "Valor enviado": "Value sent",
+  "Também aceita os apelidos {{uploadlink}}, {{downloadlink}} e {{callbacklink}}.":
+    "Also accepts the aliases {{uploadlink}}, {{downloadlink}} and {{callbacklink}}.",
   arquivo: "file",
 };
 
@@ -306,8 +347,8 @@ const ES = {
   Buscar: "Buscar",
   "Buscar por nome, usuário ou e-mail…": "Buscar por nombre, usuario o correo…",
   "Buscar por título, chave ou dono…": "Buscar por título, clave o propietario…",
-  'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.':
-    'Cada tipo tiene nombre, descripción (texto enriquecido), URL, Authorization, max-voxels, max-triangles y coste. Desmarca "Activo" para deshabilitarlo sin eliminarlo. La misma escena puede usar varios tipos.',
+  "Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque \"Ativo\" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.":
+    "Cada tipo representa un servicio de nube serverless. La URL de ejecución recibe el payload, la URL de estado se consulta durante el procesamiento y el callback informa la finalización. Desmarca \"Activo\" para deshabilitar un tipo sin eliminarlo. La misma escena puede usar varios tipos.",
   "Campo status ausente.": "Falta el campo status.",
   "Carregamento de DICOM": "Carga de DICOM",
   "Cena DICOM": "Escena DICOM",
@@ -320,9 +361,8 @@ const ES = {
   "Chave inválida.": "Clave no válida.",
   "Chunk %1$d de %2$d não encontrado.": "Fragmento %1$d de %2$d no encontrado.",
   "Configuração atualizada.": "Configuración actualizada.",
-  "Configuração do RunPod ausente para este tipo.":
-    "Falta la configuración de RunPod para este tipo.",
-  "Configuração do RunPod ausente.": "Falta la configuración de RunPod.",
+  "Configuração do serviço de segmentação ausente para este tipo.":
+    "Falta la configuración del servicio de segmentación para este tipo.",
   "Contratado em": "Contratado el",
   "Cor da interface": "Color de la interfaz",
   "Cor de destaque": "Color de acento",
@@ -336,7 +376,7 @@ const ES = {
   "Créditos de processamento:": "Créditos de procesamiento:",
   "Créditos iniciais": "Créditos iniciales",
   Custo: "Coste",
-  "Debug RunPod — por cena (admin)": "Debug de RunPod — por escena (admin)",
+  "Debug da segmentação — por cena (admin)": "Debug de segmentación — por escena (admin)",
   "Deixe vazio para desativar. Endpoints aceitos com a chave:":
     "Déjalo vacío para desactivar. Endpoints aceptados con la clave:",
   "Descrição (texto rico — exibida no painel de segmentação)":
@@ -388,10 +428,8 @@ const ES = {
   "Link não reconhecido. Use Google Drive ou OneDrive.":
     "Enlace no reconocido. Usa Google Drive o OneDrive.",
   Logo: "Logo",
-  "Logs salvos no post meta da cena. DEBUG_RUNPOD=true também inclui debug na resposta JSON de /run e /segmentation-status.":
-    "Registros guardados en el post meta de la escena. DEBUG_RUNPOD=true también incluye debug en la respuesta JSON de /run y /segmentation-status.",
-  "Max triângulos": "Max triángulos",
-  "Max voxels": "Max voxels",
+  "Logs salvos no post meta da cena. DEBUG_SEGMENTATION=true também inclui debug na resposta JSON de /run e /segmentation-status.":
+    "Registros guardados en el post meta de la escena. DEBUG_SEGMENTATION=true también incluye debug en la respuesta JSON de /run y /segmentation-status.",
   "Meu armazenamento": "Mi almacenamiento",
   "Meus planos de armazenamento": "Mis planes de almacenamiento",
   "Microsoft não forneceu o token Badger.": "Microsoft no proporcionó el token Badger.",
@@ -444,9 +482,9 @@ const ES = {
   "Redirect inválido do OneDrive.": "Redirección de OneDrive no válida.",
   "Remover esta cena e seus arquivos?": "¿Eliminar esta escena y sus archivos?",
   "Requisição não autorizada.": "Solicitud no autorizada.",
-  "Resposta RunPod:": "Respuesta de RunPod:",
+  "Resposta do serviço:": "Respuesta del servicio:",
   "Resposta inválida do OneDrive.": "Respuesta no válida de OneDrive.",
-  "Resposta inválida do RunPod": "Respuesta no válida de RunPod",
+  "Resposta inválida do serviço de segmentação.": "Respuesta no válida del servicio de segmentación.",
   "Salvar API key": "Guardar API key",
   "Salvar autorização de URL": "Guardar autorización de URL",
   "Salvar carregamento de DICOM": "Guardar carga de DICOM",
@@ -473,7 +511,7 @@ const ES = {
   "Tipo de segmentação não encontrado.": "Tipo de segmentación no encontrado.",
   "Tipo migrado automaticamente da configuração anterior.":
     "Tipo migrado automáticamente desde la configuración anterior.",
-  "Tipos de segmentação (RunPod)": "Tipos de segmentación (RunPod)",
+  "Segmentação automática": "Segmentación automática",
   "Tipos de segmentação atualizados.": "Tipos de segmentación actualizados.",
   "Total:": "Total:",
   Título: "Título",
@@ -488,7 +526,7 @@ const ES = {
   "Usado: %1$s de %2$s (%3$s disponíveis).": "Usado: %1$s de %2$s (%3$s disponibles).",
   Usuário: "Usuario",
   "Usuário removido": "Usuario eliminado",
-  "Ver logs RunPod": "Ver registros de RunPod",
+  "Ver logs da segmentação": "Ver registros de segmentación",
   "v-dicom": "v-dicom",
   "Visual / White label": "Visual / White label",
   "Visual atualizado.": "Visual actualizado.",
@@ -512,6 +550,51 @@ const ES = {
   "✓ Concluída": "✓ Completada",
   "✕ Falhou": "✕ Falló",
   "✕ Falhou — crédito devolvido": "✕ Falló — crédito devuelto",
+  "Authorization (opcional)": "Authorization (opcional)",
+  "Chave da cena.": "Clave de la escena.",
+  "Corpo enviado na requisição de execução. Use os placeholders acima para montar o formato esperado pelo serviço.":
+    "Cuerpo enviado en la petición de ejecución. Usa los placeholders de arriba para armar el formato esperado por el servicio.",
+  "Endereço de execução do serviço de segmentação ausente.":
+    "Falta la dirección de ejecución del servicio de segmentación.",
+  "Endereço de status do serviço de segmentação ausente.":
+    "Falta la dirección de estado del servicio de segmentación.",
+  "Fora de aspas o placeholder vira um valor JSON (texto com aspas, número ou array). Dentro de aspas ele vira texto já escapado. Exemplo de payload:":
+    "Fuera de comillas el placeholder se convierte en un valor JSON (texto entre comillas, número o array). Dentro de comillas se convierte en texto ya escapado. Ejemplo de payload:",
+  "Identificador deste tipo de segmentação.": "Identificador de este tipo de segmentación.",
+  "Identificador do job (disponível na URL de status e no callback).":
+    "Identificador del trabajo (disponible en la URL de estado y en el callback).",
+  "Lista de URLs de download da cena (array JSON).":
+    "Lista de URLs de descarga de la escena (array JSON).",
+  "Nome deste tipo de segmentação.": "Nombre de este tipo de segmentación.",
+  "O payload da segmentação está vazio.": "El payload de la segmentación está vacío.",
+  "O payload renderizado não é um JSON válido.": "El payload renderizado no es un JSON válido.",
+  "O serviço de segmentação não retornou um identificador de job.":
+    "El servicio de segmentación no devolvió un identificador de trabajo.",
+  "O serviço de segmentação respondeu com HTTP %d.":
+    "El servicio de segmentación respondió con HTTP %d.",
+  "Payload (template)": "Payload (template)",
+  "Payload enviado:": "Payload enviado:",
+  Placeholder: "Placeholder",
+  "Placeholders disponíveis": "Placeholders disponibles",
+  "Se ficar vazia, o plugin usa {{url}}/run.":
+    "Si queda vacía, el plugin usa {{url}}/run.",
+  "Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}.":
+    "Si queda vacía, el plugin usa {{url}}/status/{{job_id}}.",
+  "Timestamp Unix do envio.": "Timestamp Unix del envío.",
+  "URL base do serviço": "URL base del servicio",
+  "URL base do serviço.": "URL base del servicio.",
+  "URL de callback para o serviço informar o status.":
+    "URL de callback para que el servicio informe el estado.",
+  "URL de execução (opcional)": "URL de ejecución (opcional)",
+  "URL de status (opcional)": "URL de estado (opcional)",
+  "URL do ZIP da cena (texto).": "URL del ZIP de la escena (texto).",
+  "URL do site WordPress.": "URL del sitio WordPress.",
+  "URL para o serviço enviar os modelos STL gerados.":
+    "URL para que el servicio suba los modelos STL generados.",
+  "Usar payload padrão": "Usar payload predeterminado",
+  "Valor enviado": "Valor enviado",
+  "Também aceita os apelidos {{uploadlink}}, {{downloadlink}} e {{callbacklink}}.":
+    "También acepta los alias {{uploadlink}}, {{downloadlink}} y {{callbacklink}}.",
   arquivo: "archivo",
 };
 

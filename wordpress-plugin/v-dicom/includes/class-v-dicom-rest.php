@@ -15,8 +15,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class V_Dicom_REST {
 
 	const NS = 'v-dicom/v1';
-	const DEBUG_RUNPOD = false; // set to true to include debug info in REST responses (for development)
-	private $last_runpod_debug = null;
+	const DEBUG_SEGMENTATION = false; // set to true to include debug info in REST responses (for development)
+	private $last_segmentation_debug = null;
 
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'routes' ) );
@@ -247,7 +247,7 @@ class V_Dicom_REST {
 		return true;
 	}
 
-	/** Execute automatic segmentation using external RunPod service */
+	/** Execute automatic segmentation using an external serverless cloud service. */
 	public function run_segmentation( WP_REST_Request $request ) {
 		$key = V_Dicom_Storage::sanitize_key( $request['key'] );
 		if ( '' === $key ) {
@@ -274,11 +274,20 @@ class V_Dicom_REST {
 			} else {
 				$legacy = get_option( 'v_dicom_runpod' ) ?: array();
 				if ( ! empty( $legacy['url'] ) ) {
-					$tmp = V_Dicom_Storage::sanitize_segmentation_type( array( 'id' => 'default', 'name' => __( 'Padrão', 'v-dicom' ), 'url' => $legacy['url'] ?? '', 'authorization' => $legacy['authorization'] ?? '', 'max_voxels' => $legacy['max_voxels'] ?? 0, 'max_triangles' => $legacy['max_triangles'] ?? 0, 'cost' => V_Dicom_Storage::segmentation_cost(), 'enabled' => true ), 'default' );
+					$tmp = V_Dicom_Storage::sanitize_segmentation_type( array(
+						'id'            => 'default',
+						'name'          => __( 'Padrão', 'v-dicom' ),
+						'url'           => $legacy['url'] ?? '',
+						'authorization' => $legacy['authorization'] ?? '',
+						'max_voxels'    => $legacy['max_voxels'] ?? 0,
+						'max_triangles' => $legacy['max_triangles'] ?? 0,
+						'cost'          => V_Dicom_Storage::segmentation_cost(),
+						'enabled'       => true,
+					), 'default' );
 					if ( $tmp ) { $type_id = 'default'; $all_with_secret = array( $tmp ); }
 				}
 				if ( '' === $type_id ) {
-					return new WP_Error( 'runpod_config_missing', __( 'Nenhum tipo de segmentação configurado.', 'v-dicom' ), array( 'status' => 500 ) );
+					return new WP_Error( 'segmentation_config_missing', __( 'Nenhum tipo de segmentação configurado.', 'v-dicom' ), array( 'status' => 500 ) );
 				}
 			}
 		}
@@ -290,8 +299,8 @@ class V_Dicom_REST {
 		if ( empty( $seg_type['enabled'] ) ) {
 			return new WP_Error( 'type_disabled', __( 'Este tipo de segmentação está desabilitado.', 'v-dicom' ), array( 'status' => 400 ) );
 		}
-		if ( empty( $seg_type['url'] ) || empty( $seg_type['authorization'] ) ) {
-			return new WP_Error( 'runpod_config_missing', __( 'Configuração do RunPod ausente para este tipo.', 'v-dicom' ), array( 'status' => 500 ) );
+		if ( empty( $seg_type['url'] ) && empty( $seg_type['run_url'] ) ) {
+			return new WP_Error( 'segmentation_config_missing', __( 'Configuração do serviço de segmentação ausente para este tipo.', 'v-dicom' ), array( 'status' => 500 ) );
 		}
 		$existing = V_Dicom_Storage::get_segmentation( $key, $type_id );
 		if ( $existing && ! empty( $existing['used'] ) ) {
@@ -307,15 +316,8 @@ class V_Dicom_REST {
 		if ( ! $user_id ) {
 			return new WP_Error( 'no_logged_in_user', __( 'É necessário estar logado.', 'v-dicom' ), array( 'status' => 401 ) );
 		}
-		$seg_cost = max( 0, (int) $seg_type['cost'] );
-		$credits  = V_Dicom_Storage::user_credit( $user_id );
-		if ( $seg_cost > 0 ) {
-			if ( $credits < $seg_cost ) {
-				/* translators: %d: cost in credits */
-				return new WP_Error( 'no_credit', sprintf( __( 'Crédito insuficiente para segmentar. Custo: %d créditos.', 'v-dicom' ), $seg_cost ), array( 'status' => 403 ) );
-			}
-			V_Dicom_Storage::set_user_credit( $user_id, $credits - $seg_cost );
-		}
+
+		// Build the download, upload and callback values that feed the template.
 		$explicit_download = $request->get_param( 'download-url' );
 		if ( null !== $explicit_download ) {
 			$download_url_value = is_array( $explicit_download ) ? array_map( 'esc_url_raw', $explicit_download ) : esc_url_raw( (string) $explicit_download );
@@ -331,94 +333,156 @@ class V_Dicom_REST {
 				$download_url_value = $zip_url;
 			}
 		}
-		$input = array(
-			'download-url' => $download_url_value,
-			'upload-url'   => esc_url_raw( $request->get_param( 'upload-url' ) ?? V_Dicom_Storage::getKeyUploadUrl( $key ) ),
-			'callback-url' => esc_url_raw( $request->get_param( 'callback-url' ) ?? V_Dicom_Storage::getKeyCallbackUrlForType( $key, $type_id ) ),
-			'max-voxels'   => max( intval( $seg_type['max_voxels'] ?? 0 ), 1 ),
-			'max-triangles' => max( intval( $seg_type['max_triangles'] ?? 0 ), 1 )
+		$download_urls = is_array( $download_url_value ) ? array_values( array_filter( $download_url_value ) ) : array( $download_url_value );
+		$download_url  = (string) ( $download_urls[0] ?? '' );
+		$upload_url    = esc_url_raw( (string) ( $request->get_param( 'upload-url' ) ?? V_Dicom_Storage::getKeyUploadUrl( $key ) ) );
+		$callback_url  = esc_url_raw( (string) ( $request->get_param( 'callback-url' ) ?? V_Dicom_Storage::getKeyCallbackUrlForType( $key, $type_id ) ) );
+
+		$template_vars = array(
+			'download_url'  => $download_url,
+			'download_urls' => $download_urls,
+			'upload_url'    => $upload_url,
+			'callback_url'  => $callback_url,
+			'url'           => untrailingslashit( (string) ( $seg_type['url'] ?? '' ) ),
+			'scene_key'     => $key,
+			'type_id'       => $type_id,
+			'type_name'     => (string) ( $seg_type['name'] ?? '' ),
+			'job_id'        => '',
+			'site_url'      => home_url( '/' ),
+			'timestamp'     => time(),
 		);
-		$response = $this->make_runpod_request( $seg_type['url'], $seg_type['authorization'], $input );
+
+		$payload_template = (string) ( $seg_type['payload'] ?? '' );
+		if ( '' === trim( $payload_template ) ) {
+			$payload_template = V_Dicom_Storage::default_segmentation_payload();
+		}
+		$payload = trim( V_Dicom_Storage::render_segmentation_template( $payload_template, $template_vars ) );
+		if ( '' === $payload ) {
+			return new WP_Error( 'segmentation_payload_empty', __( 'O payload da segmentação está vazio.', 'v-dicom' ), array( 'status' => 500 ) );
+		}
+		$first_char = substr( ltrim( $payload ), 0, 1 );
+		if ( '{' === $first_char || '[' === $first_char ) {
+			json_decode( $payload, true );
+			if ( JSON_ERROR_NONE !== json_last_error() ) {
+				return new WP_Error( 'segmentation_payload_invalid', __( 'O payload renderizado não é um JSON válido.', 'v-dicom' ), array( 'status' => 500 ) );
+			}
+		}
+
+		$run_template = trim( (string) ( $seg_type['run_url'] ?? '' ) );
+		if ( '' === $run_template ) {
+			$run_template = '{{url}}/run';
+		}
+		$run_url = esc_url_raw( V_Dicom_Storage::render_segmentation_template( $run_template, $template_vars, 'raw' ) );
+		if ( '' === $run_url ) {
+			return new WP_Error( 'segmentation_config_missing', __( 'Endereço de execução do serviço de segmentação ausente.', 'v-dicom' ), array( 'status' => 500 ) );
+		}
+
+		$seg_cost = max( 0, (int) $seg_type['cost'] );
+		$credits  = V_Dicom_Storage::user_credit( $user_id );
+		if ( $seg_cost > 0 ) {
+			if ( $credits < $seg_cost ) {
+				/* translators: %d: cost in credits */
+				return new WP_Error( 'no_credit', sprintf( __( 'Crédito insuficiente para segmentar. Custo: %d créditos.', 'v-dicom' ), $seg_cost ), array( 'status' => 403 ) );
+			}
+			V_Dicom_Storage::set_user_credit( $user_id, $credits - $seg_cost );
+		}
+
+		$response = $this->make_segmentation_request( $run_url, (string) ( $seg_type['authorization'] ?? '' ), $payload, $payload_template, $template_vars );
 		$now_dbg = time();
-		V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'run_debug' => $this->last_runpod_debug, 'run_debug_time' => $now_dbg, 'run_response' => is_wp_error( $response ) ? null : $response ) );
+		V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'run_debug' => $this->last_segmentation_debug, 'run_debug_time' => $now_dbg, 'run_response' => is_wp_error( $response ) ? null : $response ) );
 		if ( is_wp_error( $response ) ) {
 			if ( $seg_cost > 0 ) { V_Dicom_Storage::set_user_credit( $user_id, $credits ); }
 			return $response;
 		}
-		$job_id = $response['id'];
+		$job_id = $this->extract_segmentation_job_id( $response );
+		if ( '' === $job_id ) {
+			if ( $seg_cost > 0 ) { V_Dicom_Storage::set_user_credit( $user_id, $credits ); }
+			$err = new WP_Error( 'segmentation_invalid_response', __( 'O serviço de segmentação não retornou um identificador de job.', 'v-dicom' ), array( 'status' => 500 ) );
+			if ( self::DEBUG_SEGMENTATION && $this->last_segmentation_debug ) {
+				$err->add_data( array( 'debug' => $this->last_segmentation_debug ), 'segmentation_invalid_response' );
+			}
+			return $err;
+		}
+		$raw_status     = $this->extract_segmentation_status( $response );
+		$initial_status = '' === $raw_status ? 'IN_QUEUE' : $this->normalize_segmentation_status( $raw_status );
 		V_Dicom_Storage::set_segmentation( $key, $type_id, array(
-			'used' => true, 'job_id' => $job_id, 'status' => 'IN_QUEUE', 'upload_url' => $input['upload-url'], 'download_url' => $input['download-url'], 'cost' => $seg_cost, 'started_at' => $now_dbg, 'finished_at' => '', 'credit_refunded' => '', 'email_sent' => ''
+			'used' => true, 'job_id' => $job_id, 'status' => $initial_status, 'upload_url' => $upload_url, 'download_url' => $download_url, 'cost' => $seg_cost, 'started_at' => $now_dbg, 'finished_at' => '', 'credit_refunded' => '', 'email_sent' => ''
 		) );
 		delete_post_meta( $post->ID, V_Dicom_Storage::SEG_FINISHED_AT_KEY );
-		$payload = array( 'job_id' => $job_id, 'status' => 'IN_QUEUE', 'type' => $type_id );
-		if ( self::DEBUG_RUNPOD && $this->last_runpod_debug ) { $payload['debug'] = $this->last_runpod_debug; $payload['runpod_response_raw'] = $response; }
+		$payload = array( 'job_id' => $job_id, 'status' => $initial_status, 'type' => $type_id );
+		if ( self::DEBUG_SEGMENTATION && $this->last_segmentation_debug ) { $payload['debug'] = $this->last_segmentation_debug; $payload['segmentation_response_raw'] = $response; }
 		return rest_ensure_response( $payload );
 	}
 
-	/** Helper: Make request to RunPod API — stores debug in $this->last_runpod_debug */
-	private function make_runpod_request( $url, $authHeader, $input ) {
-		$headers = array(
-			'Content-Type'  => 'application/json',
-			'Authorization' => $authHeader,
-		);
-		$req_url  = trailingslashit( $url ) . 'run';
-		$req_body = wp_json_encode( array( 'input' => $input ) );
+	/** Helper: POST the rendered payload to the configured run endpoint. */
+	private function make_segmentation_request( $url, $auth_header, $payload, $template, $vars ) {
+		$headers = array( 'Content-Type' => 'application/json' );
+		if ( '' !== trim( (string) $auth_header ) ) {
+			$headers['Authorization'] = $auth_header;
+		}
+		$debug_headers = $headers;
+		if ( isset( $debug_headers['Authorization'] ) ) {
+			$debug_headers['Authorization'] = '***';
+		}
 
 		$response = wp_remote_post(
-			$req_url,
+			$url,
 			array(
 				'headers'   => $headers,
 				'timeout'   => 60,
 				'sslverify' => true,
-				'body'      => $req_body,
+				'body'      => $payload,
 			)
 		);
 
 		$debug_base = array(
-			'runpod_url_config'     => $url,
-			'request_url'           => $req_url,
-			'request_method'        => 'POST',
-			'request_headers'       => $headers,
-			'request_body_json'     => $req_body,
-			'input_sent'            => $input,
+			'service_url_config' => (string) ( $vars['url'] ?? '' ),
+			'request_url'        => $url,
+			'request_method'     => 'POST',
+			'request_headers'    => $debug_headers,
+			'request_body'       => $payload,
+			'payload_template'   => $template,
+			'placeholders'       => $vars,
+			'timestamp'          => time(),
 		);
 
 		if ( is_wp_error( $response ) ) {
-			$this->last_runpod_debug = array_merge( $debug_base, array(
-				'wp_error'          => $response->get_error_message(),
-				'wp_error_code'     => $response->get_error_code(),
+			$this->last_segmentation_debug = array_merge( $debug_base, array(
+				'wp_error'      => $response->get_error_message(),
+				'wp_error_code' => $response->get_error_code(),
 			) );
-			$err = new WP_Error( 'runpod_request_failed', $response->get_error_message(), array( 'status' => 500 ) );
-			if ( self::DEBUG_RUNPOD ) {
-				$err->add_data( array( 'debug' => $this->last_runpod_debug ), 'runpod_request_failed' );
+			$err = new WP_Error( 'segmentation_request_failed', $response->get_error_message(), array( 'status' => 500 ) );
+			if ( self::DEBUG_SEGMENTATION ) {
+				$err->add_data( array( 'debug' => $this->last_segmentation_debug ), 'segmentation_request_failed' );
 			}
 			return $err;
 		}
 
-		$status_code = wp_remote_retrieve_response_code( $response );
-		$body        = wp_remote_retrieve_body( $response );
+		$status_code  = wp_remote_retrieve_response_code( $response );
+		$body         = wp_remote_retrieve_body( $response );
 		$resp_headers = wp_remote_retrieve_headers( $response );
-		$data = json_decode( $body, true );
+		$data         = json_decode( $body, true );
 
-		$this->last_runpod_debug = array_merge( $debug_base, array(
-			'response_code'    => $status_code,
-			'response_headers' => is_object( $resp_headers ) ? $resp_headers->getAll() : (array) $resp_headers,
-			'response_body_raw'=> $body,
-			'response_json'    => $data,
+		$this->last_segmentation_debug = array_merge( $debug_base, array(
+			'response_code'     => $status_code,
+			'response_headers'  => is_object( $resp_headers ) ? $resp_headers->getAll() : (array) $resp_headers,
+			'response_body_raw' => $body,
+			'response_json'     => $data,
 		) );
 
 		if ( $status_code < 200 || $status_code >= 300 ) {
-			$err = new WP_Error( 'runpod_request_failed', "RunPod responded with status $status_code: $body", array( 'status' => $status_code ) );
-			if ( self::DEBUG_RUNPOD ) {
-				$err->add_data( array( 'debug' => $this->last_runpod_debug ), 'runpod_request_failed' );
+			/* translators: %d: HTTP status code */
+			$err = new WP_Error( 'segmentation_request_failed', sprintf( __( 'O serviço de segmentação respondeu com HTTP %d.', 'v-dicom' ), $status_code ), array( 'status' => $status_code ) );
+			if ( self::DEBUG_SEGMENTATION ) {
+				$err->add_data( array( 'debug' => $this->last_segmentation_debug ), 'segmentation_request_failed' );
 			}
 			return $err;
 		}
 
 		if ( is_null( $data ) ) {
-			$err = new WP_Error( 'runpod_invalid_response', __( 'Resposta inválida do RunPod', 'v-dicom' ), array( 'status' => 500 ) );
-			if ( self::DEBUG_RUNPOD ) {
-				$err->add_data( array( 'debug' => $this->last_runpod_debug ), 'runpod_invalid_response' );
+			$err = new WP_Error( 'segmentation_invalid_response', __( 'Resposta inválida do serviço de segmentação.', 'v-dicom' ), array( 'status' => 500 ) );
+			if ( self::DEBUG_SEGMENTATION ) {
+				$err->add_data( array( 'debug' => $this->last_segmentation_debug ), 'segmentation_invalid_response' );
 			}
 			return $err;
 		}
@@ -426,7 +490,81 @@ class V_Dicom_REST {
 		return $data;
 	}
 
-	/** Check segmentation job status */
+	/** Extract a job id from common serverless response shapes. */
+	private function extract_segmentation_job_id( $data ) {
+		if ( ! is_array( $data ) ) {
+			return '';
+		}
+		$paths = array(
+			array( 'id' ),
+			array( 'job_id' ),
+			array( 'jobId' ),
+			array( 'request_id' ),
+			array( 'requestId' ),
+			array( 'task_id' ),
+			array( 'taskId' ),
+			array( 'execution_id' ),
+			array( 'executionId' ),
+			array( 'uid' ),
+			array( 'data', 'id' ),
+			array( 'data', 'job_id' ),
+			array( 'data', 'jobId' ),
+			array( 'data', 'request_id' ),
+			array( 'data', 'task_id' ),
+			array( 'result', 'id' ),
+			array( 'result', 'job_id' ),
+			array( 'output', 'id' ),
+			array( 'output', 'job_id' ),
+		);
+		foreach ( $paths as $path ) {
+			$value = $data;
+			foreach ( $path as $part ) {
+				if ( ! is_array( $value ) || ! isset( $value[ $part ] ) ) {
+					continue 2;
+				}
+				$value = $value[ $part ];
+			}
+			if ( is_string( $value ) || is_int( $value ) ) {
+				$value = trim( (string) $value );
+				if ( '' !== $value ) {
+					return $value;
+				}
+			}
+		}
+		return '';
+	}
+
+	/** Read the status field from common serverless response shapes. */
+	private function extract_segmentation_status( $data ) {
+		if ( ! is_array( $data ) ) {
+			return '';
+		}
+		$paths = array(
+			array( 'status' ),
+			array( 'state' ),
+			array( 'job_status' ),
+			array( 'jobStatus' ),
+			array( 'data', 'status' ),
+			array( 'data', 'state' ),
+			array( 'result', 'status' ),
+			array( 'output', 'status' ),
+		);
+		foreach ( $paths as $path ) {
+			$value = $data;
+			foreach ( $path as $part ) {
+				if ( ! is_array( $value ) || ! isset( $value[ $part ] ) ) {
+					continue 2;
+				}
+				$value = $value[ $part ];
+			}
+			if ( is_string( $value ) && '' !== trim( $value ) ) {
+				return trim( $value );
+			}
+		}
+		return '';
+	}
+
+	/** Check the segmentation job status at the configured status URL. */
 	public function check_segmentation_status( WP_REST_Request $request ) {
 		$key = V_Dicom_Storage::sanitize_key( $request['key'] );
 		if ( '' === $key ) {
@@ -465,43 +603,105 @@ class V_Dicom_REST {
 		}
 		$job_id = (string) $seg['job_id'];
 		$all_types = V_Dicom_Storage::get_segmentation_types( true );
-		$runpod_config = null;
-		foreach ( $all_types as $t ) { if ( $t['id'] === $type_id ) { $runpod_config = $t; break; } }
-		if ( ! $runpod_config ) {
+		$seg_config = null;
+		foreach ( $all_types as $t ) { if ( $t['id'] === $type_id ) { $seg_config = $t; break; } }
+		if ( ! $seg_config ) {
 			$legacy = get_option( 'v_dicom_runpod' ) ?: array();
-			if ( ! empty( $legacy['url'] ) && 'default' === $type_id ) { $runpod_config = array( 'url' => $legacy['url'], 'authorization' => $legacy['authorization'] ); }
+			if ( 'default' === $type_id && ! empty( $legacy['url'] ) ) {
+				$seg_config = V_Dicom_Storage::sanitize_segmentation_type( array(
+					'id'            => 'default',
+					'name'          => __( 'Padrão', 'v-dicom' ),
+					'url'           => $legacy['url'] ?? '',
+					'authorization' => $legacy['authorization'] ?? '',
+					'max_voxels'    => $legacy['max_voxels'] ?? 0,
+					'max_triangles' => $legacy['max_triangles'] ?? 0,
+					'cost'          => V_Dicom_Storage::segmentation_cost(),
+					'enabled'       => true,
+				), 'default' );
+			}
 		}
-		if ( ! $runpod_config || empty( $runpod_config['url'] ) ) {
-			return new WP_Error( 'runpod_config_missing', __( 'Configuração do RunPod ausente.', 'v-dicom' ), array( 'status' => 500 ) );
+		if ( ! $seg_config ) {
+			return new WP_Error( 'segmentation_config_missing', __( 'Configuração do serviço de segmentação ausente para este tipo.', 'v-dicom' ), array( 'status' => 500 ) );
 		}
-		$headers = array( 'Content-Type' => 'application/json', 'Authorization' => $runpod_config['authorization'] );
-		$status_url = trailingslashit( $runpod_config['url'] ) . 'status/' . rawurlencode( $job_id );
+
+		$template_vars = array(
+			'download_url'  => '',
+			'download_urls' => array(),
+			'upload_url'    => '',
+			'callback_url'  => '',
+			'url'           => untrailingslashit( (string) ( $seg_config['url'] ?? '' ) ),
+			'scene_key'     => $key,
+			'type_id'       => $type_id,
+			'type_name'     => (string) ( $seg_config['name'] ?? '' ),
+			'job_id'        => $job_id,
+			'site_url'      => home_url( '/' ),
+			'timestamp'     => time(),
+		);
+		$status_template = trim( (string) ( $seg_config['status_url'] ?? '' ) );
+		if ( '' === $status_template ) {
+			$status_template = '{{url}}/status/{{job_id}}';
+		}
+		$status_url = esc_url_raw( V_Dicom_Storage::render_segmentation_template( $status_template, $template_vars, 'raw' ) );
+		if ( '' === $status_url ) {
+			return new WP_Error( 'segmentation_config_missing', __( 'Endereço de status do serviço de segmentação ausente.', 'v-dicom' ), array( 'status' => 500 ) );
+		}
+
+		$headers = array( 'Content-Type' => 'application/json' );
+		$auth    = trim( (string) ( $seg_config['authorization'] ?? '' ) );
+		if ( '' !== $auth ) {
+			$headers['Authorization'] = $auth;
+		}
+		$debug_headers = $headers;
+		if ( isset( $debug_headers['Authorization'] ) ) {
+			$debug_headers['Authorization'] = '***';
+		}
+
 		$response = wp_remote_get( $status_url, array( 'timeout' => 60, 'sslverify' => true, 'headers' => $headers ) );
 		$scene_post = V_Dicom_Storage::find_scene( $key );
+		$debug_base = array(
+			'service_url_config' => $template_vars['url'],
+			'request_url'        => $status_url,
+			'request_method'     => 'GET',
+			'request_headers'    => $debug_headers,
+			'job_id'             => $job_id,
+			'timestamp'          => time(),
+			'type'               => $type_id,
+		);
+
 		if ( is_wp_error( $response ) ) {
-			$tmp = array( 'runpod_url_config' => $runpod_config['url'], 'request_url' => $status_url, 'request_method' => 'GET', 'request_headers' => $headers, 'job_id' => $job_id, 'wp_error' => $response->get_error_message(), 'wp_error_code' => $response->get_error_code(), 'timestamp' => time(), 'type' => $type_id );
+			$tmp = array_merge( $debug_base, array(
+				'wp_error'      => $response->get_error_message(),
+				'wp_error_code' => $response->get_error_code(),
+			) );
 			if ( $scene_post ) { V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'last_status_debug' => $tmp, 'last_status_time' => time() ) ); }
-			$err = new WP_Error( 'runpod_status_error', $response->get_error_message(), array( 'status' => 500 ) );
-			if ( self::DEBUG_RUNPOD ) { $err->add_data( array( 'debug' => $tmp ), 'runpod_status_error' ); }
+			$err = new WP_Error( 'segmentation_status_error', $response->get_error_message(), array( 'status' => 500 ) );
+			if ( self::DEBUG_SEGMENTATION ) { $err->add_data( array( 'debug' => $tmp ), 'segmentation_status_error' ); }
 			return $err;
 		}
-		$status_code = wp_remote_retrieve_response_code( $response );
-		$body = wp_remote_retrieve_body( $response );
+		$status_code  = wp_remote_retrieve_response_code( $response );
+		$body         = wp_remote_retrieve_body( $response );
 		$resp_headers = wp_remote_retrieve_headers( $response );
-		$data = json_decode( $body, true );
-		$debug_status = array( 'runpod_url_config' => $runpod_config['url'], 'request_url' => $status_url, 'request_method' => 'GET', 'request_headers' => $headers, 'job_id' => $job_id, 'response_code' => $status_code, 'response_headers' => is_object( $resp_headers ) ? $resp_headers->getAll() : (array) $resp_headers, 'response_body_raw' => $body, 'response_json' => $data, 'timestamp' => time(), 'type' => $type_id );
+		$data         = json_decode( $body, true );
+		$debug_status = array_merge( $debug_base, array(
+			'response_code'     => $status_code,
+			'response_headers'  => is_object( $resp_headers ) ? $resp_headers->getAll() : (array) $resp_headers,
+			'response_body_raw' => $body,
+			'response_json'     => $data,
+		) );
 		if ( $scene_post ) { V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'last_status_debug' => $debug_status, 'last_status_time' => time() ) ); }
 		if ( $status_code < 200 || $status_code >= 300 ) {
-			$err = new WP_Error( 'runpod_status_error', "RunPod responded with status $status_code: $body", array( 'status' => $status_code ) );
-			if ( self::DEBUG_RUNPOD ) { $err->add_data( array( 'debug' => $debug_status ), 'runpod_status_error' ); }
+			/* translators: %d: HTTP status code */
+			$err = new WP_Error( 'segmentation_status_error', sprintf( __( 'O serviço de segmentação respondeu com HTTP %d.', 'v-dicom' ), $status_code ), array( 'status' => $status_code ) );
+			if ( self::DEBUG_SEGMENTATION ) { $err->add_data( array( 'debug' => $debug_status ), 'segmentation_status_error' ); }
 			return $err;
 		}
 		if ( is_null( $data ) ) {
-			$err = new WP_Error( 'runpod_invalid_response', __( 'Resposta inválida do RunPod', 'v-dicom' ), array( 'status' => 500 ) );
-			if ( self::DEBUG_RUNPOD ) { $err->add_data( array( 'debug' => $debug_status ), 'runpod_invalid_response' ); }
+			$err = new WP_Error( 'segmentation_invalid_response', __( 'Resposta inválida do serviço de segmentação.', 'v-dicom' ), array( 'status' => 500 ) );
+			if ( self::DEBUG_SEGMENTATION ) { $err->add_data( array( 'debug' => $debug_status ), 'segmentation_invalid_response' ); }
 			return $err;
 		}
-		$status = $this->safe_runpod_status( $data['status'] ?? 'UNKNOWN' );
+		$raw_status = $this->extract_segmentation_status( $data );
+		$status     = '' === $raw_status ? 'UNKNOWN' : $this->normalize_segmentation_status( $raw_status );
 		V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'status' => $status ) );
 		if ( in_array( $status, array( 'COMPLETED', 'FAILED' ), true ) ) {
 			$cur = V_Dicom_Storage::get_segmentation( $key, $type_id );
@@ -522,11 +722,11 @@ class V_Dicom_REST {
 			}
 		}
 		$payload = array( 'status' => $status, 'type' => $type_id );
-		if ( self::DEBUG_RUNPOD ) { $payload['debug'] = $debug_status; $payload['runpod_response_raw'] = $data; }
+		if ( self::DEBUG_SEGMENTATION ) { $payload['debug'] = $debug_status; $payload['segmentation_response_raw'] = $data; }
 		return rest_ensure_response( $payload );
 	}
 
-	/** RunPod callback: POST application/json to the callback-url sent in input. */
+	/** Serverless service callback: POST application/json to the callback URL sent in the payload. */
 	public function segmentation_callback( WP_REST_Request $request ) {
 		$key = V_Dicom_Storage::sanitize_key( $request['key'] );
 		if ( '' === $key ) {
@@ -539,11 +739,16 @@ class V_Dicom_REST {
 		$type_id = V_Dicom_Storage::sanitize_seg_type_id( $request->get_param( 'type' ) ?? $request->get_param( 'type_id' ) ?? '' );
 		$params = $request->get_json_params();
 		if ( ! is_array( $params ) || empty( $params ) ) { $params = $request->get_params(); }
-		$raw_status = isset( $params['status'] ) ? strtolower( trim( (string) $params['status'] ) ) : '';
+		$raw_status = '';
+		if ( isset( $params['status'] ) ) {
+			$raw_status = trim( (string) $params['status'] );
+		} elseif ( isset( $params['state'] ) ) {
+			$raw_status = trim( (string) $params['state'] );
+		}
 		if ( '' === $raw_status ) {
 			return new WP_Error( 'v_dicom_bad_request', __( 'Campo status ausente.', 'v-dicom' ), array( 'status' => 400 ) );
 		}
-		if ( 'success' === $raw_status ) { $status = 'COMPLETED'; } elseif ( 'failed' === $raw_status ) { $status = 'FAILED'; } else { $status = $this->safe_runpod_status( $raw_status ); }
+		$status = $this->normalize_segmentation_status( $raw_status );
 		if ( '' === $type_id ) {
 			$map = V_Dicom_Storage::get_segmentations( $key );
 			if ( count( $map ) === 1 ) { $type_id = array_keys( $map )[0]; }
@@ -676,12 +881,46 @@ class V_Dicom_REST {
 		return hash_equals( $stored, $provided );
 	}
 
-	/** Whitelist a RunPod job status. Unknown values fall back to 'UNKNOWN' so
-	 * no arbitrary text returned by a third-party service can reach output. */
-	private function safe_runpod_status( $raw ) {
-		$status  = strtoupper( trim( (string) $raw ) );
-		$allowed = array( 'IN_QUEUE', 'IN_PROGRESS', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'UNKNOWN' );
-		return in_array( $status, $allowed, true ) ? $status : 'UNKNOWN';
+	/** Normalise job status values returned by serverless providers. Unknown
+	 * values fall back to 'UNKNOWN' so no arbitrary third-party text reaches output. */
+	private function normalize_segmentation_status( $raw ) {
+		$status = strtoupper( trim( (string) $raw ) );
+		$status = str_replace( array( '-', ' ' ), '_', $status );
+		$map    = array(
+			'SUCCESS'      => 'COMPLETED',
+			'SUCCEEDED'    => 'COMPLETED',
+			'SUCCESSFUL'   => 'COMPLETED',
+			'COMPLETE'     => 'COMPLETED',
+			'COMPLETED'    => 'COMPLETED',
+			'DONE'         => 'COMPLETED',
+			'FINISHED'     => 'COMPLETED',
+			'OK'           => 'COMPLETED',
+			'FAIL'         => 'FAILED',
+			'FAILURE'      => 'FAILED',
+			'ERROR'        => 'FAILED',
+			'ERRORED'      => 'FAILED',
+			'TIMEOUT'      => 'FAILED',
+			'TIMED_OUT'    => 'FAILED',
+			'CANCELED'     => 'CANCELLED',
+			'CANCELLED'    => 'CANCELLED',
+			'QUEUED'       => 'IN_QUEUE',
+			'QUEUE'        => 'IN_QUEUE',
+			'PENDING'      => 'PENDING',
+			'WAITING'      => 'IN_QUEUE',
+			'CREATED'      => 'IN_QUEUE',
+			'SUBMITTED'    => 'IN_QUEUE',
+			'RUNNING'      => 'RUNNING',
+			'PROCESSING'   => 'IN_PROGRESS',
+			'IN_PROGRESS'  => 'IN_PROGRESS',
+			'INPROGRESS'   => 'IN_PROGRESS',
+			'STARTED'      => 'IN_PROGRESS',
+			'EXECUTING'    => 'IN_PROGRESS',
+			'IN_QUEUE'     => 'IN_QUEUE',
+			'UNKNOWN'      => 'UNKNOWN',
+		);
+		$normalized = $map[ $status ] ?? $status;
+		$allowed    = array( 'IN_QUEUE', 'IN_PROGRESS', 'PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED', 'UNKNOWN' );
+		return in_array( $normalized, $allowed, true ) ? $normalized : 'UNKNOWN';
 	}
 
 	/** The scene must exist and belong to the current user (or an editor). */

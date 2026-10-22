@@ -13,8 +13,8 @@
 que roda no **navegador**. Decodifica DICOM (JPEG lossless, JPEG 2000, JPEG-LS, RLE
 e nativo), monta o volume 3D, exibe cortes **axial/coronal/sagital**, faz
 **reconstrução 3D**, carrega modelos **STL/PLY/OBJ**, permite **MPR oblíquo**,
-**anotações** nos cortes, **segmentação automática por IA (cloud/RunPod)** e
-**compartilhamento** por link público ou por e-mail.
+**anotações** nos cortes, **segmentação automática por IA (serviço de nuvem
+serverless)** e **compartilhamento** por link público ou por e-mail.
 
 Dois modos de uso:
 - **Servidor oficial** (free): https://v-dicom.online-web.app.br/
@@ -71,7 +71,7 @@ Open-VD/
 │  │  ├─ mpr.ts                 # Álgebra vetorial + planos de reslice (MPR oblíquo)
 │  │  ├─ annotations.ts         # Tipos e desenho/PNG de anotações
 │  │  ├─ zip.ts                 # Leitor ZIP em streaming (fflate/zip.js + CRC-32)
-│  │  ├─ wp.ts                  # ⭐ Ponte com o WordPress (REST, uploads, cenas, RunPod)
+│  │  ├─ wp.ts                  # ⭐ Ponte com o WordPress (REST, uploads, cenas, segmentação)
 │  │  ├─ meshVolume.ts          # Cálculo de volume de STL/PLY/OBJ (mm³/cm³)
 │  │  ├─ meshColors.ts          # ⭐ Regras "nome do modelo → cor" (config do painel)
 │  │  ├─ meshGroups.ts          # ⭐ Agrupa modelos por termo comum no nome
@@ -94,7 +94,7 @@ Open-VD/
 │  ├─ includes/
 │  │  ├─ class-v-dicom-page.php     # Rota /v-dicom/, manifest PWA, sw.js, config injetada
 │  │  ├─ class-v-dicom-rest.php     # ⭐ REST API (todos os endpoints)
-│  │  ├─ class-v-dicom-storage.php  # ⭐ Persistência: cenas, arquivos, quotas, RunPod
+│  │  ├─ class-v-dicom-storage.php  # ⭐ Persistência: cenas, arquivos, quotas, segmentação
 │  │  ├─ class-v-dicom-admin.php    # Tela admin (cenas, limites, tema, API key, segmentação)
 │  │  ├─ class-v-dicom-theme.php    # White-label (nome, cores, logo, quiz)
 │  │  └─ download.php               # Proxy de download (Google Drive/OneDrive)
@@ -402,12 +402,12 @@ Componentes de viewport em arquivos próprios: `SliceView`, `Volume3D`.
 | POST | `/scenes/<key>/settings` | logado | Salva settings/anotações/título |
 | POST | `/scenes/<key>/annotations` | logado | PNG em cena existente |
 | POST | `/scenes/<key>/run` | dono/apikey | Dispara segmentação |
-| GET/POST | `/scenes/<key>/segmentation-status` | dono/apikey | Status / callback RunPod |
+| GET/POST | `/scenes/<key>/segmentation-status` | dono/apikey | Status / callback do serviço |
 | POST | `/scenes/<key>/access` | logado | Marca acesso recente |
 | GET | `/me/recent-scenes` | logado | Cenas recentes |
 | POST | `/authorized-url` | logado | Autoriza URL externa (consome 1 crédito) |
 
-- `DEBUG_RUNPOD = false`; `api_key_is_valid()` libera rotas de admin com apikey.
+- `DEBUG_SEGMENTATION = false`; `api_key_is_valid()` libera rotas de admin com apikey.
 - **Compartilhar (ordem)**: `POST /scenes` **sem** `token` cria a cena vazia com
   `title` + `settings`; os arquivos entram por `/scenes/<key>/files` (o
   `store_file` anexa o descritor a `_v_dicom_files`), os PNGs por
@@ -416,16 +416,19 @@ Componentes de viewport em arquivos próprios: `SliceView`, `Volume3D`.
   para a **API externa via apikey**.
 - `upload_scene_annotation()` (`/scenes/<key>/annotations`) espelha
   `upload_session_annotation()` e usa `scene_for_write()` + `store_annotation_png()`.
-- Segmentação: valida dono + crédito, envia `POST {url}/run` ao RunPod com
-  `download-url`, `upload-url`, `max-voxels`, `max-triangles`; guarda `job_id`;
-  reembolsa crédito em falha; notifica conclusão.
+- Segmentação: valida dono + crédito, monta o corpo a partir do template de
+  payload (`{{download_urls}}`, `{{upload_url}}`, `{{callback_url}}`, etc.),
+  envia ao endpoint de execução configurado (`run_url`), guarda o `job_id`,
+  consulta o `status_url` configurado e reembolsa o crédito em falha; notifica
+  conclusão.
 
 ### Storage — `class-v-dicom-storage.php`
 - Base: `wp-content/uploads/v-dicom/<key>/` (bloqueia execução PHP e listagem).
 - Extensões permitidas (`SAFE_EXT`): dcm, dicom, ima, img, stl, ply, obj, mtl, png,
   jpg, jpeg, nrrd, nii, gz, json, bin, zip.
 - Cenas via CPT + meta (`_v_dicom_settings`, `_v_dicom_annotations`,
-  `_v_dicom_segmentations`, keys de job RunPod, debug).
+  `_v_dicom_segmentations`, keys de job/segmentação e debug — nomes legados são
+  mantidos por compatibilidade).
 - **Quotas/planos**: `user_limit_mb`, `used_bytes`, `available_bytes`, `check_quota`,
   `add_user_plan`, `prune_expired_plans`, `enforce_quota`, `cron_prune_and_enforce`.
 - Créditos: `user_credit`, `set_user_credit`, `OPTION_DEFAULT_CREDIT`.
@@ -445,8 +448,12 @@ Menu top-level `v-dicom` (cap. `upload_files`). Ações via `admin_post_*`:
 delete, limite (`limit`), tema, **API key**, **tipos de segmentação**, URL-auth,
 **carregamento direto de DICOM** (`direct_dicom`), defaults de novos usuários e
 **cores dos modelos** (`mesh_colors`).
-A tela lista cenas, gera/edita links, mostra debug do
-RunPod e faz polling do status de segmentação.
+A tela lista cenas, gera/edita links, mostra debug da segmentação e faz polling
+do status de segmentação.
+
+**Submenu "Segmentação"** (`page_segmentation()`, slug `v-dicom-segmentation`,
+cap. `edit_users`): cadastro dos tipos de serviço serverless (URL base, URL de
+execução, URL de status, Authorization opcional, template de payload e custo).
 
 **Submenu "Cores dos modelos"** (`page_mesh_colors()`, slug `v-dicom-colors`,
 cap. `edit_users`): editor das regras **nome do modelo → cor** (tabela com nome,
@@ -602,7 +609,7 @@ npm run format         # prettier --write .
 - **Window/Level (wc/ww)**: brilho/contraste clínico (centro/largura).
 - **Crosshair**: interseção dos três planos (cursor 3D).
 - **Cena**: estudo salvo no WordPress, acessível por chave (`/v-dicom/KEY/`).
-- **RunPod**: serviço externo de **segmentação automática por IA** (gera STL).
+- **Serviço de segmentação**: serviço externo de nuvem serverless de **segmentação automática por IA** (gera STL).
 - **Segmentação**: geração automática de modelos (meshes) a partir do volume.
 - **Proxy**: `download.php`, resolve links Google Drive/OneDrive contornando CORS.
 - **OIT (Weighted Blended Order-Independent Transparency)**: transparência com

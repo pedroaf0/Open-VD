@@ -122,12 +122,13 @@ cambiar el acceso de una escena en cualquier momento.
 ### Segmentación automática con IA (procesamiento en la nube)
 
 El v-dicom admite **segmentación automática con IA**, con el **procesamiento
-realizado en la nube** (mediante un servidor RunPod configurable). El
-administrador define la URL del servidor, el encabezado de autorización y los
-límites de vóxeles y triángulos. En el panel, el botón **Segmentar** envía la
-escena para su procesamiento y, al finalizar, los modelos **STL** generados se
-muestran en el visor. Cada segmentación consume 1 crédito del responsable de la
-escena, reembolsado en caso de fallo.
+realizado en la nube** (mediante un servicio de nube serverless configurable). El
+administrador define la URL del servidor, la cabecera de autorización opcional,
+los endpoints de ejecución/estado y una plantilla de payload JSON con
+placeholders. En el panel, el botón **Segmentar** envía la escena para su
+procesamiento y, al finalizar, los modelos **STL** generados se muestran en el
+visor. Cada segmentación consume 1 crédito del responsable de la escena,
+reembolsado en caso de fallo.
 
 ### Arquitectura
 

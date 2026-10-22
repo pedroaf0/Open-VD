@@ -40,7 +40,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 	/** Maximum number of recently accessed scenes to store */
 	const MAX_RECENT_SCENES = 10;
 
-	/** Keys for segmentation metadata stored with each scene */
+	/** Keys for segmentation metadata stored with each scene (legacy names kept for compatibility). */
 	const SEGMENTATION_KEY = 'v_dicom_segmentation_used';
 	const JOB_ID_KEY = 'v_dicom_runpod_job_id';
 	const JOB_STATUS_KEY = 'v_dicom_runpod_status';
@@ -228,6 +228,161 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		return substr( $id, 0, 32 );
 	}
 
+	/**
+	 * Default request body template for a segmentation type.
+	 *
+	 * Placeholders between double braces are replaced at runtime. A placeholder
+	 * outside quotes becomes a JSON value (string, number or array); inside
+	 * quotes it becomes escaped text. The "max-voxels"/"max-triangles" entries
+	 * are only added when migrating a type that still stores those values.
+	 */
+	public static function default_segmentation_payload( $max_voxels = 0, $max_triangles = 0 ) {
+		$lines = array(
+			'    "download-url": {{download_urls}}',
+			'    "upload-url": "{{upload_url}}"',
+			'    "callback-url": "{{callback_url}}"',
+		);
+		$max_voxels    = max( 0, (int) $max_voxels );
+		$max_triangles = max( 0, (int) $max_triangles );
+		if ( $max_voxels > 0 ) {
+			$lines[] = '    "max-voxels": ' . $max_voxels;
+		}
+		if ( $max_triangles > 0 ) {
+			$lines[] = '    "max-triangles": ' . $max_triangles;
+		}
+		return "{\n  \"input\": {\n" . implode( ",\n", $lines ) . "\n  }\n}";
+	}
+
+	/** Normalised placeholder names accepted in payload/URL templates. */
+	public static function segmentation_template_aliases() {
+		return array(
+			'download_url'   => 'download_url',
+			'download_urls'  => 'download_urls',
+			'downloadlink'   => 'download_url',
+			'download_link'  => 'download_url',
+			'download_links' => 'download_urls',
+			'downloadlinks'  => 'download_urls',
+			'downloadurl'    => 'download_url',
+			'upload_url'     => 'upload_url',
+			'uploadlink'     => 'upload_url',
+			'upload_link'    => 'upload_url',
+			'uploadurl'      => 'upload_url',
+			'callback_url'   => 'callback_url',
+			'callbacklink'   => 'callback_url',
+			'callback_link'  => 'callback_url',
+			'callbackurl'    => 'callback_url',
+			'url'            => 'url',
+			'base_url'       => 'url',
+			'baseurl'        => 'url',
+			'scene_key'      => 'scene_key',
+			'scenekey'       => 'scene_key',
+			'scene'          => 'scene_key',
+			'type_id'        => 'type_id',
+			'typeid'         => 'type_id',
+			'type'           => 'type_id',
+			'type_name'      => 'type_name',
+			'typename'       => 'type_name',
+			'job_id'         => 'job_id',
+			'jobid'          => 'job_id',
+			'site_url'       => 'site_url',
+			'siteurl'        => 'site_url',
+			'timestamp'      => 'timestamp',
+		);
+	}
+
+	/**
+	 * Replace `{{placeholder}}` tokens in a payload or URL template.
+	 *
+	 * In JSON mode (default) the replacement keeps the template valid JSON:
+	 * outside quotes the value is encoded as JSON (so arrays/numbers work),
+	 * inside quotes the value is inserted already escaped as text.
+	 * In raw mode the value is inserted as plain text, useful for URL templates.
+	 *
+	 * @param string $template Template text.
+	 * @param array  $vars     Canonical placeholder values.
+	 * @param string $mode     'json' (default) or 'raw'.
+	 * @return string
+	 */
+	public static function render_segmentation_template( $template, $vars, $mode = 'json' ) {
+		$template = (string) $template;
+		$vars     = is_array( $vars ) ? $vars : array();
+		$aliases  = self::segmentation_template_aliases();
+		$out      = '';
+		$length   = strlen( $template );
+		$in_string = false;
+		$escaped   = false;
+
+		for ( $i = 0; $i < $length; $i++ ) {
+			$char = $template[ $i ];
+
+			if ( '{' === $char && $i + 1 < $length && '{' === $template[ $i + 1 ] ) {
+				$end = strpos( $template, '}}', $i + 2 );
+				if ( false !== $end ) {
+					$raw_key = substr( $template, $i + 2, $end - $i - 2 );
+					$key     = strtolower( trim( $raw_key ) );
+					$key     = str_replace( '-', '_', $key );
+					$key     = preg_replace( '/\s+/', '_', $key );
+					$canonical = $aliases[ $key ] ?? '';
+					if ( '' !== $canonical && array_key_exists( $canonical, $vars ) ) {
+						$value = $vars[ $canonical ];
+						if ( 'raw' === $mode ) {
+							if ( is_array( $value ) ) {
+								$value = reset( $value );
+							} elseif ( is_object( $value ) ) {
+								$value = '';
+							} elseif ( is_bool( $value ) ) {
+								$value = $value ? '1' : '0';
+							} elseif ( null === $value ) {
+								$value = '';
+							}
+							$out .= (string) $value;
+						} elseif ( $in_string ) {
+							if ( is_array( $value ) || is_object( $value ) ) {
+								$encoded = wp_json_encode( $value );
+								$out    .= is_string( $encoded ) ? substr( $encoded, 1, -1 ) : '';
+							} elseif ( is_bool( $value ) ) {
+								$out .= $value ? 'true' : 'false';
+							} elseif ( null === $value ) {
+								$out .= '';
+							} else {
+								$encoded = wp_json_encode( (string) $value );
+								$out    .= is_string( $encoded ) ? substr( $encoded, 1, -1 ) : '';
+							}
+						} else {
+							$encoded = wp_json_encode( $value );
+							$out    .= is_string( $encoded ) ? $encoded : 'null';
+						}
+						$i = $end + 1;
+						continue;
+					}
+				}
+			}
+
+			$out .= $char;
+			if ( $in_string ) {
+				if ( $escaped ) {
+					$escaped = false;
+				} elseif ( '\\' === $char ) {
+					$escaped = true;
+				} elseif ( '"' === $char ) {
+					$in_string = false;
+				}
+			} elseif ( '"' === $char ) {
+				$in_string = true;
+			}
+		}
+
+		return $out;
+	}
+
+	/** Keep the payload template readable while stripping control characters. */
+	private static function sanitize_payload_template( $payload ) {
+		$payload = (string) $payload;
+		$payload = wp_check_invalid_utf8( $payload );
+		$payload = preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $payload );
+		return trim( (string) $payload );
+	}
+
 	public static function sanitize_segmentation_type( $raw, $fallback_id = '' ) {
 		if ( ! is_array( $raw ) ) {
 			return null;
@@ -243,20 +398,39 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		$desc = wp_kses_post( (string) ( $raw['description'] ?? '' ) );
 		$url  = esc_url_raw( trim( (string) ( $raw['url'] ?? '' ) ) );
 		$auth = trim( (string) ( $raw['authorization'] ?? $raw['auth'] ?? '' ) );
-		$vox  = max( 1, (int) ( $raw['max_voxels'] ?? $raw['max-voxels'] ?? 0 ) );
-		$tri  = max( 1, (int) ( $raw['max_triangles'] ?? $raw['max-triangles'] ?? 0 ) );
-		if ( ! $vox ) { $vox = 1; }
-		if ( ! $tri ) { $tri = 1; }
-		$cost = max( 0, (int) ( $raw['cost'] ?? $raw['seg_cost'] ?? 0 ) );
+
+		// Legacy types stored only max_voxels/max_triangles and used the fixed
+		// "url/run" and "url/status/<job>" paths. Turn those into explicit
+		// templates so the generic cloud integration keeps working.
+		$legacy_vox = max( 0, (int) ( $raw['max_voxels'] ?? $raw['max-voxels'] ?? 0 ) );
+		$legacy_tri = max( 0, (int) ( $raw['max_triangles'] ?? $raw['max-triangles'] ?? 0 ) );
+		$has_payload = isset( $raw['payload'] ) && '' !== trim( (string) $raw['payload'] );
+		$payload     = $has_payload
+			? self::sanitize_payload_template( (string) $raw['payload'] )
+			: self::default_segmentation_payload( $legacy_vox, $legacy_tri );
+
+		$run_url    = sanitize_text_field( (string) ( $raw['run_url'] ?? $raw['run-url'] ?? '' ) );
+		$status_url = sanitize_text_field( (string) ( $raw['status_url'] ?? $raw['status-url'] ?? '' ) );
+		if ( ! $has_payload ) {
+			if ( '' === $run_url && '' !== $url ) {
+				$run_url = trailingslashit( $url ) . 'run';
+			}
+			if ( '' === $status_url && '' !== $url ) {
+				$status_url = trailingslashit( $url ) . 'status/{{job_id}}';
+			}
+		}
+
+		$cost    = max( 0, (int) ( $raw['cost'] ?? $raw['seg_cost'] ?? 0 ) );
 		$enabled = isset( $raw['enabled'] ) ? (bool) $raw['enabled'] : true;
 		return array(
 			'id'            => $id,
 			'name'          => $name,
 			'description'   => $desc,
 			'url'           => $url,
+			'run_url'       => $run_url,
+			'status_url'    => $status_url,
 			'authorization' => $auth,
-			'max_voxels'    => $vox,
-			'max_triangles' => $tri,
+			'payload'       => $payload,
 			'cost'          => $cost,
 			'enabled'       => $enabled,
 		);
@@ -269,6 +443,9 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 			$copy = $t;
 			unset( $copy['authorization'] );
 			unset( $copy['url'] );
+			unset( $copy['run_url'] );
+			unset( $copy['status_url'] );
+			unset( $copy['payload'] );
 			$out[] = $copy;
 		}
 		return $out;
@@ -1589,7 +1766,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		}
 	}
 
-	/** Set RunPod job ID */
+	/** Set the segmentation job ID. */
 	public static function setJobId( $key, $jobId ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
@@ -1598,7 +1775,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		}
 	}
 
-	/** Get RunPod job ID */
+	/** Get the segmentation job ID. */
 	public static function getJobId( $key ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
@@ -1608,7 +1785,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		return null;
 	}
 
-	/** Set RunPod job status */
+	/** Set the segmentation job status. */
 	public static function setJobStatus( $key, $status ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
@@ -1617,7 +1794,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		}
 	}
 
-	/** Get RunPod job status */
+	/** Get the segmentation job status. */
 	public static function getJobStatus( $key ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
@@ -1627,8 +1804,8 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		return null;
 	}
 
-	/** Set RunPod upload and download URLs */
-	public static function setRunpodUrls( $key, $uploadUrl, $downloadUrl ) {
+	/** Set the upload and download URLs used by a segmentation job. */
+	public static function setSegmentationUrls( $key, $uploadUrl, $downloadUrl ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
 		if ( $post ) {
@@ -1637,8 +1814,8 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		}
 	}
 
-	/** Get RunPod upload URL */
-	public static function getRunpodUploadUrl( $key ) {
+	/** Get the upload URL used by a segmentation job. */
+	public static function getSegmentationUploadUrl( $key ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
 		if ( $post ) {
@@ -1647,8 +1824,8 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		return '';
 	}
 
-	/** Get RunPod download URL */
-	public static function getRunpodDownloadUrl( $key ) {
+	/** Get the download URL used by a segmentation job. */
+	public static function getSegmentationDownloadUrl( $key ) {
 		$key = self::sanitize_key( $key );
 		$post = self::find_scene( $key );
 		if ( $post ) {
@@ -1698,7 +1875,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		return rest_url( V_Dicom_REST::NS . '/download/' . $key . '/zip' ) . '?apikey=' . rawurlencode( self::api_key() );
 	}
 
-	/** Get callback URL for segmentation-status (RunPod webhook) */
+	/** Get callback URL for segmentation status (serverless service webhook). */
 	public static function getKeyCallbackUrl( $key ) {
 		$key = self::sanitize_key( $key );
 		return rest_url( V_Dicom_REST::NS . '/scenes/' . $key . '/segmentation-status' ) . '?apikey=' . rawurlencode( self::api_key() );

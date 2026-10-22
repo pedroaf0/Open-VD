@@ -166,7 +166,7 @@ $config = [
 - Permission checks: `current_user_can()`, ownership verification.
 - Quota enforcement before write operations.
 - File handling: sanitization, type detection, chunk assembly.
-- External service integration (e.g., segmentation via RunPod) via `wp_remote_post`.
+- External service integration (e.g., segmentation via a serverless cloud service) via `wp_remote_post`.
 - Callback endpoints for async operations (no auth, verified by source IP or secret).
 
 ### Admin Integration (`class-my-plugin-admin.php`)

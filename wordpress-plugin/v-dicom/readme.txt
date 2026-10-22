@@ -37,25 +37,31 @@ Without a valid key the access is denied (HTTP 401). Leaving the field empty dis
 
 == Automatic segmentation ==
 
-The administrator configures it in v-dicom > "Automatic segmentation (RunPod)":
+The administrator configures it in v-dicom > "Segmentation":
 
-* Segmentation server URL (e.g. https://api.runpod.ai/v2/ENDPOINT_ID)
-* Authorization Header (e.g. Bearer rpa_xxxxxxxxx)
-* Maximum voxels (max-voxels)
-* Maximum triangles (max-triangles)
+* Service base URL (used as the {{url}} placeholder)
+* Optional Authorization header (for example: Bearer ...)
+* Optional run URL (defaults to {{url}}/run)
+* Optional status URL (defaults to {{url}}/status/{{job_id}})
+* Custom JSON payload template with placeholders
+  (for example {{uploadlink}}, {{download_urls}}, {{callback_url}})
 
 Flow per scene ("Segment" button in the dashboard):
 
 1. Backend validations: a scene can be segmented only once and the owner must have at least 1 credit.
-2. The operation consumes 1 credit from the scene owner. If RunPod fails, the credit is refunded.
-3. WordPress sends POST {url}/run with an input containing:
+2. The operation consumes 1 credit from the scene owner. If the service fails, the credit is refunded.
+3. WordPress renders the payload template and sends it as the POST body to the run URL. The template can produce any JSON shape, including:
    - "download-url": /wp-json/v-dicom/v1/download/{key}/zip?apikey=KEY
    - "upload-url":   /wp-json/v-dicom/v1/uploads/{key}/files?apikey=KEY
-   - "max-voxels" and "max-triangles": values configured by the admin.
-4. The returned job_id is saved and the status can be queried at
+   - "callback-url": callback endpoint for status updates
+4. The returned job id (id, job_id, request_id, task_id, etc.) is saved and the status can be queried at
    GET /wp-json/v-dicom/v1/scenes/{key}/segmentation-status
-5. When the status becomes COMPLETED the STL files sent by RunPod are already in the scene folder; the page is reloaded to display them.
+5. When the status becomes COMPLETED the STL files sent by the service are already in the scene folder; the page is reloaded to display them.
 6. On FAILED the user is notified and receives the credit back.
+
+Existing installations can back up and migrate the old max-voxels/max-triangles
+configuration with `scripts/migrate-segmentation-payload.php` (see the
+accompanying `.md` file).
 
 == Processing credits ==
 

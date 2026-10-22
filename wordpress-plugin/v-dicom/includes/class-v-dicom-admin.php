@@ -47,6 +47,14 @@ class V_Dicom_Admin {
 		);
 		add_submenu_page(
 			'v-dicom',
+			__( 'Segmentação automática', 'v-dicom' ),
+			__( 'Segmentação', 'v-dicom' ),
+			'edit_users',
+			'v-dicom-segmentation',
+			array( $this, 'page_segmentation' )
+		);
+		add_submenu_page(
+			'v-dicom',
 			__( 'Cores dos modelos (STL)', 'v-dicom' ),
 			__( 'Cores dos modelos', 'v-dicom' ),
 			'edit_users',
@@ -205,9 +213,10 @@ class V_Dicom_Admin {
 				'name'          => $item['name'] ?? '',
 				'description'   => $item['description'] ?? '',
 				'url'           => $item['url'] ?? '',
+				'run_url'       => $item['run_url'] ?? '',
+				'status_url'    => $item['status_url'] ?? '',
 				'authorization' => $item['authorization'] ?? '',
-				'max_voxels'    => $item['max_voxels'] ?? 0,
-				'max_triangles' => $item['max_triangles'] ?? 0,
+				'payload'       => $item['payload'] ?? '',
 				'cost'          => $item['cost'] ?? 0,
 				'enabled'       => ! empty( $item['enabled'] ),
 			), $id );
@@ -215,7 +224,7 @@ class V_Dicom_Admin {
 			$out[] = $san;
 		}
 		update_option( V_Dicom_Storage::OPTION_SEG_TYPES, array_values( $out ) );
-		wp_safe_redirect( add_query_arg( 'segtypessaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
+		wp_safe_redirect( add_query_arg( 'segtypessaved', 1, admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
 		exit;
 	}
 
@@ -441,6 +450,238 @@ class V_Dicom_Admin {
 		if ( $links ) {
 			echo '<div class="tablenav"><div class="tablenav-pages">' . wp_kses_post( $links ) . '</div></div>';
 		}
+	}
+
+	/**
+	 * Submenu "Segmentação": editable serverless cloud job types.
+	 *
+	 * Each type defines the run endpoint, the status endpoint and a payload
+	 * template. Placeholders such as {{upload_url}} are replaced with the scene
+	 * data when a job is started.
+	 */
+	public function page_segmentation() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		$seg_types       = V_Dicom_Storage::get_segmentation_types( true );
+		$default_payload = V_Dicom_Storage::default_segmentation_payload();
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Segmentação automática', 'v-dicom' ); ?></h1>
+			<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
+			<?php if ( isset( $_GET['segtypessaved'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Tipos de segmentação atualizados.', 'v-dicom' ); ?></p></div>
+			<?php endif; ?>
+			<p class="description" style="max-width:960px">
+				<?php esc_html_e( 'Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque "Ativo" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.', 'v-dicom' ); ?>
+			</p>
+
+			<details style="max-width:960px;margin:14px 0;padding:10px 12px;background:#fff;border:1px solid #ccd0d4;">
+				<summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'Placeholders disponíveis', 'v-dicom' ); ?></summary>
+				<table class="widefat striped" style="margin-top:10px;max-width:920px;">
+					<thead>
+						<tr>
+							<th style="width:230px"><?php esc_html_e( 'Placeholder', 'v-dicom' ); ?></th>
+							<th><?php esc_html_e( 'Valor enviado', 'v-dicom' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr><td><code>{{download_url}}</code></td><td><?php esc_html_e( 'URL do ZIP da cena (texto).', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{download_urls}}</code></td><td><?php esc_html_e( 'Lista de URLs de download da cena (array JSON).', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{upload_url}}</code></td><td><?php esc_html_e( 'URL para o serviço enviar os modelos STL gerados.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{callback_url}}</code></td><td><?php esc_html_e( 'URL de callback para o serviço informar o status.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{url}}</code></td><td><?php esc_html_e( 'URL base do serviço.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{scene_key}}</code></td><td><?php esc_html_e( 'Chave da cena.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{type_id}}</code></td><td><?php esc_html_e( 'Identificador deste tipo de segmentação.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{type_name}}</code></td><td><?php esc_html_e( 'Nome deste tipo de segmentação.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{job_id}}</code></td><td><?php esc_html_e( 'Identificador do job (disponível na URL de status e no callback).', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{site_url}}</code></td><td><?php esc_html_e( 'URL do site WordPress.', 'v-dicom' ); ?></td></tr>
+						<tr><td><code>{{timestamp}}</code></td><td><?php esc_html_e( 'Timestamp Unix do envio.', 'v-dicom' ); ?></td></tr>
+					</tbody>
+				</table>
+				<p class="description" style="margin-top:10px;">
+					<?php esc_html_e( 'Também aceita os apelidos {{uploadlink}}, {{downloadlink}} e {{callbacklink}}.', 'v-dicom' ); ?>
+				</p>
+				<p class="description" style="margin-top:10px;">
+					<?php esc_html_e( 'Fora de aspas o placeholder vira um valor JSON (texto com aspas, número ou array). Dentro de aspas ele vira texto já escapado. Exemplo de payload:', 'v-dicom' ); ?>
+				</p>
+				<pre style="white-space:pre-wrap;background:#f6f7f7;border:1px solid #dcdcde;padding:10px;overflow:auto;"><?php echo esc_html( $default_payload ); ?></pre>
+			</details>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="v_dicom_seg_types" />
+				<?php wp_nonce_field( 'v_dicom_seg_types' ); ?>
+				<div id="vd-seg-types-wrap">
+					<?php foreach ( $seg_types as $idx => $t ) : ?>
+						<div class="vd-seg-type-box" style="border:1px solid #ccd0d4;padding:16px;margin-bottom:16px;background:#fff;max-width:1040px;">
+							<input type="hidden" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][id]" value="<?php echo esc_attr( $t['id'] ); ?>" />
+							<div style="display:grid;grid-template-columns:1.1fr 1.4fr 1.1fr 80px 60px 60px;gap:10px;align-items:end;">
+								<div>
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Nome*', 'v-dicom' ); ?></label>
+									<input type="text" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][name]" value="<?php echo esc_attr( $t['name'] ); ?>" class="regular-text" style="width:100%" required placeholder="<?php esc_attr_e( 'Ex.: Ossos', 'v-dicom' ); ?>" />
+								</div>
+								<div>
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL base do serviço', 'v-dicom' ); ?></label>
+									<input type="url" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][url]" value="<?php echo esc_attr( $t['url'] ); ?>" class="regular-text code" style="width:100%" placeholder="https://api.exemplo.com/v1" />
+								</div>
+								<div>
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Authorization (opcional)', 'v-dicom' ); ?></label>
+									<input type="password" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][authorization]" value="<?php echo esc_attr( $t['authorization'] ); ?>" class="regular-text code" style="width:100%" autocomplete="off" placeholder="Bearer ..." />
+								</div>
+								<div>
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Custo', 'v-dicom' ); ?></label>
+									<input type="number" min="0" step="1" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][cost]" value="<?php echo (int) $t['cost']; ?>" class="small-text" style="width:100%" />
+								</div>
+								<div style="text-align:center">
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Ativo', 'v-dicom' ); ?></label>
+									<input type="checkbox" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][enabled]" value="1" <?php checked( ! empty( $t['enabled'] ) ); ?> />
+								</div>
+								<div style="text-align:center">
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Excluir', 'v-dicom' ); ?></label>
+									<input type="checkbox" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][_delete]" value="1" />
+								</div>
+							</div>
+							<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+								<div>
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL de execução (opcional)', 'v-dicom' ); ?></label>
+									<input type="text" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][run_url]" value="<?php echo esc_attr( $t['run_url'] ); ?>" class="regular-text code" style="width:100%" placeholder="{{url}}/run" />
+									<p class="description"><?php esc_html_e( 'Se ficar vazia, o plugin usa {{url}}/run.', 'v-dicom' ); ?></p>
+								</div>
+								<div>
+									<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL de status (opcional)', 'v-dicom' ); ?></label>
+									<input type="text" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][status_url]" value="<?php echo esc_attr( $t['status_url'] ); ?>" class="regular-text code" style="width:100%" placeholder="{{url}}/status/{{job_id}}" />
+									<p class="description"><?php esc_html_e( 'Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}.', 'v-dicom' ); ?></p>
+								</div>
+							</div>
+							<div style="margin-top:14px;">
+								<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+									<label for="v_dicom_seg_payload_<?php echo (int) $idx; ?>" style="font-weight:600;"><?php esc_html_e( 'Payload (template)', 'v-dicom' ); ?></label>
+									<button type="button" class="button button-small vd-seg-default-payload" data-target="v_dicom_seg_payload_<?php echo (int) $idx; ?>"><?php esc_html_e( 'Usar payload padrão', 'v-dicom' ); ?></button>
+								</div>
+								<textarea id="v_dicom_seg_payload_<?php echo (int) $idx; ?>" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][payload]" rows="10" class="large-text code" style="width:100%;font-family:Menlo,Consolas,monospace;font-size:12px;"><?php echo esc_textarea( $t['payload'] ); ?></textarea>
+								<p class="description"><?php esc_html_e( 'Corpo enviado na requisição de execução. Use os placeholders acima para montar o formato esperado pelo serviço.', 'v-dicom' ); ?></p>
+							</div>
+							<div style="margin-top:14px;">
+								<label style="font-weight:600;display:block;margin-bottom:6px;"><?php esc_html_e( 'Descrição (texto rico — exibida no painel de segmentação)', 'v-dicom' ); ?></label>
+								<?php
+								wp_editor(
+									$t['description'],
+									'v_dicom_seg_desc_' . (int) $idx,
+									array(
+										'textarea_name' => 'v_dicom_seg_types[' . (int) $idx . '][description]',
+										'textarea_rows' => 6,
+										'media_buttons' => false,
+										'teeny'         => false,
+										'quicktags'     => true,
+										'tinymce'       => array(
+											'toolbar1' => 'bold,italic,underline,bullist,numlist,link,unlink,forecolor,formatselect',
+											'toolbar2' => 'outdent,indent,removeformat,undo,redo',
+										),
+									)
+								);
+								?>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+				<p>
+					<button type="button" class="button" id="vd-add-seg-type"><?php esc_html_e( 'Adicionar tipo', 'v-dicom' ); ?></button>
+					<span class="description" style="margin-left:8px"><?php esc_html_e( 'Novo tipo ganha editor rico após salvar.', 'v-dicom' ); ?></span>
+				</p>
+				<?php submit_button( __( 'Salvar tipos de segmentação', 'v-dicom' ) ); ?>
+			</form>
+
+			<template id="vd-seg-type-template">
+				<div class="vd-seg-type-box" style="border:1px solid #ccd0d4;padding:16px;margin-bottom:16px;background:#fff;max-width:1040px;">
+					<input type="hidden" name="v_dicom_seg_types[__IDX__][id]" value="" />
+					<div style="display:grid;grid-template-columns:1.1fr 1.4fr 1.1fr 80px 60px 60px;gap:10px;align-items:end;">
+						<div>
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Nome*', 'v-dicom' ); ?></label>
+							<input type="text" name="v_dicom_seg_types[__IDX__][name]" class="regular-text" style="width:100%" required placeholder="<?php esc_attr_e( 'Ex.: Ossos', 'v-dicom' ); ?>" />
+						</div>
+						<div>
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL base do serviço', 'v-dicom' ); ?></label>
+							<input type="url" name="v_dicom_seg_types[__IDX__][url]" class="regular-text code" style="width:100%" placeholder="https://api.exemplo.com/v1" />
+						</div>
+						<div>
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Authorization (opcional)', 'v-dicom' ); ?></label>
+							<input type="password" name="v_dicom_seg_types[__IDX__][authorization]" class="regular-text code" style="width:100%" autocomplete="off" placeholder="Bearer ..." />
+						</div>
+						<div>
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Custo', 'v-dicom' ); ?></label>
+							<input type="number" min="0" step="1" name="v_dicom_seg_types[__IDX__][cost]" value="1" class="small-text" style="width:100%" />
+						</div>
+						<div style="text-align:center">
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Ativo', 'v-dicom' ); ?></label>
+							<input type="checkbox" name="v_dicom_seg_types[__IDX__][enabled]" value="1" checked />
+						</div>
+						<div style="text-align:center">
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Excluir', 'v-dicom' ); ?></label>
+							<input type="checkbox" name="v_dicom_seg_types[__IDX__][_delete]" value="1" />
+						</div>
+					</div>
+					<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">
+						<div>
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL de execução (opcional)', 'v-dicom' ); ?></label>
+							<input type="text" name="v_dicom_seg_types[__IDX__][run_url]" class="regular-text code" style="width:100%" placeholder="{{url}}/run" />
+							<p class="description"><?php esc_html_e( 'Se ficar vazia, o plugin usa {{url}}/run.', 'v-dicom' ); ?></p>
+						</div>
+						<div>
+							<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL de status (opcional)', 'v-dicom' ); ?></label>
+							<input type="text" name="v_dicom_seg_types[__IDX__][status_url]" class="regular-text code" style="width:100%" placeholder="{{url}}/status/{{job_id}}" />
+							<p class="description"><?php esc_html_e( 'Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}.', 'v-dicom' ); ?></p>
+						</div>
+					</div>
+					<div style="margin-top:14px;">
+						<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+							<label for="v_dicom_seg_payload___IDX__" style="font-weight:600;"><?php esc_html_e( 'Payload (template)', 'v-dicom' ); ?></label>
+							<button type="button" class="button button-small vd-seg-default-payload" data-target="v_dicom_seg_payload___IDX__"><?php esc_html_e( 'Usar payload padrão', 'v-dicom' ); ?></button>
+						</div>
+						<textarea id="v_dicom_seg_payload___IDX__" name="v_dicom_seg_types[__IDX__][payload]" rows="10" class="large-text code" style="width:100%;font-family:Menlo,Consolas,monospace;font-size:12px;"></textarea>
+						<p class="description"><?php esc_html_e( 'Corpo enviado na requisição de execução. Use os placeholders acima para montar o formato esperado pelo serviço.', 'v-dicom' ); ?></p>
+					</div>
+					<div style="margin-top:14px;">
+						<label style="font-weight:600;display:block;margin-bottom:6px;"><?php esc_html_e( 'Descrição (texto rico)', 'v-dicom' ); ?></label>
+						<textarea name="v_dicom_seg_types[__IDX__][description]" rows="6" class="large-text" style="width:100%" placeholder="<?php esc_attr_e( 'Descrição com formatação — após salvar vira editor rico', 'v-dicom' ); ?>"></textarea>
+						<p class="description"><?php esc_html_e( 'Após salvar, este campo virará editor visual com formatação.', 'v-dicom' ); ?></p>
+					</div>
+				</div>
+			</template>
+
+			<script>
+			var vdSegDefaultPayload = <?php echo wp_json_encode( $default_payload ); ?>;
+			(function () {
+				var wrap = document.getElementById('vd-seg-types-wrap');
+				var add = document.getElementById('vd-add-seg-type');
+				var tpl = document.getElementById('vd-seg-type-template');
+				if (!wrap || !add || !tpl) {
+					return;
+				}
+				add.addEventListener('click', function () {
+					var idx = wrap.querySelectorAll('.vd-seg-type-box').length;
+					var host = document.createElement('div');
+					host.innerHTML = tpl.innerHTML.replace(/__IDX__/g, String(idx)).trim();
+					var box = host.firstElementChild;
+					if (!box) {
+						return;
+					}
+					wrap.appendChild(box);
+					box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+				});
+				wrap.addEventListener('click', function (event) {
+					var button = event.target && event.target.closest ? event.target.closest('.vd-seg-default-payload') : null;
+					if (!button) {
+						return;
+					}
+					var target = document.getElementById(button.getAttribute('data-target') || '');
+					if (target) {
+						target.value = vdSegDefaultPayload;
+					}
+				});
+			})();
+			</script>
+		</div>
+		<?php
 	}
 
 	/**
@@ -803,124 +1044,6 @@ class V_Dicom_Admin {
 					<?php submit_button( __( 'Salvar configurações', 'v-dicom' ) ); ?>
 				</form>
 
-				<h2><?php esc_html_e( 'Tipos de segmentação (RunPod)', 'v-dicom' ); ?></h2>
-				<?php // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only admin view ?>
-				<?php if ( isset( $_GET['segtypessaved'] ) ) : ?>
-					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Tipos de segmentação atualizados.', 'v-dicom' ); ?></p></div>
-				<?php endif; ?>
-				<?php $seg_types = V_Dicom_Storage::get_segmentation_types( true ); ?>
-				<p class="description"><?php esc_html_e( 'Cada tipo tem nome, descrição (texto rico), URL, Authorization, max-voxels, max-triangles e custo. Desmarque "Ativo" para desabilitar sem excluir. A mesma cena pode usar vários tipos.', 'v-dicom' ); ?></p>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="v_dicom_seg_types" />
-					<?php wp_nonce_field( 'v_dicom_seg_types' ); ?>
-					<div id="vd-seg-types-wrap">
-						<?php foreach ( $seg_types as $idx => $t ) : ?>
-							<div class="vd-seg-type-box" style="border:1px solid #ccd0d4;padding:16px;margin-bottom:16px;background:#fff;">
-								<input type="hidden" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][id]" value="<?php echo esc_attr( $t['id'] ); ?>" />
-								<div style="display:grid;grid-template-columns:1fr 1fr 1fr 110px 120px 90px 60px 60px;gap:10px;align-items:end;">
-									<div>
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Nome*', 'v-dicom' ); ?></label>
-										<input type="text" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][name]" value="<?php echo esc_attr( $t['name'] ); ?>" class="regular-text" style="width:100%" required placeholder="<?php esc_attr_e( 'Ex.: Ossos', 'v-dicom' ); ?>" />
-									</div>
-									<div>
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'URL do servidor', 'v-dicom' ); ?></label>
-										<input type="url" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][url]" value="<?php echo esc_attr( $t['url'] ); ?>" class="regular-text code" style="width:100%" placeholder="https://api.runpod.ai/v2/ENDPOINT_ID" />
-									</div>
-									<div>
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Authorization', 'v-dicom' ); ?></label>
-										<input type="password" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][authorization]" value="<?php echo esc_attr( $t['authorization'] ); ?>" class="regular-text code" style="width:100%" autocomplete="off" placeholder="Bearer rpa_..." />
-									</div>
-									<div>
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Max voxels', 'v-dicom' ); ?></label>
-										<input type="number" min="1" step="1" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][max_voxels]" value="<?php echo esc_attr( $t['max_voxels'] ); ?>" class="small-text" style="width:100%" />
-									</div>
-									<div>
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Max triângulos', 'v-dicom' ); ?></label>
-										<input type="number" min="1" step="1" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][max_triangles]" value="<?php echo esc_attr( $t['max_triangles'] ); ?>" class="small-text" style="width:100%" />
-									</div>
-									<div>
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Custo', 'v-dicom' ); ?></label>
-										<input type="number" min="0" step="1" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][cost]" value="<?php echo (int) $t['cost']; ?>" class="small-text" style="width:100%" />
-									</div>
-									<div style="text-align:center">
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Ativo', 'v-dicom' ); ?></label>
-										<input type="checkbox" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][enabled]" value="1" <?php checked( ! empty( $t['enabled'] ) ); ?> />
-									</div>
-									<div style="text-align:center">
-										<label style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Excluir', 'v-dicom' ); ?></label>
-										<input type="checkbox" name="v_dicom_seg_types[<?php echo (int) $idx; ?>][_delete]" value="1" />
-									</div>
-								</div>
-								<div style="margin-top:14px;">
-									<label style="font-weight:600;display:block;margin-bottom:6px;"><?php esc_html_e( 'Descrição (texto rico — exibida no painel de segmentação)', 'v-dicom' ); ?></label>
-									<?php
-									wp_editor(
-										$t['description'],
-										'v_dicom_seg_desc_' . (int) $idx,
-										array(
-											'textarea_name' => 'v_dicom_seg_types[' . (int) $idx . '][description]',
-											'textarea_rows' => 6,
-											'media_buttons' => false,
-											'teeny'         => false,
-											'quicktags'     => true,
-											'tinymce'       => array(
-												'toolbar1' => 'bold,italic,underline,bullist,numlist,link,unlink,forecolor,formatselect',
-												'toolbar2' => 'outdent,indent,removeformat,undo,redo',
-											),
-										)
-									);
-									?>
-								</div>
-							</div>
-						<?php endforeach; ?>
-					</div>
-					<p>
-						<button type="button" class="button" id="vd-add-seg-type"><?php esc_html_e( 'Adicionar tipo', 'v-dicom' ); ?></button>
-						<span class="description" style="margin-left:8px"><?php esc_html_e( 'Novo tipo ganha editor rico após salvar.', 'v-dicom' ); ?></span>
-					</p>
-					<?php submit_button( __( 'Salvar tipos de segmentação', 'v-dicom' ) ); ?>
-				</form>
-				<script>
-				var vdSegLabels = <?php echo wp_json_encode( array(
-					'name'                 => __( 'Nome*', 'v-dicom' ),
-					'name_hint'            => __( 'Ex.: Ossos', 'v-dicom' ),
-					'url'                  => __( 'URL do servidor', 'v-dicom' ),
-					'authorization'        => __( 'Authorization', 'v-dicom' ),
-					'max_voxels'           => __( 'Max voxels', 'v-dicom' ),
-					'max_triangles'        => __( 'Max triângulos', 'v-dicom' ),
-					'cost'                 => __( 'Custo', 'v-dicom' ),
-					'enabled'              => __( 'Ativo', 'v-dicom' ),
-					'delete'               => __( 'Excluir', 'v-dicom' ),
-					'description'          => __( 'Descrição (texto rico)', 'v-dicom' ),
-					'description_hint'     => __( 'Descrição com formatação — após salvar vira editor rico', 'v-dicom' ),
-					'description_help'     => __( 'Após salvar, este campo virará editor visual com formatação.', 'v-dicom' ),
-				) ); ?>;
-				(function(){
-					var btn=document.getElementById('vd-add-seg-type');
-					var wrap=document.getElementById('vd-seg-types-wrap');
-					if(!btn||!wrap) return;
-					btn.addEventListener('click', function(){
-						var idx=wrap.querySelectorAll('.vd-seg-type-box').length;
-						var div=document.createElement('div');
-						div.className='vd-seg-type-box';
-						div.style.cssText='border:1px solid #ccd0d4;padding:16px;margin-bottom:16px;background:#fff;';
-						div.innerHTML='<input type="hidden" name="v_dicom_seg_types['+idx+'][id]" value="" />'
-							+'<div style="display:grid;grid-template-columns:1fr 1fr 1fr 110px 120px 90px 60px 60px;gap:10px;align-items:end;">'
-							+'<div><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.name+'</label><input type="text" name="v_dicom_seg_types['+idx+'][name]" class="regular-text" style="width:100%" required placeholder="'+vdSegLabels.name_hint+'" /></div>'
-							+'<div><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.url+'</label><input type="url" name="v_dicom_seg_types['+idx+'][url]" class="regular-text code" style="width:100%" placeholder="https://..." /></div>'
-							+'<div><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.authorization+'</label><input type="password" name="v_dicom_seg_types['+idx+'][authorization]" class="regular-text code" style="width:100%" autocomplete="off" placeholder="Bearer rpa_..." /></div>'
-							+'<div><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.max_voxels+'</label><input type="number" min="1" step="1" name="v_dicom_seg_types['+idx+'][max_voxels]" class="small-text" style="width:100%" /></div>'
-							+'<div><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.max_triangles+'</label><input type="number" min="1" step="1" name="v_dicom_seg_types['+idx+'][max_triangles]" class="small-text" style="width:100%" /></div>'
-							+'<div><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.cost+'</label><input type="number" min="0" step="1" name="v_dicom_seg_types['+idx+'][cost]" value="1" class="small-text" style="width:100%" /></div>'
-							+'<div style="text-align:center"><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.enabled+'</label><input type="checkbox" name="v_dicom_seg_types['+idx+'][enabled]" value="1" checked /></div>'
-							+'<div style="text-align:center"><label style="font-weight:600;display:block;margin-bottom:4px;">'+vdSegLabels.delete+'</label><input type="checkbox" name="v_dicom_seg_types['+idx+'][_delete]" value="1" /></div>'
-							+'</div>'
-							+'<div style="margin-top:14px;"><label style="font-weight:600;display:block;margin-bottom:6px;">'+vdSegLabels.description+'</label><textarea name="v_dicom_seg_types['+idx+'][description]" rows="6" class="large-text" style="width:100%" placeholder="'+vdSegLabels.description_hint+'"></textarea><p class="description">'+vdSegLabels.description_help+'</p></div>';
-						wrap.appendChild(div);
-						div.scrollIntoView({behavior:'smooth', block:'center'});
-					});
-				})();
-				</script>
 			<?php endif; ?>
 
 			<?php
@@ -1242,7 +1365,7 @@ class V_Dicom_Admin {
 								</span>
 							<?php endif; ?>
 							<?php if ( $has_dbg && current_user_can( 'edit_users' ) ) : ?>
-								<br><a href="#" onclick="var e=document.getElementById('vd-dbg-<?php echo esc_attr( $key ); ?>');e.style.display=e.style.display==='none'?'block':'none';return false;" style="font-size:11px;"><?php esc_html_e( 'Ver logs RunPod', 'v-dicom' ); ?></a>
+								<br><a href="#" onclick="var e=document.getElementById('vd-dbg-<?php echo esc_attr( $key ); ?>');e.style.display=e.style.display==='none'?'block':'none';return false;" style="font-size:11px;"><?php esc_html_e( 'Ver logs da segmentação', 'v-dicom' ); ?></a>
 							<?php endif; ?>
 						</td>
 						<td>
@@ -1256,7 +1379,7 @@ class V_Dicom_Admin {
 					<?php if ( $has_dbg && current_user_can( 'edit_users' ) ) : ?>
 					<tr id="vd-dbg-<?php echo esc_attr( $key ); ?>" style="display:none;background:#f6f7f7;">
 						<td colspan="7" style="padding:12px;">
-							<strong><?php esc_html_e( 'Debug RunPod — por cena (admin)', 'v-dicom' ); ?></strong>
+							<strong><?php esc_html_e( 'Debug da segmentação — por cena (admin)', 'v-dicom' ); ?></strong>
 							<?php if ( $seg_started ) : ?>
 								<div style="margin:8px 0;padding:8px;background:#fff;border:1px solid #ccd0d4;border-left:4px solid #2271b1;">
 									<strong><?php esc_html_e( 'Início:', 'v-dicom' ); ?></strong> <?php echo esc_html( date_i18n( 'Y-m-d H:i:s', $seg_started ) ); ?>
@@ -1265,11 +1388,11 @@ class V_Dicom_Admin {
 								</div>
 							<?php endif; ?>
 							<?php if ( $run_dbg ) : ?>
-								<details open style="margin-top:10px;"><summary><strong>POST /run</strong> — <?php echo $run_time ? esc_html( date_i18n( 'Y-m-d H:i:s', (int) $run_time ) ) : ''; ?> — <code><?php echo esc_html( $run_dbg['request_url'] ?? '' ); ?></code></summary>
-									<div style="margin-top:8px;"><em><?php esc_html_e( 'Input enviado:', 'v-dicom' ); ?></em><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:320px;overflow:auto;"><?php echo esc_html( wp_json_encode( $run_dbg['input_sent'] ?? $run_dbg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); ?></pre></div>
-									<div><em>Request body:</em><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:260px;overflow:auto;"><?php echo esc_html( $run_dbg['request_body_json'] ?? '' ); ?></pre></div>
+								<details open style="margin-top:10px;"><summary><strong>POST execução</strong> — <?php echo $run_time ? esc_html( date_i18n( 'Y-m-d H:i:s', (int) $run_time ) ) : ''; ?> — <code><?php echo esc_html( $run_dbg['request_url'] ?? '' ); ?></code></summary>
+									<div style="margin-top:8px;"><em><?php esc_html_e( 'Payload enviado:', 'v-dicom' ); ?></em><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:320px;overflow:auto;"><?php echo esc_html( $run_dbg['request_body'] ?? wp_json_encode( $run_dbg['input_sent'] ?? $run_dbg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); ?></pre></div>
+									<div><em>Request body:</em><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:260px;overflow:auto;"><?php echo esc_html( $run_dbg['request_body'] ?? $run_dbg['request_body_json'] ?? '' ); ?></pre></div>
 									<div><em>Headers:</em><pre style="white-space:pre-wrap;background:#fff;border:1px solid #ccd0d4;padding:8px;"><?php echo esc_html( wp_json_encode( $run_dbg['request_headers'] ?? array(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) ); ?></pre></div>
-									<div><em><?php esc_html_e( 'Resposta RunPod:', 'v-dicom' ); ?></em> HTTP <?php echo esc_html( $run_dbg['response_code'] ?? '—' ); ?><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:320px;overflow:auto;"><?php echo esc_html( $run_dbg['response_body_raw'] ?? wp_json_encode( $run_resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); ?></pre></div>
+									<div><em><?php esc_html_e( 'Resposta do serviço:', 'v-dicom' ); ?></em> HTTP <?php echo esc_html( $run_dbg['response_code'] ?? '—' ); ?><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:320px;overflow:auto;"><?php echo esc_html( $run_dbg['response_body_raw'] ?? wp_json_encode( $run_resp, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); ?></pre></div>
 								</details>
 							<?php endif; ?>
 							<?php if ( $stat_dbg ) : ?>
@@ -1280,7 +1403,7 @@ class V_Dicom_Admin {
 								</details>
 							<?php endif; ?>
 							<?php if ( $cb_dbg ) : ?>
-								<details style="margin-top:10px;"><summary><strong>POST callback (RunPod → WP)</strong> — <?php echo $cb_time ? esc_html( date_i18n( 'Y-m-d H:i:s', (int) $cb_time ) ) : ''; ?> — <?php esc_html_e( 'status mapeado:', 'v-dicom' ); ?> <code><?php echo esc_html( $cb_dbg['mapped_status'] ?? '' ); ?></code></summary>
+								<details style="margin-top:10px;"><summary><strong>POST callback (serviço → WP)</strong> — <?php echo $cb_time ? esc_html( date_i18n( 'Y-m-d H:i:s', (int) $cb_time ) ) : ''; ?> — <?php esc_html_e( 'status mapeado:', 'v-dicom' ); ?> <code><?php echo esc_html( $cb_dbg['mapped_status'] ?? '' ); ?></code></summary>
 									<pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:320px;overflow:auto;"><?php echo esc_html( wp_json_encode( $cb_dbg['body_params'] ?? $cb_dbg, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ); ?></pre>
 									<?php if ( $cb_err || $cb_out ) : ?>
 										<div><em><?php esc_html_e( 'error (até 4k):', 'v-dicom' ); ?></em><pre style="white-space:pre-wrap;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:200px;overflow:auto;"><?php echo esc_html( $cb_err ); ?></pre></div>
@@ -1289,7 +1412,7 @@ class V_Dicom_Admin {
 									<details style="margin-top:6px;"><summary>Raw body</summary><pre style="white-space:pre-wrap;word-break:break-all;background:#fff;border:1px solid #ccd0d4;padding:8px;max-height:320px;overflow:auto;"><?php echo esc_html( $cb_dbg['raw_body'] ?? '' ); ?></pre></details>
 								</details>
 							<?php endif; ?>
-							<p class="description" style="margin-top:10px;"><?php esc_html_e( 'Logs salvos no post meta da cena. DEBUG_RUNPOD=true também inclui debug na resposta JSON de /run e /segmentation-status.', 'v-dicom' ); ?></p>
+							<p class="description" style="margin-top:10px;"><?php esc_html_e( 'Logs salvos no post meta da cena. DEBUG_SEGMENTATION=true também inclui debug na resposta JSON de /run e /segmentation-status.', 'v-dicom' ); ?></p>
 						</td>
 					</tr>
 					<?php endif; ?>

@@ -677,7 +677,7 @@ export async function runSegmentation(
   return ok<{ job_id: string; status: string; type?: string }>(res);
 }
 
-/** Consulta o status do job de segmentação no RunPod. */
+/** Consulta o status da segmentação de uma cena. */
 export async function fetchSegmentationStatus(
   key: string,
   typeId?: string,
