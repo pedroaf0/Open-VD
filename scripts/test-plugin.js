@@ -2,8 +2,17 @@
  * Main test runner - dynamically loads and executes all test modules
  * from scripts/testes/*.js
  *
- *   node scripts/test-plugin.js
- *   npm run test:plugin
+ * Uso:
+ *   node scripts/test-plugin.js                    # Executa testes (sem screenshots, sem vídeo, sem logs salvos)
+ *   node scripts/test-plugin.js --screenshots      # Habilita captura de screenshot em falhas
+ *   node scripts/test-plugin.js --video            # Habilita gravação de vídeo da execução
+ *   node scripts/test-plugin.js --logs             # Habilita salvamento de logs em arquivo
+ *   node scripts/test-plugin.js --headless         # Executa em modo headless (sem interface gráfica)
+ *   node scripts/test-plugin.js --screenshots --video --logs  # Habilita todos
+ *   npm run test:plugin                            # Executa com padrão (tudo desabilitado)
+ *
+ * COMPORTAMENTO PADRÃO: Todas as saídas extras (screenshots, vídeo, logs) estão DESABILITADAS.
+ * Use as flags acima para habilitar explicitamente cada recurso.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -14,10 +23,44 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
 const TESTS_DIR = path.join(__dirname, "testes");
 
+// Parse command-line arguments
+const args = process.argv.slice(2);
+
+if (args.includes("--help") || args.includes("-h")) {
+  console.log(`
+Uso: node scripts/test-plugin.js [opções]
+
+Opções:
+  --screenshots    Habilita captura de screenshots em falhas (desabilitado por padrão)
+  --video          Habilita gravação de vídeo dos testes (desabilitado por padrão)
+  --logs           Habilita salvamento de logs em arquivo (desabilitado por padrão)
+  --headless       Executa em modo headless (padrão: false - abre navegador visível)
+  --help, -h       Mostra esta ajuda
+
+Exemplos:
+  node scripts/test-plugin.js                    # Execução padrão (sem screenshots, vídeo, logs)
+  node scripts/test-plugin.js --screenshots      # Com screenshots em falhas
+  node scripts/test-plugin.js --video --logs     # Com vídeo e logs
+  node scripts/test-plugin.js --headless         # Modo headless (CI/CD)
+  node scripts/test-plugin.js --screenshots --video --logs --headless  # Tudo habilitado + headless
+  `);
+  process.exit(0);
+}
+
+const ENABLE_SCREENSHOTS = args.includes("--screenshots");
+const ENABLE_VIDEO = args.includes("--video");
+const ENABLE_LOGS = args.includes("--logs");
+const HEADLESS = args.includes("--headless");
+
 const CONFIG = {
   WP_URL: "http://localhost",
   WP_USER: "adm",
   WP_PASS: "adm123",
+  // Runtime flags (set via CLI args)
+  ENABLE_SCREENSHOTS,
+  ENABLE_VIDEO,
+  ENABLE_LOGS,
+  HEADLESS,
 };
 
 async function loadTestModules() {
@@ -46,6 +89,11 @@ async function loadTestModules() {
 
 async function run() {
   console.log("\n=== Iniciando suite de testes do plugin v-dicom ===\n");
+  console.log("Configuração:");
+  console.log(`  Screenshots: ${CONFIG.ENABLE_SCREENSHOTS ? "HABILITADO (--screenshots)" : "DESABILITADO (padrão)"}`);
+  console.log(`  Vídeo:       ${CONFIG.ENABLE_VIDEO ? "HABILITADO (--video)" : "DESABILITADO (padrão)"}`);
+  console.log(`  Logs:        ${CONFIG.ENABLE_LOGS ? "HABILITADO (--logs)" : "DESABILITADO (padrão)"}`);
+  console.log("");
 
   const testModules = await loadTestModules();
 
@@ -58,22 +106,41 @@ async function run() {
   testModules.forEach((m, i) => console.log(`  ${i+1}. ${m.name} (order: ${m.order}) — ${m.description}`));
   console.log("");
 
-  const browser = await chromium.launch({ headless: false, slowMo: 200 });
+  const browser = await chromium.launch({ headless: CONFIG.HEADLESS, slowMo: CONFIG.HEADLESS ? 0 : 200 });
+
+  // Setup video recording if enabled - use single context for tests
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
-    recordVideo: { dir: "test-results/videos/", size: { width: 1920, height: 1080 } },
+    ...(CONFIG.ENABLE_VIDEO && { recordVideo: { dir: path.join(root, "test-results", "videos"), size: { width: 1920, height: 1080 } } }),
   });
   const page = await context.newPage();
 
-  // Capture console logs and errors
-  page.on("console", msg => {
-    if (msg.type() === "error") {
-      console.log(`  [CONSOLE ERROR] ${msg.text()}`);
-    }
-  });
-  page.on("pageerror", err => {
-    console.log(`  [PAGE ERROR] ${err.message}`);
-  });
+  // Log collection if enabled
+  const collectedLogs = [];
+  if (CONFIG.ENABLE_LOGS) {
+    page.on("console", msg => {
+      const entry = `[${msg.type().toUpperCase()}] ${msg.text()}`;
+      collectedLogs.push(entry);
+      if (msg.type() === "error") {
+        console.log(`  [CONSOLE ERROR] ${msg.text()}`);
+      }
+    });
+    page.on("pageerror", err => {
+      const entry = `[PAGE ERROR] ${err.message}`;
+      collectedLogs.push(entry);
+      console.log(`  [PAGE ERROR] ${err.message}`);
+    });
+  } else {
+    // Default: only show errors in console
+    page.on("console", msg => {
+      if (msg.type() === "error") {
+        console.log(`  [CONSOLE ERROR] ${msg.text()}`);
+      }
+    });
+    page.on("pageerror", err => {
+      console.log(`  [PAGE ERROR] ${err.message}`);
+    });
+  }
 
   let passed = 0;
   let failed = 0;
@@ -89,13 +156,29 @@ async function run() {
     } catch (err) {
       const duration = ((Date.now() - startTime) / 1000).toFixed(1);
       console.error(`  ✗ Falhou (${duration}s): ${err.message}`);
-      // Take screenshot on failure
-      await page.screenshot({ path: `test-results/failed-${mod.name}.png`, fullPage: true }).catch(() => {});
+      // Take screenshot on failure if enabled
+      if (CONFIG.ENABLE_SCREENSHOTS) {
+        const screenshotDir = path.join(root, "test-results");
+        fs.mkdirSync(screenshotDir, { recursive: true });
+        await page.screenshot({ path: path.join(screenshotDir, `failed-${mod.name}.png`), fullPage: true }).catch(() => {});
+      }
       failed++;
     }
     console.log("");
   }
 
+  // Save logs to file if enabled
+  if (CONFIG.ENABLE_LOGS && collectedLogs.length > 0) {
+    const logDir = path.join(root, "test-results", "logs");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    const logFile = path.join(logDir, `test-run-${Date.now()}.log`);
+    fs.writeFileSync(logFile, collectedLogs.join("\n"), "utf-8");
+    console.log(`Logs salvos em: ${logFile}`);
+  }
+
+  await context.close();
   await browser.close();
 
   console.log("=== Resumo ===");
