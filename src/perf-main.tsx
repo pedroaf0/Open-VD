@@ -50,9 +50,10 @@ const volume: Volume = (() => {
   };
 })();
 
-const variant = new URLSearchParams(window.location.search).get("variant") === "baseline"
-  ? "baseline"
-  : "current";
+const variant =
+  new URLSearchParams(window.location.search).get("variant") === "baseline"
+    ? "baseline"
+    : "current";
 const Slice = variant === "baseline" ? SliceViewBaseline : SliceView;
 
 const ACCENTS: Record<Plane, string> = {
@@ -76,12 +77,22 @@ CanvasRenderingContext2D.prototype.putImageData = function (
   dirtyHeight?: number,
 ) {
   if (this.canvas.closest?.('[data-perf="axial"]')) lastPut = performance.now();
-  return originalPut.call(this, imageData, dx, dy, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
+  return originalPut.call(
+    this,
+    imageData,
+    dx,
+    dy,
+    dirtyX ?? 0,
+    dirtyY ?? 0,
+    dirtyWidth ?? imageData.width,
+    dirtyHeight ?? imageData.height,
+  );
 };
 
 function stats(values: number[]) {
   const s = [...values].sort((a, b) => a - b);
-  const q = (p: number) => s[Math.min(s.length - 1, Math.max(0, Math.round((s.length - 1) * p)))] ?? 0;
+  const q = (p: number) =>
+    s[Math.min(s.length - 1, Math.max(0, Math.round((s.length - 1) * p)))] ?? 0;
   return {
     n: s.length,
     median: Number(q(0.5).toFixed(2)),

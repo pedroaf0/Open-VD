@@ -81,5 +81,34 @@ export async function run(page, config) {
   delete globalThis.__TEST_SHARE_SCENE_KEY__;
   delete globalThis.__TEST_SHARE_URL__;
 
+  // Restore the default video filename pattern changed by the admin test.
+  if (globalThis.__TEST_RECORDING_NAME_PATTERN__) {
+    console.log("  ♻ Restaurando padrão do nome do vídeo 3D...");
+    await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom`);
+    await page.waitForLoadState("networkidle");
+
+    const form = page.locator("form:has(#v-dicom-recording-name-pattern)").first();
+    const input = form.locator("#v-dicom-recording-name-pattern");
+    await expect(input).toBeVisible({ timeout: 10000 });
+
+    await input.fill("openvd-3d-recording-{timestamp}");
+    // Preserve the general switches while saving the pattern.
+    await form.locator("#v-dicom-direct-dicom-enabled").check();
+    await form.locator("#v-dicom-public-loading-enabled").check();
+
+    await Promise.all([
+      page.waitForURL(/generalsaved=1/, { timeout: 30000 }),
+      form.locator('input[type="submit"], button[type="submit"]').first().click(),
+    ]);
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.locator("#v-dicom-recording-name-pattern")).toHaveValue(
+      "openvd-3d-recording-{timestamp}",
+      { timeout: 5000 },
+    );
+    delete globalThis.__TEST_RECORDING_NAME_PATTERN__;
+    console.log("  ✓ Padrão restaurado");
+  }
+
   return { deleted: true, sceneKey };
 }

@@ -274,6 +274,9 @@ class V_Dicom_Admin {
 		V_Dicom_Storage::set_url_auth_enabled( isset( $_POST['v_dicom_url_auth'] ) );
 		V_Dicom_Storage::set_direct_dicom_enabled( isset( $_POST['v_dicom_direct_dicom'] ) );
 		V_Dicom_Storage::set_public_loading_enabled( isset( $_POST['v_dicom_public_loading'] ) );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in set_recording_name_pattern().
+		$recording_name_pattern = isset( $_POST['v_dicom_recording_name_pattern'] ) ? wp_unslash( $_POST['v_dicom_recording_name_pattern'] ) : '';
+		V_Dicom_Storage::set_recording_name_pattern( $recording_name_pattern );
 		wp_safe_redirect( add_query_arg( 'generalsaved', 1, admin_url( 'admin.php?page=v-dicom' ) ) );
 		exit;
 	}
@@ -780,6 +783,19 @@ class V_Dicom_Admin {
 								</label>
 								<p class="description">
 									<?php esc_html_e( 'Quando ativado, qualquer pessoa pode abrir o visualizador e carregar exames. Ações protegidas (compartilhar, segmentar) continuam exigindo login. Quando desativado (padrão), o visualizador exige autenticação para carregar exames.', 'v-dicom' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="v-dicom-recording-name-pattern"><?php esc_html_e( 'Padrão do nome do vídeo 3D', 'v-dicom' ); ?></label></th>
+							<td>
+								<input type="text" id="v-dicom-recording-name-pattern" name="v_dicom_recording_name_pattern" value="<?php echo esc_attr( V_Dicom_Storage::recording_name_pattern() ); ?>" class="regular-text code" maxlength="120" />
+								<p class="description">
+									<?php esc_html_e( 'Nome usado no download do vídeo gravado no viewport 3D. Use {data}, {hora} ou {timestamp} para inserir a data/hora. Se não usar nenhum marcador de data/hora, o carimbo será acrescentado automaticamente. Não inclua a extensão (.mp4 ou .webm).', 'v-dicom' ); ?>
+								</p>
+								<p class="description">
+									<code>exame-{data}-{hora}</code> →
+									<code>exame-20261022-100319.mp4</code>
 								</p>
 							</td>
 						</tr>

@@ -878,17 +878,6 @@ export function Viewer() {
     setMeshDeleteConfirmOpen(true);
   }, []);
 
-  /** Executa a exclusão do modelo STL após confirmação. */
-  const confirmMeshDelete = useCallback(() => {
-    const data = meshDeleteConfirmData.current;
-    if (data) {
-      setMeshes((list) => list.filter((x) => x.id !== data.id));
-    }
-    meshDeleteConfirmResolve.current(true);
-    setMeshDeleteConfirmOpen(false);
-    meshDeleteConfirmData.current = null;
-  }, []);
-
   /** Cancela a exclusão do modelo STL. */
   const cancelMeshDelete = useCallback(() => {
     meshDeleteConfirmResolve.current(false);
@@ -1314,6 +1303,45 @@ export function Viewer() {
       meshes,
     ],
   );
+
+  /** Executa a exclusão do modelo STL após confirmação e persiste na cena. */
+  const confirmMeshDelete = useCallback(async () => {
+    const data = meshDeleteConfirmData.current;
+    if (data) {
+      console.log("[Viewer] confirmMeshDelete: deleting mesh", data.id, data.name);
+      // Compute the new meshes array BEFORE state update so we can persist it immediately
+      const newMeshes = meshes.filter((m) => m.id !== data.id);
+      setMeshes(newMeshes);
+      // If there's an existing scene, persist the removal immediately
+      if (sceneKey) {
+        try {
+          console.log("[Viewer] confirmMeshDelete: calling saveSceneSettings for key", sceneKey);
+          // Pass the new meshes array directly to avoid stale closure
+          const settings = {
+            ...collectSettings(),
+            meshes: newMeshes.map((m) => ({
+              name: m.name,
+              color: m.color,
+              visible: m.visible,
+              opacity: m.opacity,
+              coordSystem: m.coordSystem,
+            })),
+          };
+          console.log("[Viewer] confirmMeshDelete: settings.meshes to save:", settings.meshes);
+          await saveSceneSettings(sceneKey, settings, sceneName);
+          console.log("[Viewer] confirmMeshDelete: saveSceneSettings succeeded");
+        } catch (e) {
+          // Non-fatal: log but don't block UI — user can re-save manually
+          console.warn("[Viewer] Failed to persist mesh deletion:", e);
+        }
+      } else {
+        console.warn("[Viewer] confirmMeshDelete: no sceneKey, skipping persist");
+      }
+    }
+    meshDeleteConfirmResolve.current(true);
+    setMeshDeleteConfirmOpen(false);
+    meshDeleteConfirmData.current = null;
+  }, [sceneKey, sceneName, meshes, collectSettings, saveSceneSettings]);
 
   const loadPanel = useCallback(async () => {
     if (!cfg) return;
@@ -2719,6 +2747,7 @@ export function Viewer() {
                             ww={ww}
                             invert={invert}
                             centerRequest={centerRequest}
+                            recordingNamePattern={cfg?.recordingNamePattern}
                           />
                         </div>
                       </div>
@@ -3004,6 +3033,7 @@ export function Viewer() {
                                 ww={ww}
                                 invert={invert}
                                 centerRequest={centerRequest}
+                                recordingNamePattern={cfg?.recordingNamePattern}
                               />
                             </div>
                           </div>

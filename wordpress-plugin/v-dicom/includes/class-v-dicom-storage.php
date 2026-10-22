@@ -26,6 +26,9 @@ const OPTION_URL_AUTH_ENABLED = 'v_dicom_url_auth_enabled';
 const OPTION_DIRECT_DICOM_ENABLED = 'v_dicom_direct_dicom_enabled';
 const OPTION_DEFAULT_CREDIT = 'v_dicom_default_credit';
 const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
+/** Padrão do nome do vídeo gravado no viewport 3D (tokens resolvidos no viewer). */
+const OPTION_RECORDING_NAME_PATTERN = 'v_dicom_recording_name_pattern';
+const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 	const OPTION_SEG_COST = 'v_dicom_segmentation_cost';
 	const OPTION_SEG_TYPES = 'v_dicom_segmentation_types';
 	/** Regras nome-da-malha -> cor especial (dentes, mandíbula, canal, etc.). */
@@ -164,6 +167,35 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 	/** Enable or disable public loading of exams without login. */
 	public static function set_public_loading_enabled( $enabled ) {
 		update_option( self::OPTION_PUBLIC_LOADING_ENABLED, $enabled ? 1 : 0 );
+	}
+
+	/** Sanitize the admin-defined video filename pattern while keeping tokens. */
+	public static function sanitize_recording_name_pattern( $pattern ) {
+		$pattern = sanitize_text_field( (string) $pattern );
+		// A extensão é definida pelo formato gravado (.mp4 ou .webm).
+		$pattern = preg_replace( '/\.(?:mp4|webm)\s*$/i', '', $pattern );
+		// Mantém letras (inclusive acentuadas), números, tokens e poucos sinais.
+		$pattern = preg_replace( '/[^\p{L}\p{N}\p{M} _{}().-]+/u', '-', (string) $pattern );
+		$pattern = preg_replace( '/\s+/u', '-', (string) $pattern );
+		$pattern = preg_replace( '/-+/u', '-', (string) $pattern );
+		$pattern = preg_replace( '/\.{2,}/u', '.', (string) $pattern );
+		$pattern = trim( (string) $pattern, " .-_" );
+		if ( '' === $pattern ) {
+			return self::DEFAULT_RECORDING_NAME_PATTERN;
+		}
+		return mb_substr( $pattern, 0, 120 );
+	}
+
+	/** Nome padrão configurado pelo admin para o download do vídeo 3D. */
+	public static function recording_name_pattern() {
+		return self::sanitize_recording_name_pattern(
+			get_option( self::OPTION_RECORDING_NAME_PATTERN, self::DEFAULT_RECORDING_NAME_PATTERN )
+		);
+	}
+
+	/** Persist the admin-defined video filename pattern. */
+	public static function set_recording_name_pattern( $pattern ) {
+		update_option( self::OPTION_RECORDING_NAME_PATTERN, self::sanitize_recording_name_pattern( $pattern ) );
 	}
 
 	public static function default_new_user_credit() {

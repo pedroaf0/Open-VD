@@ -38,3 +38,9 @@ wordpress-plugin/v-dicom/assets/v-dicom.js
 wordpress-plugin/v-dicom/assets/v-dicom.css
 wordpress-plugin/v-dicom/assets/v-dicom.css
 v-dicom.zip
+
+# Saved 3D recordings from tests (--save-recording)
+openvd-3d-recording-*.mp4
+openvd-3d-recording-*.webm
+teste-video-*.mp4
+teste-video-*.webm

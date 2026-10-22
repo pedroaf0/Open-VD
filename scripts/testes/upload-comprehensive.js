@@ -211,8 +211,10 @@ export async function run(page, config) {
     `  ✓ Teste 4 passou - volume recarregado do ZIP (profundidade ${beforeDepth} → ${afterDims?.[3]})`,
   );
 
-  await page.screenshot({ path: "debug-final-state.png", fullPage: true });
-  console.log("  📸 Screenshot salvo");
+  if (config.ENABLE_SCREENSHOTS) {
+    await page.screenshot({ path: "debug-final-state.png", fullPage: true });
+    console.log("  📸 Screenshot salvo");
+  }
 
   fs.rmSync(workDir, { recursive: true, force: true });
 

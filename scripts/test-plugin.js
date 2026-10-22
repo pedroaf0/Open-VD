@@ -7,12 +7,13 @@
  *   node scripts/test-plugin.js --screenshots      # Habilita captura de screenshot em falhas
  *   node scripts/test-plugin.js --video            # Habilita gravação de vídeo da execução
  *   node scripts/test-plugin.js --logs             # Habilita salvamento de logs em arquivo
+ *   node scripts/test-plugin.js --save-recording   # Salva o vídeo gravado na raiz do projeto
  *   node scripts/test-plugin.js --headless         # Executa em modo headless (sem interface gráfica)
- *   node scripts/test-plugin.js --screenshots --video --logs  # Habilita todos
+ *   node scripts/test-plugin.js --screenshots --video --logs --save-recording  # Habilita todos
  *   npm run test:plugin                            # Executa com padrão (tudo desabilitado)
  *
- * COMPORTAMENTO PADRÃO: Todas as saídas extras (screenshots, vídeo, logs) estão DESABILITADAS.
- * Use as flags acima para habilitar explicitamente cada recurso.
+ * COMPORTAMENTO PADRÃO: Todas as saídas extras (screenshots, vídeo de execução, vídeo 3D, logs)
+ * estão DESABILITADAS. Use as flags acima para habilitar explicitamente cada recurso.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -34,15 +35,19 @@ Opções:
   --screenshots    Habilita captura de screenshots em falhas (desabilitado por padrão)
   --video          Habilita gravação de vídeo dos testes (desabilitado por padrão)
   --logs           Habilita salvamento de logs em arquivo (desabilitado por padrão)
+  --save-recording Salva o vídeo gravado pelo viewport 3D na raiz do projeto (desabilitado por padrão)
   --headless       Executa em modo headless (padrão: false - abre navegador visível)
+  --only=<nome>    Executa apenas os módulos informados (separados por vírgula)
+                   ex.: --only=video-recording ou --only=login,upload-comprehensive
   --help, -h       Mostra esta ajuda
 
 Exemplos:
   node scripts/test-plugin.js                    # Execução padrão (sem screenshots, vídeo, logs)
   node scripts/test-plugin.js --screenshots      # Com screenshots em falhas
   node scripts/test-plugin.js --video --logs     # Com vídeo e logs
+  node scripts/test-plugin.js --save-recording --headless  # Salva o vídeo 3D na raiz
   node scripts/test-plugin.js --headless         # Modo headless (CI/CD)
-  node scripts/test-plugin.js --screenshots --video --logs --headless  # Tudo habilitado + headless
+  node scripts/test-plugin.js --screenshots --video --logs --save-recording --headless  # Tudo habilitado + headless
   `);
   process.exit(0);
 }
@@ -50,7 +55,18 @@ Exemplos:
 const ENABLE_SCREENSHOTS = args.includes("--screenshots");
 const ENABLE_VIDEO = args.includes("--video");
 const ENABLE_LOGS = args.includes("--logs");
+const SAVE_RECORDING = args.includes("--save-recording");
 const HEADLESS = args.includes("--headless");
+const ONLY_MODULES = (() => {
+  const arg = args.find((value) => value.startsWith("--only="));
+  return arg
+    ? arg
+        .slice("--only=".length)
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+    : [];
+})();
 
 const CONFIG = {
   WP_URL: "http://localhost",
@@ -60,7 +76,9 @@ const CONFIG = {
   ENABLE_SCREENSHOTS,
   ENABLE_VIDEO,
   ENABLE_LOGS,
+  SAVE_RECORDING,
   HEADLESS,
+  PROJECT_ROOT: root,
 };
 
 async function loadTestModules() {
@@ -93,12 +111,21 @@ async function run() {
   console.log(`  Screenshots: ${CONFIG.ENABLE_SCREENSHOTS ? "HABILITADO (--screenshots)" : "DESABILITADO (padrão)"}`);
   console.log(`  Vídeo:       ${CONFIG.ENABLE_VIDEO ? "HABILITADO (--video)" : "DESABILITADO (padrão)"}`);
   console.log(`  Logs:        ${CONFIG.ENABLE_LOGS ? "HABILITADO (--logs)" : "DESABILITADO (padrão)"}`);
+  console.log(`  Vídeo 3D:    ${CONFIG.SAVE_RECORDING ? "SALVO NA RAIZ (--save-recording)" : "DESCARTADO (padrão)"}`);
   console.log("");
 
-  const testModules = await loadTestModules();
+  const allModules = await loadTestModules();
+  const testModules = ONLY_MODULES.length
+    ? allModules.filter((module) => ONLY_MODULES.includes(module.name))
+    : allModules;
 
   if (testModules.length === 0) {
-    console.log("Nenhum módulo de teste encontrado em scripts/testes/");
+    console.log(
+      ONLY_MODULES.length
+        ? `Módulo(s) de teste não encontrado(s): ${ONLY_MODULES.join(", ")}`
+        : "Nenhum módulo de teste encontrado em scripts/testes/",
+    );
+    process.exitCode = 1;
     return;
   }
 

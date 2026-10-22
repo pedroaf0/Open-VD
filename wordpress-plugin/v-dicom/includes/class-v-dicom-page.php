@@ -307,6 +307,8 @@ $config = array(
 			'directDicomEnabled' => V_Dicom_Storage::direct_dicom_enabled(),
 			// Whether public loading of exams without login is allowed.
 			'publicLoadingEnabled' => V_Dicom_Storage::public_loading_enabled(),
+			// Padrão do nome do vídeo gravado no viewport 3D (tokens {data}, {hora}, {timestamp}).
+			'recordingNamePattern' => V_Dicom_Storage::recording_name_pattern(),
 			'segmentationCost' => V_Dicom_Storage::segmentation_cost(),
 			'segmentationTypes' => V_Dicom_Storage::get_public_segmentation_types(),
 			// Regras de cor especial por nome de malha (editáveis no painel).

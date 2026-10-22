@@ -56,6 +56,11 @@ export type WpConfig = {
    * Protected actions (share, segment) still require authentication.
    */
   publicLoadingEnabled?: boolean;
+  /**
+   * Padrão do nome do vídeo 3D definido no WP Admin. Aceita os marcadores
+   * `{data}`, `{hora}` e `{timestamp}`; a extensão é acrescentada no download.
+   */
+  recordingNamePattern?: string;
   /** Cost in credits to run segmentation (admin config). */
   segmentationCost?: number;
   segmentationTypes?: SegmentationType[];
@@ -237,6 +242,9 @@ export function wpConfig(): WpConfig | null {
   }
   if (typeof raw.publicLoadingEnabled === "boolean") {
     cfg.publicLoadingEnabled = raw.publicLoadingEnabled;
+  }
+  if (typeof raw.recordingNamePattern === "string" && raw.recordingNamePattern.trim()) {
+    cfg.recordingNamePattern = raw.recordingNamePattern.trim();
   }
   if (typeof raw.segmentationCost === "number") {
     cfg.segmentationCost = Math.max(0, Math.floor(raw.segmentationCost));

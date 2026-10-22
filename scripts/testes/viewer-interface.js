@@ -98,15 +98,27 @@ export async function run(page, config) {
   expect(options).toBeGreaterThanOrEqual(3);
   console.log(`  🎨 Seletor de modo de renderização: ${options} opções`);
 
-  // Pick "Mais rápida" (third option) to prove the selection changes the mode.
-  await menuItems.nth(2).click();
+  // Pick a mode different from the current one to prove the selection changes
+  // the mode. Prefer "Mais rápida" (third option), unless it is already active.
+  const targetIndex = /Mais rápida/.test(modeBefore ?? "") ? 0 : 2;
+  await menuItems.nth(targetIndex).click();
   await expect(renderModeBtn).not.toHaveText(modeBefore ?? "");
+  await expect(renderModeBtn).toHaveAttribute("aria-expanded", "false");
+  // Radix keeps the menu mounted while its exit animation runs; a click during
+  // that window is consumed by the closing layer. Wait for full unmount first.
+  await expect(page.locator('[role="menuitem"]')).toHaveCount(0);
   console.log("  🎨 Modo de renderização alterado");
 
-  // Restore the default mode for the remaining tests.
+  // Restore the default mode for the remaining tests. Wait for the menu to be
+  // fully closed before re-opening it; clicking during the close animation can
+  // be swallowed by Radix and leaves the menu closed.
   await renderModeBtn.click();
-  await page.locator('[role="menuitem"]').first().click();
+  await expect(renderModeBtn).toHaveAttribute("aria-expanded", "true");
+  const defaultItem = page.locator('[role="menuitem"]').first();
+  await expect(defaultItem).toBeVisible({ timeout: 5000 });
+  await defaultItem.click();
   await expect(renderModeBtn).toHaveText(modeBefore ?? "");
+  await expect(renderModeBtn).toHaveAttribute("aria-expanded", "false");
 
   // Test 6: Annotation mode and tools
   const rail = await ensureAnnotationMode(page);
@@ -143,24 +155,31 @@ export async function run(page, config) {
   const navGroup = page.locator('header [role="group"]').first();
   await navGroup.getByRole("button", { name: "Navegação", exact: true }).click();
 
-  // Test 8: Mesh list / model visibility toggles
+  // Test 8: Mesh list / model visibility toggles. The stl-deletion module may
+  // have removed the last mesh, in which case the whole section is absent.
   const modelsTitle = page
     .locator("aside section .group-title")
     .filter({ hasText: "Modelos" })
     .first();
-  await expect(modelsTitle).toBeVisible({ timeout: 10000 });
-  const modelsSection = await openSection(page, "Modelos");
-  // The name button has a title with the file name and no aria-label; the
-  // eye/center buttons also end in ".stl" but carry an aria-label.
-  const meshItems = await modelsSection
-    .locator(
-      'button[title$=".stl"]:not([aria-label]), ' +
-        'button[title$=".ply"]:not([aria-label]), ' +
-        'button[title$=".obj"]:not([aria-label])',
-    )
-    .count();
-  expect(meshItems).toBeGreaterThan(0);
-  console.log(`  🧱 ${meshItems} item(ns) na lista de meshes`);
+  if ((await modelsTitle.count()) === 0) {
+    console.log(
+      "  🧱 Nenhum modelo restante — seção 'Modelos' ausente (esperado após exclusão)",
+    );
+  } else {
+    await expect(modelsTitle).toBeVisible({ timeout: 10000 });
+    const modelsSection = await openSection(page, "Modelos");
+    // The name button has a title with the file name and no aria-label; the
+    // eye/center buttons also end in ".stl" but carry an aria-label.
+    const meshItems = await modelsSection
+      .locator(
+        'button[title$=".stl"]:not([aria-label]), ' +
+          'button[title$=".ply"]:not([aria-label]), ' +
+          'button[title$=".obj"]:not([aria-label])',
+      )
+      .count();
+    expect(meshItems).toBeGreaterThan(0);
+    console.log(`  🧱 ${meshItems} item(ns) na lista de meshes`);
+  }
 
   // Test 9: Fullscreen toggle
   const fullscreenBtn = page.locator("header button:has(svg.lucide-maximize-2)").first();

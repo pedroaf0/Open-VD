@@ -194,6 +194,16 @@
     "download": "Baixar imagem",
     "failed": "Não foi possível capturar a imagem da cena."
   },
+  "recording": {
+    "start": "Gravar vídeo da cena",
+    "stop": "Parar gravação",
+    "indicator": "Gravando",
+    "previewTitle": "Vídeo da cena 3D",
+    "previewDesc": "Prévia da gravação do enquadramento atual. O vídeo não inclui os controles da interface.",
+    "download": "Baixar vídeo",
+    "unsupported": "Este navegador não permite gravar vídeo da cena 3D.",
+    "failed": "Não foi possível gravar o vídeo da cena."
+  },
   "mpr": {
     "resetOblique": "Zerar MPR oblíquo"
   },

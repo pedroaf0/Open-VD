@@ -194,6 +194,16 @@
     "download": "Download image",
     "failed": "Could not capture the scene image."
   },
+  "recording": {
+    "start": "Record scene video",
+    "stop": "Stop Recording",
+    "indicator": "Recording",
+    "previewTitle": "3D scene video",
+    "previewDesc": "Preview of the current framing recording. The video does not include the interface controls.",
+    "download": "Download video",
+    "unsupported": "This browser does not support recording the 3D scene.",
+    "failed": "Could not record the scene video."
+  },
   "mpr": {
     "resetOblique": "Reset oblique MPR"
   },

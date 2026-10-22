@@ -183,6 +183,9 @@ const EN = {
   "OneDrive não retornou URL de download.": "OneDrive did not return a download URL.",
   "OneDrive recusou o acesso ao arquivo.": "OneDrive denied access to the file.",
   Padrão: "Default",
+  "Padrão do nome do vídeo 3D": "3D video filename pattern",
+  "Nome usado no download do vídeo gravado no viewport 3D. Use {data}, {hora} ou {timestamp} para inserir a data/hora. Se não usar nenhum marcador de data/hora, o carimbo será acrescentado automaticamente. Não inclua a extensão (.mp4 ou .webm).":
+    "Name used when downloading the video recorded in the 3D viewport. Use {data}, {hora} or {timestamp} to insert the date/time. If you do not use a date/time marker, the timestamp is appended automatically. Do not include the extension (.mp4 or .webm).",
   "Pasta não encontrada.": "Folder not found.",
   "Permissão negada.": "Permission denied.",
   "Permitir carregamento direto de DICOM": "Allow direct DICOM loading",
@@ -424,6 +427,9 @@ const ES = {
   "OneDrive não retornou URL de download.": "OneDrive no devolvió una URL de descarga.",
   "OneDrive recusou o acesso ao arquivo.": "OneDrive denegó el acceso al archivo.",
   Padrão: "Predeterminado",
+  "Padrão do nome do vídeo 3D": "Patrón del nombre del vídeo 3D",
+  "Nome usado no download do vídeo gravado no viewport 3D. Use {data}, {hora} ou {timestamp} para inserir a data/hora. Se não usar nenhum marcador de data/hora, o carimbo será acrescentado automaticamente. Não inclua a extensão (.mp4 ou .webm).":
+    "Nombre usado al descargar el vídeo grabado en el viewport 3D. Usa {data}, {hora} o {timestamp} para insertar la fecha/hora. Si no usas ningún marcador de fecha/hora, la marca se añade automáticamente. No incluyas la extensión (.mp4 o .webm).",
   "Pasta não encontrada.": "Carpeta no encontrada.",
   "Permissão negada.": "Permiso denegado.",
   "Permitir carregamento direto de DICOM": "Permitir la carga directa de DICOM",

@@ -132,24 +132,39 @@ export async function run(page, config) {
   await waitForViewerReady(page, 4, 240000);
   console.log("  🔄 Página recarregada");
 
-  // Re-open panel and models section
+  // Re-open panel and models section. When the deleted mesh was the last one,
+  // the whole "Modelos" section is removed from the panel, so assert its
+  // absence instead of trying to expand a section that no longer exists.
   await ensurePanelOpen(page);
-  const modelsSectionAfterRefresh = await openSection(page, "Modelos");
+  const modelsTitleAfterRefresh = page
+    .locator("aside section .group-title")
+    .filter({ hasText: "Modelos" })
+    .first();
 
-  // The deleted mesh should NOT be in the list
-  await expect(modelsSectionAfterRefresh.locator(`button[title="${firstMeshName}"]`)).not.toBeVisible({ timeout: 10000 });
-  console.log(`  ✓ Modelo "${firstMeshName}" NÃO reapareceu após refresh`);
+  if (meshCountAfter === 0) {
+    await expect(modelsTitleAfterRefresh).toHaveCount(0);
+    await expect(page.locator(`button[title="${firstMeshName}"]`)).toHaveCount(0);
+    console.log(
+      `  ✓ Seção "Modelos" ausente após refresh (não restam meshes) e "${firstMeshName}" não reapareceu`,
+    );
+  } else {
+    const modelsSectionAfterRefresh = await openSection(page, "Modelos");
 
-  // Verify the remaining meshes are still there
-  const meshCountAfterRefresh = await modelsSectionAfterRefresh
-    .locator(
-      'button[title$=".stl"]:not([aria-label]), ' +
-        'button[title$=".ply"]:not([aria-label]), ' +
-        'button[title$=".obj"]:not([aria-label])'
-    )
-    .count();
-  expect(meshCountAfterRefresh).toBe(meshCount - 1);
-  console.log(`  ✓ ${meshCountAfterRefresh} modelo(s) restante(s) persistido(s) corretamente`);
+    // The deleted mesh should NOT be in the list
+    await expect(modelsSectionAfterRefresh.locator(`button[title="${firstMeshName}"]`)).not.toBeVisible({ timeout: 10000 });
+    console.log(`  ✓ Modelo "${firstMeshName}" NÃO reapareceu após refresh`);
+
+    // Verify the remaining meshes are still there
+    const meshCountAfterRefresh = await modelsSectionAfterRefresh
+      .locator(
+        'button[title$=".stl"]:not([aria-label]), ' +
+          'button[title$=".ply"]:not([aria-label]), ' +
+          'button[title$=".obj"]:not([aria-label])'
+      )
+      .count();
+    expect(meshCountAfterRefresh).toBe(meshCountAfter);
+    console.log(`  ✓ ${meshCountAfterRefresh} modelo(s) restante(s) persistido(s) corretamente`);
+  }
 
   // ============================================================
   // TEST 5: Verify server-side cleanup via REST API
