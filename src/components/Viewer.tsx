@@ -1,61 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  ArrowUpDown,
-  Box,
-  Boxes,
-  ChevronDown,
-  ChevronRight,
-  Crosshair,
-  Eye,
-  EyeOff,
-  FileDown,
-  FileUp,
-  FlipHorizontal2,
-  FlipVertical2,
-  FolderOpen,
-  FolderUp,
-  Layers,
-  LayoutGrid,
-  Link2,
-  Maximize2,
-  Minimize2,
-  MousePointer2,
-  MoveUpRight,
-  Palette,
-  PanelRightClose,
-  PanelRightOpen,
-  PenLine,
-  PenTool,
-  Plus,
-  QrCode,
-  Ruler,
-  RotateCcw,
-  Share2,
-  SlidersHorizontal,
-  Target,
-  Trash2,
-  Type,
-  User,
-  X,
-  type LucideIcon,
-} from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { X } from "lucide-react";
 import {
   buildVolumeFromFiles,
   flipVolumeInPlace,
@@ -69,9 +14,27 @@ import {
 import { expandArchives, isZipBuffer, type ExpandInput } from "@/lib/zip";
 import { useRenderMode } from "@/lib/renderMode";
 import { MultiSeriesModal } from "@/components/MultiSeriesModal";
+import { CreditConfirmDialog } from "@/components/viewer/dialogs/CreditConfirmDialog";
+import { MeshDeleteDialog } from "@/components/viewer/dialogs/MeshDeleteDialog";
+import { OpenUrlDialog } from "@/components/viewer/dialogs/OpenUrlDialog";
+import { QrDialog } from "@/components/viewer/dialogs/QrDialog";
+import { SegmentationPickerDialog } from "@/components/viewer/dialogs/SegmentationPickerDialog";
+import { SegmentationProgressDialog } from "@/components/viewer/dialogs/SegmentationProgressDialog";
+import { ShareDialog } from "@/components/viewer/dialogs/ShareDialog";
+import { ShareLinkBar } from "@/components/viewer/dialogs/ShareLinkBar";
+import { UrlErrorDialog } from "@/components/viewer/dialogs/UrlErrorDialog";
+import { QuizLoadingPanel } from "@/components/viewer/QuizLoadingPanel";
+import { EmptyState } from "@/components/viewer/layout/EmptyState";
+import { MobileBottomNav } from "@/components/viewer/layout/MobileBottomNav";
+import { MobilePlaneTabs } from "@/components/viewer/layout/MobilePlaneTabs";
+import { MobileSheets } from "@/components/viewer/layout/MobileSheets";
+import { TabletAnnotationBar } from "@/components/viewer/layout/TabletAnnotationBar";
+import { ViewerHeader } from "@/components/viewer/layout/ViewerHeader";
+import { ViewerRail } from "@/components/viewer/layout/ViewerRail";
+import { ViewerSidePanel } from "@/components/viewer/layout/ViewerSidePanel";
+import { ViewportGrid } from "@/components/viewer/layout/ViewportGrid";
 import { hookConsole, DEBUG_OVERLAY_ENABLED } from "@/lib/debuglog";
 import { DebugOverlay } from "@/components/DebugPanel";
-import { SliceView } from "@/components/SliceView";
 import {
   crosshair,
   defaultPlaneState,
@@ -95,13 +58,10 @@ import { ProfileView } from "@/components/ProfileView";
 import { SceneDownloadModal } from "@/components/SceneDownloadModal";
 import { LoginRequiredModal } from "@/components/LoginRequiredModal";
 import { LoadingIcons } from "@/components/LoadingIcons";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import i18n from "@/i18n";
-import { UploadIcon, type UploadIconHandle } from "@/components/UploadIcon";
-import { QRCode } from "react-qr-code";
+import type { UploadIconHandle } from "@/components/UploadIcon";
 import { formatBytes, pctUsed } from "@/lib/format";
 import { registerServiceWorker } from "@/lib/pwa";
-import { cn } from "@/lib/utils";
 import {
   currentSceneKey,
   createScene,
@@ -130,7 +90,6 @@ import {
 } from "@/lib/wp";
 import { computeMeshFileVolume, formatMeshVolume } from "@/lib/meshVolume";
 import { forcedMeshColor } from "@/lib/meshColors";
-import { groupMeshesByName } from "@/lib/meshGroups";
 
 /** Polls for authentication after login page is opened. */
 async function pollForAuthentication(
@@ -239,153 +198,6 @@ const normalizeFlip = (f: FlipFlags | null | undefined): FlipFlags => ({
 
 const MESH_COLORS = ["#9fd9ff", "#ffb3c1", "#c9f7a1", "#ffd580", "#d5b3ff", "#7fe3d4"];
 
-const formatMb = (bytes: number) =>
-  bytes <= 0
-    ? "0 KB"
-    : bytes < 1048576
-      ? `${(bytes / 1024).toFixed(1)} KB`
-      : `${(bytes / 1048576).toFixed(1)} MB`;
-
-const formatSpeed = (bps: number) =>
-  bps <= 0
-    ? ""
-    : bps < 1048576
-      ? `${(bps / 1024).toFixed(1)} KB/s`
-      : `${(bps / 1048576).toFixed(2)} MB/s`;
-
-const formatEta = (seconds: number) => {
-  if (seconds < 60) {
-    return i18n.t("viewer.quiz.etaSeconds", { value: Math.max(1, Math.round(seconds)) });
-  }
-  const m = Math.floor(seconds / 60);
-  const s = Math.ceil(seconds % 60);
-  return m >= 60
-    ? i18n.t("viewer.quiz.etaHours", {
-        hours: Math.floor(m / 60),
-        minutes: String(m % 60).padStart(2, "0"),
-      })
-    : i18n.t("viewer.quiz.etaMinutes", { minutes: m, seconds: String(s).padStart(2, "0") });
-};
-
-type DownloadProgress = {
-  done: number;
-  total: number;
-  receivedBytes: number;
-  totalBytes: number;
-  speedBps: number;
-};
-
-/** Ferramentas de anotação existentes, na ordem de apresentação. */
-const ANN_TOOLS: Array<{ key: Tool; labelKey: string; icon: LucideIcon }> = [
-  { key: "select", labelKey: "viewer.annTools.select", icon: MousePointer2 },
-  { key: "ruler", labelKey: "viewer.annTools.ruler", icon: Ruler },
-  { key: "arrow", labelKey: "viewer.annTools.arrow", icon: MoveUpRight },
-  { key: "mark", labelKey: "viewer.annTools.mark", icon: Crosshair },
-  { key: "draw", labelKey: "viewer.annTools.draw", icon: PenLine },
-  { key: "text", labelKey: "viewer.annTools.text", icon: Type },
-];
-
-/** Abas de plano exibidas no mobile (um viewport em foco por vez). */
-const PLANE_TABS: Array<{
-  key: "axial" | "coronal" | "sagittal" | "3d";
-  labelKey: string;
-  color: string;
-  hintKey: string;
-}> = [
-  {
-    key: "axial",
-    labelKey: "viewer.planes.axial",
-    color: "var(--axial)",
-    hintKey: "viewer.planes.hintAxial",
-  },
-  {
-    key: "coronal",
-    labelKey: "viewer.planes.coronal",
-    color: "var(--coronal)",
-    hintKey: "viewer.planes.hintCoronal",
-  },
-  {
-    key: "sagittal",
-    labelKey: "viewer.planes.sagittal",
-    color: "var(--sagittal)",
-    hintKey: "viewer.planes.hintSagittal",
-  },
-  {
-    key: "3d",
-    labelKey: "viewer.planes.tab3d",
-    color: "oklch(0.6 0 0)",
-    hintKey: "viewer.planes.hint3d",
-  },
-];
-
-/** Painel exibido enquanto uma cena compartilhada carrega: progresso no topo + iframe de espera (opcional). */
-function QuizLoadingPanel({
-  status,
-  progress,
-  quizUrl,
-  quizText,
-}: {
-  status: string;
-  progress: DownloadProgress | null;
-  quizUrl: string;
-  quizText: string;
-}) {
-  const { t } = useTranslation();
-  const totalBytes = progress && progress.totalBytes > 0 ? progress.totalBytes : 0;
-  const pct = progress
-    ? totalBytes > 0
-      ? Math.min(100, Math.round((progress.receivedBytes / totalBytes) * 100))
-      : Math.round((progress.done / Math.max(1, progress.total)) * 100)
-    : 0;
-  const text = quizText.trim() || t("viewer.quiz.defaultText");
-  const url = quizUrl.trim();
-  const speed = progress && progress.speedBps > 0 ? formatSpeed(progress.speedBps) : "";
-  const eta =
-    progress && totalBytes > 0 && progress.speedBps > 0
-      ? formatEta((totalBytes - progress.receivedBytes) / progress.speedBps)
-      : "";
-  return (
-    <div className="flex h-full min-h-0 flex-col gap-2 p-2">
-      <section className="card-panel shrink-0 space-y-2 p-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="data-mono text-xs text-primary">{status}</p>
-          {progress && (
-            <span className="data-mono text-[10px] text-muted-foreground">
-              {totalBytes > 0
-                ? `${formatMb(progress.receivedBytes)} / ${formatMb(totalBytes)}`
-                : `${progress.done}/${progress.total}`}{" "}
-              · {pct}%
-            </span>
-          )}
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
-          {progress ? (
-            <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
-          ) : (
-            <div className="h-full w-1/3 animate-pulse rounded-full bg-primary/60" />
-          )}
-        </div>
-        {progress && progress.receivedBytes > 0 && (
-          <p className="data-mono text-[11px] text-muted-foreground">
-            {t("viewer.quiz.transferred", { value: formatMb(progress.receivedBytes) })}
-            {speed ? <> · {speed}</> : null}
-            {eta ? <> · {eta}</> : null}
-          </p>
-        )}
-        <p className="text-xs text-muted-foreground">{text}</p>
-      </section>
-      {url && (
-        <iframe
-          src={url}
-          title={text}
-          className="min-h-0 w-full flex-1 rounded-lg border border-border bg-background"
-          allowFullScreen
-        />
-      )}
-    </div>
-  );
-}
-
 /** Breakpoints: desktop ≥1024px, tablet 768–1023px, mobile <768px. */
 function useBreakpoint() {
   const [bp, setBp] = useState<"mobile" | "tablet" | "desktop">(() =>
@@ -413,197 +225,6 @@ function toUploadFile(input: ExpandInput): File {
     : new File([input.data as unknown as BlobPart], input.name, {
         type: "application/octet-stream",
       });
-}
-
-/** Um modelo na lista: cor, nome (liga/desliga), volume, opacidade e coordenadas. */
-function MeshRow({
-  mesh,
-  volumeLabel,
-  containerClassName,
-  onPatch,
-  onRemove,
-  onCenter,
-}: {
-  mesh: MeshFile;
-  volumeLabel?: string | null | undefined;
-  containerClassName?: string | undefined;
-  onPatch: (id: string, patch: Partial<MeshFile>) => void;
-  onRemove: (id: string, name: string) => void;
-  onCenter: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const m = mesh;
-  return (
-    <div className={cn("space-y-1", containerClassName)}>
-      <div className="flex items-center gap-1.5">
-        <input
-          type="color"
-          value={m.color}
-          onChange={(e) => onPatch(m.id, { color: e.target.value })}
-          className="h-5 w-6 shrink-0 cursor-pointer rounded border border-border bg-transparent"
-          aria-label={t("viewer.meshes.colorOf", { name: m.name })}
-        />
-        <button
-          className="min-w-0 flex-1 truncate text-left text-[11px]"
-          title={m.name}
-          onClick={() => onPatch(m.id, { visible: !m.visible })}
-          style={{ opacity: m.visible ? 1 : 0.4 }}
-          aria-pressed={m.visible}
-        >
-          {m.name}
-          {volumeLabel ? (
-            <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">
-              · {volumeLabel}
-            </span>
-          ) : null}
-        </button>
-        <button
-          className={cn("icon-btn-sm", !m.visible && "opacity-40")}
-          onClick={() => onPatch(m.id, { visible: !m.visible })}
-          aria-pressed={m.visible}
-          aria-label={
-            m.visible
-              ? t("viewer.meshes.hide", { name: m.name })
-              : t("viewer.meshes.show", { name: m.name })
-          }
-          title={
-            m.visible
-              ? t("viewer.meshes.hide", { name: m.name })
-              : t("viewer.meshes.show", { name: m.name })
-          }
-        >
-          {m.visible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-        </button>
-        <button
-          className="icon-btn-sm"
-          onClick={() => onCenter(m.id)}
-          aria-label={t("viewer.meshes.center", { name: m.name })}
-          title={t("viewer.meshes.center", { name: m.name })}
-        >
-          <Target className="h-3 w-3" />
-        </button>
-        <button
-          className="icon-btn-sm"
-          onClick={() => onRemove(m.id, m.name)}
-          aria-label={t("viewer.meshes.remove", { name: m.name })}
-        >
-          <X className="h-3 w-3" />
-        </button>
-      </div>
-      <input
-        type="range"
-        min={0.05}
-        max={1}
-        step={0.01}
-        value={m.opacity}
-        onChange={(e) => onPatch(m.id, { opacity: Number(e.target.value) })}
-        className="w-full accent-primary"
-        style={{ accentColor: "var(--primary)" }}
-        aria-label={t("viewer.meshes.opacityOf", { name: m.name })}
-      />
-      <button
-        className="btn-chip w-full py-1 text-[10px]"
-        onClick={() => onPatch(m.id, { coordSystem: m.coordSystem === "ras" ? "lps" : "ras" })}
-        title={t("viewer.panel.coordSystem")}
-      >
-        {m.coordSystem === "lps" ? "LPS (DICOM)" : "RAS (Slicer)"}
-      </button>
-    </div>
-  );
-}
-
-/**
- * Lista de modelos agrupada por termo comum no nome (ver `lib/meshGroups`).
- * Grupos podem ser recolhidos e ter a visibilidade alternada de uma vez.
- */
-function MeshList({
-  meshes,
-  meshVolumes,
-  containerClassName,
-  onPatch,
-  onRemove,
-  onCenter,
-}: {
-  meshes: MeshFile[];
-  meshVolumes: Map<string, string | null>;
-  containerClassName?: string | undefined;
-  onPatch: (id: string, patch: Partial<MeshFile>) => void;
-  onRemove: (id: string, name: string) => void;
-  onCenter: (id: string) => void;
-}) {
-  const { t } = useTranslation();
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const groups = useMemo(() => groupMeshesByName(meshes), [meshes]);
-
-  const rows = (items: MeshFile[]) =>
-    items.map((m) => (
-      <MeshRow
-        key={m.id}
-        mesh={m}
-        volumeLabel={meshVolumes.get(m.id)}
-        containerClassName={containerClassName}
-        onPatch={onPatch}
-        onRemove={onRemove}
-        onCenter={onCenter}
-      />
-    ));
-
-  return (
-    <>
-      {groups.map((group) => {
-        if (!group.label) {
-          return (
-            <div key="__ungrouped" className="space-y-1">
-              {rows(group.items)}
-            </div>
-          );
-        }
-        const isCollapsed = collapsed[group.key] ?? false;
-        const allVisible = group.items.every((m) => m.visible);
-        return (
-          <div key={group.key} className="space-y-1">
-            <div className="flex items-center gap-1">
-              <button
-                className="icon-btn-sm"
-                onClick={() => setCollapsed((c) => ({ ...c, [group.key]: !isCollapsed }))}
-                title={
-                  isCollapsed ? t("viewer.meshes.expandGroup") : t("viewer.meshes.collapseGroup")
-                }
-                aria-expanded={!isCollapsed}
-                aria-label={
-                  isCollapsed ? t("viewer.meshes.expandGroup") : t("viewer.meshes.collapseGroup")
-                }
-              >
-                {isCollapsed ? (
-                  <ChevronRight className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-              </button>
-              <span className="min-w-0 flex-1 truncate text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {group.label}
-              </span>
-              <span className="data-mono text-[9px] text-muted-foreground">
-                {group.items.length}
-              </span>
-              <button
-                className="icon-btn-sm"
-                onClick={() => {
-                  const next = !allVisible;
-                  for (const m of group.items) onPatch(m.id, { visible: next });
-                }}
-                aria-label={t("viewer.meshes.toggleGroup", { name: group.label })}
-                aria-pressed={allVisible}
-              >
-                {allVisible ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-              </button>
-            </div>
-            {!isCollapsed && <div className="space-y-1 pl-2">{rows(group.items)}</div>}
-          </div>
-        );
-      })}
-    </>
-  );
 }
 
 export function Viewer() {
@@ -706,7 +327,6 @@ export function Viewer() {
   const dicomFolderInput = useRef<HTMLInputElement>(null);
   const [urlOpen, setUrlOpen] = useState(false);
   const [urlValue, setUrlValue] = useState("");
-  const urlInput = useRef<HTMLInputElement>(null);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [urlErrorOpen, setUrlErrorOpen] = useState(false);
   const [urlErrorDetail, setUrlErrorDetail] = useState<string | null>(null);
@@ -1305,43 +925,43 @@ export function Viewer() {
   );
 
   /** Executa a exclusão do modelo STL após confirmação e persiste na cena. */
-  const confirmMeshDelete = useCallback(async () => {
+  const confirmMeshDelete = useCallback(() => {
     const data = meshDeleteConfirmData.current;
-    if (data) {
-      console.log("[Viewer] confirmMeshDelete: deleting mesh", data.id, data.name);
-      // Compute the new meshes array BEFORE state update so we can persist it immediately
-      const newMeshes = meshes.filter((m) => m.id !== data.id);
-      setMeshes(newMeshes);
-      // If there's an existing scene, persist the removal immediately
-      if (sceneKey) {
-        try {
-          console.log("[Viewer] confirmMeshDelete: calling saveSceneSettings for key", sceneKey);
-          // Pass the new meshes array directly to avoid stale closure
-          const settings = {
-            ...collectSettings(),
-            meshes: newMeshes.map((m) => ({
-              name: m.name,
-              color: m.color,
-              visible: m.visible,
-              opacity: m.opacity,
-              coordSystem: m.coordSystem,
-            })),
-          };
-          console.log("[Viewer] confirmMeshDelete: settings.meshes to save:", settings.meshes);
-          await saveSceneSettings(sceneKey, settings, sceneName);
-          console.log("[Viewer] confirmMeshDelete: saveSceneSettings succeeded");
-        } catch (e) {
-          // Non-fatal: log but don't block UI — user can re-save manually
-          console.warn("[Viewer] Failed to persist mesh deletion:", e);
-        }
-      } else {
-        console.warn("[Viewer] confirmMeshDelete: no sceneKey, skipping persist");
-      }
-    }
+    // Fecha o diálogo imediatamente; a persistência na cena roda em segundo
+    // plano para não bloquear a interface enquanto a API responde.
     meshDeleteConfirmResolve.current(true);
     setMeshDeleteConfirmOpen(false);
     meshDeleteConfirmData.current = null;
-  }, [sceneKey, sceneName, meshes, collectSettings, saveSceneSettings]);
+    if (!data) return;
+
+    console.log("[Viewer] confirmMeshDelete: deleting mesh", data.id, data.name);
+    // Compute the new meshes array BEFORE state update so we can persist it immediately
+    const newMeshes = meshes.filter((m) => m.id !== data.id);
+    setMeshes(newMeshes);
+    // If there's an existing scene, persist the removal immediately
+    if (!sceneKey) {
+      console.warn("[Viewer] confirmMeshDelete: no sceneKey, skipping persist");
+      return;
+    }
+    // Pass the new meshes array directly to avoid stale closure
+    const settings = {
+      ...collectSettings(),
+      meshes: newMeshes.map((m) => ({
+        name: m.name,
+        color: m.color,
+        visible: m.visible,
+        opacity: m.opacity,
+        coordSystem: m.coordSystem,
+      })),
+    };
+    console.log("[Viewer] confirmMeshDelete: settings.meshes to save:", settings.meshes);
+    void saveSceneSettings(sceneKey, settings, sceneName)
+      .then(() => console.log("[Viewer] confirmMeshDelete: saveSceneSettings succeeded"))
+      .catch((e) => {
+        // Non-fatal: log but don't block UI — user can re-save manually
+        console.warn("[Viewer] Failed to persist mesh deletion:", e);
+      });
+  }, [sceneKey, sceneName, meshes, collectSettings]);
 
   const loadPanel = useCallback(async () => {
     if (!cfg) return;
@@ -1422,7 +1042,7 @@ export function Viewer() {
     // Exibe nome do paciente automaticamente em todas as telas
     setShareOpen(true);
     void loadPanel();
-  }, [cfg, canLoadPublicly, loadPanel, t]);
+  }, [cfg, canLoadPublicly, loadPanel]);
 
   const handleDeleteScene = useCallback(
     async (s: SceneSummary) => {
@@ -2016,7 +1636,6 @@ export function Viewer() {
     handleSegmentScene,
     segTypesEnabled,
     hasAvailableSegType,
-    loadPanel,
     t,
   ]);
 
@@ -2128,276 +1747,49 @@ export function Viewer() {
 
       <div className="relative flex min-h-0 w-full flex-col">
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-card px-2 sm:px-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <a
-              href={cfg?.homeUrl || "/"}
-              className="flex min-w-0 items-center gap-2 hover:opacity-80 transition-opacity"
-              title={t("viewer.header.homeTitle")}
-            >
-              {brandLogo && (
-                <img src={brandLogo} alt="" className="h-6 max-w-[140px] object-contain" />
-              )}
-              {brandName ? (
-                <span className="truncate text-sm font-bold tracking-tight">{brandName}</span>
-              ) : (
-                <span className="whitespace-nowrap text-sm font-bold tracking-tight">
-                  Visor<span className="text-primary">DICOM</span>
-                </span>
-              )}
-              <span className="hidden text-[10px] font-medium uppercase tracking-wider text-muted-foreground lg:inline">
-                MPR · 3D · STL
-              </span>
-            </a>
-            {route === "viewer" && volume && (
-              <div className="hidden min-w-0 flex-col border-l border-border pl-3 xl:flex">
-                <span className="truncate text-[11px] font-semibold leading-tight text-foreground">
-                  {sceneName.trim() || volume.studyDescription || t("viewer.header.defaultStudy")}
-                </span>
-                <span className="data-mono truncate text-[9px] leading-tight text-muted-foreground">
-                  {volume.modality} · {volume.nx}×{volume.ny}×{volume.nz} · {volume.sx.toFixed(2)}/
-                  {volume.sz.toFixed(2)} mm
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="ml-auto flex min-w-0 items-center gap-1">
-            {/* Modo de navegação / anotação */}
-            {route === "viewer" && canUpload && volume && !status && (
-              <div
-                className="mr-1 hidden items-center overflow-hidden rounded-md border border-border bg-panel md:flex"
-                role="group"
-                aria-label={t("viewer.nav.group")}
-              >
-                <button
-                  className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
-                    !annMode
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setAnnMode(false)}
-                  title={t("viewer.nav.modeTitle")}
-                  aria-pressed={!annMode}
-                >
-                  {t("viewer.nav.label")}
-                </button>
-                <button
-                  className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide transition ${
-                    annMode
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                  onClick={() => setAnnMode(true)}
-                  title={t("viewer.nav.annTitle")}
-                  aria-pressed={annMode}
-                >
-                  {t("viewer.nav.annLabel")}
-                </button>
-              </div>
-            )}
-
-            {/* Abrir arquivos */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button
-                  className="icon-btn gap-1.5 sm:w-auto sm:px-2.5"
-                  aria-label={t("viewer.header.openFiles")}
-                  title={t("viewer.header.openFiles")}
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  <span className="hidden text-[11px] font-semibold sm:inline">
-                    {t("viewer.header.addFiles")}
-                  </span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="group-title">
-                  {t("viewer.header.openFiles")}
-                </DropdownMenuLabel>
-                {allowDirectDicom && (
-                  <DropdownMenuItem onSelect={() => dicomInput.current?.click()}>
-                    <FileUp className="h-4 w-4" />
-                    {t("viewer.header.openDicom")}
-                  </DropdownMenuItem>
-                )}
-                {allowDirectDicom && (
-                  <DropdownMenuItem onSelect={() => dicomFolderInput.current?.click()}>
-                    <FolderUp className="h-4 w-4" />
-                    {t("viewer.header.openDicomFolder")}
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuItem onSelect={() => stlInput.current?.click()}>
-                  <Box className="h-4 w-4" />
-                  STL / PLY / OBJ
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setUrlValue("");
-                    setUrlOpen(true);
-                  }}
-                >
-                  <Link2 className="h-4 w-4" />
-                  {t("viewer.header.openByUrl")}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            {/* Voltar ao mosaico */}
-            {expanded && isDesktop && (
-              <button
-                className="btn-ghost hidden md:flex"
-                onClick={() => setExpanded(null)}
-                title={t("viewer.grid.backToGridTooltip")}
-              >
-                <LayoutGrid className="h-3.5 w-3.5" />
-                {t("viewer.grid.multiview")}
-              </button>
-            )}
-
-            {/* Painel de parâmetros */}
-            {!isMobile && route === "viewer" && hasData && (
-              <button
-                className="icon-btn"
-                onClick={() => setPanelOpen((o) => !o)}
-                aria-pressed={panelOpen}
-                aria-label={t("viewer.header.paramsPanel")}
-                title={t("viewer.header.paramsPanel")}
-              >
-                {panelOpen ? (
-                  <PanelRightClose className="h-4 w-4" />
-                ) : (
-                  <PanelRightOpen className="h-4 w-4" />
-                )}
-              </button>
-            )}
-
-            {/* Idioma */}
-            <LanguageSwitcher />
-
-            {/* Perfil */}
-            {cfg?.canUpload && (
-              <button
-                className="icon-btn"
-                onClick={() => setRoute((r) => (r === "profile" ? "viewer" : "profile"))}
-                title={
-                  route === "profile"
-                    ? t("viewer.header.backToViewer")
-                    : t("viewer.header.profileTitle")
-                }
-                aria-label={
-                  route === "profile" ? t("viewer.header.backToViewer") : t("viewer.header.profile")
-                }
-              >
-                <User className="h-4 w-4" />
-              </button>
-            )}
-
-            {/* Compartilhar */}
-            {(cfg?.canUpload || canLoadPublicly) && hasData && (
-              <button
-                className="btn-primary"
-                onClick={openShare}
-                disabled={storageBlocked}
-                title={storageBlocked ? t("viewer.header.storageLimit") : undefined}
-              >
-                <Share2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">
-                  {sceneKey ? t("viewer.header.saveAndShare") : t("viewer.header.share")}
-                </span>
-              </button>
-            )}
-            {!cfg?.canUpload && sceneKey && (
-              <button className="btn-ghost" onClick={() => setShare(shareUrl(sceneKey))}>
-                {t("viewer.header.copyLink")}
-              </button>
-            )}
-            {sceneKey && (
-              <button
-                className="btn-ghost gap-1.5"
-                onClick={() => setDownloadOpen(true)}
-                title={t("viewer.header.downloadFiles")}
-              >
-                <FileDown className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{t("viewer.header.download")}</span>
-              </button>
-            )}
-            {(cfg?.canUpload || canLoadPublicly) &&
-              hasData &&
-              (canSegmentCurrentScene || !sceneKey) && (
-                <button
-                  className="btn-ghost gap-1.5"
-                  disabled={!!segBusy || !!busy}
-                  onClick={() => void handleSegmentAction()}
-                  title={t("viewer.segmentation.chooseType")}
-                >
-                  <Boxes className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">
-                    {segBusy || busy
-                      ? t("viewer.segmentation.segmenting")
-                      : segTypesEnabled.length > 1
-                        ? t("viewer.segmentation.segment")
-                        : segCost === 0
-                          ? t("viewer.segmentation.segment")
-                          : t("viewer.segmentation.segmentWithCost", { cost: segCost })}
-                  </span>
-                </button>
-              )}
-            {sceneKey &&
-            currentSceneSummary &&
-            currentSceneSummary.segmentations &&
-            Object.keys(currentSceneSummary.segmentations).length > 0 ? (
-              <span
-                className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex"
-                title={Object.entries(currentSceneSummary.segmentations)
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join(" | ")}
-              >
-                {Object.entries(currentSceneSummary.segmentations).map(([k, v]) => (
-                  <span
-                    key={k}
-                    className={
-                      v === "COMPLETED"
-                        ? "text-green-500"
-                        : v === "FAILED"
-                          ? "text-destructive"
-                          : ""
-                    }
-                  >
-                    {k}: {v === "COMPLETED" ? "✓" : v === "FAILED" ? "✕" : "⏳"} {v}
-                  </span>
-                ))}
-              </span>
-            ) : sceneKey && currentSceneSummary?.segmentationUsed ? (
-              <span
-                className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex"
-                title={t("viewer.segmentation.statusTitle", {
-                  status: currentSceneSummary.segmentationStatus ?? "",
-                })}
-              >
-                {currentSceneSummary.segmentationStatus === "COMPLETED"
-                  ? t("viewer.segmentation.doneMark")
-                  : currentSceneSummary.segmentationStatus === "FAILED"
-                    ? t("viewer.segmentation.failedMark")
-                    : `⏳ ${currentSceneSummary.segmentationStatus ?? "IN_QUEUE"}`}
-              </span>
-            ) : null}
-
-            {/* Tela cheia (somente se suportado) */}
-            {canFullscreen && (
-              <button
-                className="icon-btn"
-                onClick={toggleFullscreen}
-                aria-label={
-                  isFull ? t("viewer.header.exitFullscreen") : t("viewer.header.fullscreen")
-                }
-                title={isFull ? t("viewer.header.exitFullscreen") : t("viewer.header.fullscreen")}
-              >
-                {isFull ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-              </button>
-            )}
-          </div>
-        </header>
+        <ViewerHeader
+          brandLogo={brandLogo}
+          brandName={brandName}
+          cfg={cfg}
+          route={route}
+          setRoute={setRoute}
+          volume={volume}
+          sceneKey={sceneKey}
+          sceneName={sceneName}
+          isMobile={isMobile}
+          isDesktop={isDesktop}
+          hasData={hasData}
+          canUpload={canUpload}
+          canLoadPublicly={canLoadPublicly}
+          allowDirectDicom={allowDirectDicom}
+          expanded={expanded}
+          setExpanded={setExpanded}
+          panelOpen={panelOpen}
+          setPanelOpen={setPanelOpen}
+          canFullscreen={canFullscreen}
+          isFull={isFull}
+          toggleFullscreen={toggleFullscreen}
+          stlInput={stlInput}
+          dicomInput={dicomInput}
+          dicomFolderInput={dicomFolderInput}
+          setShare={setShare}
+          shareUrl={shareUrl}
+          openShare={openShare}
+          storageBlocked={storageBlocked}
+          setDownloadOpen={setDownloadOpen}
+          status={status}
+          busy={busy}
+          segTypesEnabled={segTypesEnabled}
+          segCost={segCost}
+          segBusy={segBusy}
+          canSegmentCurrentScene={canSegmentCurrentScene}
+          handleSegmentAction={handleSegmentAction}
+          currentSceneSummary={currentSceneSummary}
+          annMode={annMode}
+          setAnnMode={setAnnMode}
+          setUrlOpen={setUrlOpen}
+          setUrlValue={setUrlValue}
+        />
 
         {error && (
           <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-destructive/40 bg-destructive/10 px-3 py-1.5 text-[11px] text-destructive">
@@ -2412,162 +1804,29 @@ export function Viewer() {
           </div>
         )}
 
-        {shareOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={() => !busy && setShareOpen(false)}
-          >
-            <div
-              className="card-panel w-full max-w-sm space-y-3 p-4"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label={t("viewer.share.title")}
-            >
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold">{t("viewer.share.title")}</h2>
-                <button
-                  className="icon-btn-sm"
-                  onClick={() => setShareOpen(false)}
-                  disabled={busy}
-                  aria-label={t("viewer.common.close")}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <label className="block space-y-1">
-                <span className="data-mono text-[10px] text-muted-foreground">
-                  {t("viewer.share.nameLabel")}
-                </span>
-                <input
-                  value={sceneName}
-                  onChange={(e) => setSceneName(e.target.value)}
-                  className="w-full rounded-md border border-border bg-background px-2 py-1 text-xs"
-                  placeholder={t("viewer.share.namePlaceholder")}
-                />
-              </label>
-              <p className="text-[11px] text-muted-foreground">
-                {sceneKey
-                  ? (() => {
-                      const pending = sourceFiles.current.filter(
-                        (f) => !uploadedNames.current.has(f.name),
-                      ).length;
-                      return pending
-                        ? t("viewer.share.pendingFiles", { count: pending })
-                        : t("viewer.share.existsUpdate");
-                    })()
-                  : (() => {
-                      const toUpload = sourceFiles.current.filter(
-                        (f) => !uploadedNames.current.has(f.name),
-                      ).length;
-                      if (sceneSourceUrl.current && toUpload === 0) {
-                        return t("viewer.share.urlOnly");
-                      }
-                      if (sceneSourceUrl.current && toUpload > 0) {
-                        return t("viewer.share.urlMixed", { count: toUpload });
-                      }
-                      return t("viewer.share.uploadFiles", { count: toUpload });
-                    })()}
-              </p>
-              {storageBlocked && (
-                <p className="text-[11px] text-destructive">
-                  {storage?.blocked
-                    ? t("viewer.share.storageBlocked")
-                    : t("viewer.share.storageFull")}
-                </p>
-              )}
-              {progress && (
-                <div className="space-y-1">
-                  <div className="h-1.5 w-full overflow-hidden rounded bg-panel-2">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${(progress.done / Math.max(1, progress.total)) * 100}%` }}
-                    />
-                  </div>
-                  <p className="data-mono text-[10px] text-muted-foreground">
-                    {progress.done}/{progress.total}
-                  </p>
-                </div>
-              )}
-              <div className="flex justify-end gap-2">
-                <button className="btn-chip" onClick={() => setShareOpen(false)} disabled={busy}>
-                  {t("viewer.common.cancel")}
-                </button>
-                <button
-                  className="btn-primary"
-                  onClick={publishScene}
-                  disabled={busy || storageBlocked}
-                >
-                  {busy
-                    ? t("viewer.status.uploading")
-                    : sceneKey
-                      ? t("viewer.share.saveAndGenerate")
-                      : t("viewer.share.sendAndGenerate")}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <ShareDialog
+          open={shareOpen}
+          sceneKey={sceneKey}
+          sceneName={sceneName}
+          onSceneNameChange={setSceneName}
+          busy={busy}
+          progress={progress}
+          sourceFiles={sourceFiles.current}
+          uploadedNames={uploadedNames.current}
+          hasSourceUrl={!!sceneSourceUrl.current}
+          storage={storage}
+          storageBlocked={storageBlocked}
+          onClose={() => setShareOpen(false)}
+          onPublish={publishScene}
+        />
 
-        {share && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-panel px-3 py-2 text-[11px]">
-            <span className="data-mono text-muted-foreground">{t("viewer.share.linkLabel")}</span>
-            <input
-              readOnly
-              value={share}
-              onFocus={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 font-mono text-[11px]"
-            />
-            <button className="btn-chip" onClick={() => navigator.clipboard?.writeText(share)}>
-              {t("viewer.common.copy")}
-            </button>
-            <button
-              className="btn-chip"
-              onClick={() => setQrOpen(true)}
-              title={t("viewer.share.showQr")}
-              aria-label={t("viewer.share.showQr")}
-            >
-              <QrCode className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">QR</span>
-            </button>
-            <button className="btn-chip" onClick={() => setShare(null)}>
-              {t("viewer.common.close")}
-            </button>
-          </div>
-        )}
+        <ShareLinkBar
+          share={share}
+          onClose={() => setShare(null)}
+          onShowQr={() => setQrOpen(true)}
+        />
 
-        {qrOpen && share && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
-            onClick={() => setQrOpen(false)}
-          >
-            <div
-              className="card-panel flex w-full max-w-sm flex-col items-center gap-3 p-5"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label={t("viewer.share.qrAria")}
-            >
-              <div className="flex w-full items-center justify-between">
-                <span className="group-title">{t("viewer.share.qrTitle")}</span>
-                <button
-                  className="icon-btn-sm"
-                  onClick={() => setQrOpen(false)}
-                  aria-label={t("viewer.common.close")}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="rounded-lg border border-border bg-white p-3">
-                <QRCode value={share} size={220} />
-              </div>
-              <p className="data-mono w-full truncate text-[10px] text-muted-foreground">{share}</p>
-              <button className="btn-primary w-full" onClick={() => setQrOpen(false)}>
-                {t("viewer.common.close")}
-              </button>
-            </div>
-          </div>
-        )}
+        <QrDialog open={qrOpen} share={share} onClose={() => setQrOpen(false)} />
 
         {sceneKey && (
           <SceneDownloadModal
@@ -2590,138 +1849,42 @@ export function Viewer() {
           {route === "viewer" && (
             <>
               {/* ── Trilho lateral (desktop) ──────────────────────────── */}
-              {isDesktop && hasData && (
-                <nav className="rail py-2" aria-label={t("viewer.rail.tools")}>
-                  <button
-                    className={cn("icon-btn", !showLines && "icon-btn-active")}
-                    onClick={() => setShowLines((v) => !v)}
-                    aria-pressed={showLines}
-                    aria-label={t("viewer.rail.referenceLines")}
-                    title={
-                      showLines
-                        ? t("viewer.rail.hideReferenceLines")
-                        : t("viewer.rail.showReferenceLines")
-                    }
-                  >
-                    {showLines ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                  </button>
-
-                  {canUpload && annMode && (
-                    <>
-                      <div className="rail-sep" aria-hidden />
-                      {ANN_TOOLS.map((tool) => (
-                        <button
-                          key={tool.key}
-                          className={cn("icon-btn", annTool === tool.key && "icon-btn-active")}
-                          onClick={() => setAnnTool(tool.key)}
-                          aria-pressed={annTool === tool.key}
-                          aria-label={t(tool.labelKey)}
-                          title={t(tool.labelKey)}
-                        >
-                          <tool.icon className="h-4 w-4" />
-                        </button>
-                      ))}
-                      {annColorPicker}
-                    </>
-                  )}
-
-                  <div className="flex-1" />
-
-                  {volume && (
-                    <>
-                      <button
-                        className="icon-btn"
-                        onClick={resetAllPlanes}
-                        aria-label={t("viewer.mpr.resetOblique")}
-                        title={t("viewer.mpr.resetOblique")}
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </button>
-                      {expanded && (
-                        <button
-                          className="icon-btn"
-                          onClick={() => setExpanded(null)}
-                          aria-label={t("viewer.grid.backToGrid")}
-                          title={t("viewer.grid.backToGrid")}
-                        >
-                          <LayoutGrid className="h-4 w-4" />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </nav>
-              )}
+              <ViewerRail
+                isDesktop={isDesktop}
+                hasData={hasData}
+                canUpload={canUpload}
+                annMode={annMode}
+                annTool={annTool}
+                setAnnTool={setAnnTool}
+                showLines={showLines}
+                setShowLines={setShowLines}
+                volume={volume}
+                expanded={expanded}
+                setExpanded={setExpanded}
+                resetAllPlanes={resetAllPlanes}
+                annColorPicker={annColorPicker}
+              />
 
               <div className="flex min-h-0 flex-1 flex-col">
                 {/* Barra de ferramentas de anotação (tablet) */}
-                {isTablet && annMode && canUpload && (
-                  <div className="flex shrink-0 flex-wrap items-center gap-1 border-b border-border bg-card px-2 py-1.5">
-                    <span className="group-title mr-1">{t("viewer.annTools.tool")}</span>
-                    {ANN_TOOLS.map((tool) => (
-                      <button
-                        key={tool.key}
-                        className={cn(
-                          "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold transition",
-                          annTool === tool.key
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-panel text-muted-foreground hover:text-foreground",
-                        )}
-                        onClick={() => setAnnTool(tool.key)}
-                        aria-pressed={annTool === tool.key}
-                      >
-                        <tool.icon className="h-3.5 w-3.5" />
-                        {t(tool.labelKey)}
-                      </button>
-                    ))}
-                    <span className="ml-1 flex items-center gap-1.5 rounded-md border border-border bg-panel px-2 py-1">
-                      <input
-                        type="color"
-                        value={annColor}
-                        onChange={(e) => setAnnColor(e.target.value)}
-                        className="h-4 w-6 cursor-pointer rounded border border-border bg-transparent p-0"
-                        aria-label={t("viewer.annotations.color")}
-                      />
-                      <Palette className="h-3 w-3 text-muted-foreground" />
-                    </span>
-                    <span className="ml-auto hidden text-[10px] text-muted-foreground sm:inline">
-                      {t("viewer.annotations.lockedHint")}
-                    </span>
-                  </div>
-                )}
+                <TabletAnnotationBar
+                  isTablet={isTablet}
+                  annMode={annMode}
+                  canUpload={canUpload}
+                  annTool={annTool}
+                  setAnnTool={setAnnTool}
+                  annColor={annColor}
+                  setAnnColor={setAnnColor}
+                />
 
                 {/* Abas de plano (mobile: um viewport em foco) */}
-                {isMobile && volume && !status && (
-                  <div
-                    className="flex shrink-0 gap-1 border-b border-border bg-card px-2 py-1"
-                    role="tablist"
-                    aria-label={t("viewer.planes.tabsAria")}
-                  >
-                    {PLANE_TABS.map((tab) => {
-                      const active = (expanded ?? "axial") === tab.key;
-                      return (
-                        <button
-                          key={tab.key}
-                          role="tab"
-                          aria-selected={active}
-                          aria-label={t(tab.hintKey)}
-                          onClick={() => setExpanded(tab.key)}
-                          className={cn(
-                            "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[10px] font-bold uppercase tracking-wider transition",
-                            active
-                              ? "bg-panel-2 text-foreground"
-                              : "text-muted-foreground active:bg-panel-2",
-                          )}
-                        >
-                          <i
-                            className="h-1.5 w-1.5 rounded-full"
-                            style={{ background: tab.color }}
-                          />
-                          {t(tab.labelKey)}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                <MobilePlaneTabs
+                  isMobile={isMobile}
+                  volume={volume}
+                  status={status}
+                  expanded={expanded}
+                  setExpanded={setExpanded}
+                />
 
                 <div className="flex min-h-0 flex-1">
                   <main className="min-h-0 flex-1 p-1.5 sm:p-2">
@@ -2754,14 +1917,18 @@ export function Viewer() {
                     )}
 
                     {!volume && !status && !meshes.length && (
-                      <div
-                        className={cn(
-                          "flex h-full items-center justify-center rounded-lg border border-dashed p-4 transition-colors duration-200",
-                          isDraggingFile ? "border-primary bg-card/80" : "border-border",
-                        )}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                        }}
+                      <EmptyState
+                        isDraggingFile={isDraggingFile}
+                        canUpload={canUpload}
+                        canLoadPublicly={canLoadPublicly}
+                        allowDirectDicom={allowDirectDicom}
+                        allowUrlLoading={allowUrlLoading}
+                        error={error}
+                        dicomInput={dicomInput}
+                        dicomFolderInput={dicomFolderInput}
+                        stlInput={stlInput}
+                        uploadIconRef={uploadIconRef}
+                        onDragOver={(e) => e.preventDefault()}
                         onDrop={async (e) => {
                           e.preventDefault();
                           const files = Array.from(e.dataTransfer.files ?? []);
@@ -2784,85 +1951,15 @@ export function Viewer() {
                             setUrlErrorOpen(true);
                           }
                         }}
-                      >
-                        <div className="flex max-w-md flex-col items-center text-center">
-                          <UploadIcon
-                            ref={uploadIconRef}
-                            size={48}
-                            className="mb-4 cursor-pointer text-muted-foreground/70 transition-colors hover:text-foreground"
-                            onMouseEnter={() => uploadIconRef.current?.startAnimation()}
-                            onMouseLeave={() => uploadIconRef.current?.stopAnimation()}
-                            aria-hidden
-                          />
-                          <h2 className="font-display text-xl font-bold">
-                            {canUpload || canLoadPublicly
-                              ? t("viewer.empty.loadStudy")
-                              : t("viewer.empty.noScene")}
-                          </h2>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            {canUpload || canLoadPublicly
-                              ? allowDirectDicom
-                                ? t("viewer.empty.loadStudyHintDirect")
-                                : t("viewer.empty.loadStudyHint")
-                              : t("viewer.empty.loginHint")}
-                          </p>
-                          {(canUpload || canLoadPublicly) && (
-                            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                              {allowDirectDicom && (
-                                <button
-                                  className="btn-primary gap-1.5"
-                                  onClick={() => dicomInput.current?.click()}
-                                >
-                                  <FileUp className="h-3.5 w-3.5" />
-                                  {t("viewer.header.openDicom")}
-                                </button>
-                              )}
-                              {allowDirectDicom && (
-                                <button
-                                  className="btn-ghost gap-1.5"
-                                  onClick={() => dicomFolderInput.current?.click()}
-                                >
-                                  <FolderUp className="h-3.5 w-3.5" />
-                                  {t("viewer.header.openDicomFolder")}
-                                </button>
-                              )}
-                              {(allowUrlLoading || allowDirectDicom) && (
-                                <button
-                                  className={
-                                    allowDirectDicom ? "btn-ghost gap-1.5" : "btn-primary gap-1.5"
-                                  }
-                                  onClick={() => {
-                                    setUrlValue("");
-                                    setUrlOpen(true);
-                                  }}
-                                >
-                                  <Link2 className="h-3.5 w-3.5" />
-                                  {t("viewer.header.openByUrl")}
-                                </button>
-                              )}
-                              <button
-                                className="btn-ghost"
-                                onClick={() => stlInput.current?.click()}
-                              >
-                                <Box className="h-3.5 w-3.5" />
-                                STL / PLY / OBJ
-                              </button>
-                            </div>
-                          )}
-                          {!canUpload && !canLoadPublicly && (
-                            <button
-                              className="btn-primary mt-4"
-                              onClick={() => {
-                                const url = cfg?.loginUrl || `${cfg?.homeUrl || ""}/wp-login.php`;
-                                if (url) window.location.href = url;
-                              }}
-                            >
-                              {t("viewer.empty.login")}
-                            </button>
-                          )}
-                          {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
-                        </div>
-                      </div>
+                        onOpenUrl={() => {
+                          setUrlValue("");
+                          setUrlOpen(true);
+                        }}
+                        onLogin={() => {
+                          const url = cfg?.loginUrl || `${cfg?.homeUrl || ""}/wp-login.php`;
+                          if (url) window.location.href = url;
+                        }}
+                      />
                     )}
 
                     {status && quizWhileLoading && (
@@ -2882,421 +1979,81 @@ export function Viewer() {
                     )}
 
                     {volume && !status && (
-                      <div
-                        className={
-                          expanded
-                            ? "grid h-full grid-cols-1 grid-rows-1 gap-1.5 sm:gap-2"
-                            : "grid h-full grid-cols-1 grid-rows-4 gap-1.5 md:grid-cols-2 md:grid-rows-2 sm:gap-2"
-                        }
-                      >
-                        {(!expanded || expanded === "axial") && (
-                          <SliceView
-                            volume={volume}
-                            plane="axial"
-                            label={t("viewer.planes.axial")}
-                            accent="var(--axial)"
-                            wc={wc}
-                            ww={ww}
-                            onWindow={(a, b) => {
-                              setWc(a);
-                              setWw(b);
-                            }}
-                            invert={invert}
-                            states={planeStates}
-                            onStates={(fn) => setPlaneStates((s) => fn(s))}
-                            accents={ACCENTS}
-                            onResetPlane={resetPlane}
-                            expanded={expanded === "axial"}
-                            onToggleExpand={
-                              isMobile
-                                ? undefined
-                                : () => setExpanded((e) => (e === "axial" ? null : "axial"))
-                            }
-                            annotating={annMode}
-                            tool={annTool}
-                            annotations={annotations}
-                            annActive={annActive}
-                            onCreateAnnotation={onCreateAnnotation}
-                            showLines={showLines}
-                            onToggleLines={() => setShowLines((v) => !v)}
-                          />
-                        )}
-                        {(!expanded || expanded === "coronal") && (
-                          <SliceView
-                            volume={volume}
-                            plane="coronal"
-                            label={t("viewer.planes.coronal")}
-                            accent="var(--coronal)"
-                            wc={wc}
-                            ww={ww}
-                            onWindow={(a, b) => {
-                              setWc(a);
-                              setWw(b);
-                            }}
-                            invert={invert}
-                            states={planeStates}
-                            onStates={(fn) => setPlaneStates((s) => fn(s))}
-                            accents={ACCENTS}
-                            onResetPlane={resetPlane}
-                            expanded={expanded === "coronal"}
-                            onToggleExpand={
-                              isMobile
-                                ? undefined
-                                : () => setExpanded((e) => (e === "coronal" ? null : "coronal"))
-                            }
-                            annotating={annMode}
-                            tool={annTool}
-                            annotations={annotations}
-                            annActive={annActive}
-                            onCreateAnnotation={onCreateAnnotation}
-                            showLines={showLines}
-                            onToggleLines={() => setShowLines((v) => !v)}
-                          />
-                        )}
-                        {(!expanded || expanded === "sagittal") && (
-                          <SliceView
-                            volume={volume}
-                            plane="sagittal"
-                            label={t("viewer.planes.sagittal")}
-                            accent="var(--sagittal)"
-                            wc={wc}
-                            ww={ww}
-                            onWindow={(a, b) => {
-                              setWc(a);
-                              setWw(b);
-                            }}
-                            invert={invert}
-                            states={planeStates}
-                            onStates={(fn) => setPlaneStates((s) => fn(s))}
-                            accents={ACCENTS}
-                            onResetPlane={resetPlane}
-                            expanded={expanded === "sagittal"}
-                            onToggleExpand={
-                              isMobile
-                                ? undefined
-                                : () => setExpanded((e) => (e === "sagittal" ? null : "sagittal"))
-                            }
-                            annotating={annMode}
-                            tool={annTool}
-                            annotations={annotations}
-                            annActive={annActive}
-                            onCreateAnnotation={onCreateAnnotation}
-                            showLines={showLines}
-                            onToggleLines={() => setShowLines((v) => !v)}
-                          />
-                        )}
-                        {(!expanded || expanded === "3d") && (
-                          <div className="viewport-frame">
-                            <div className="viewport-header">
-                              <span className="plane-label text-muted-foreground">3D / STL</span>
-                              <span className="flex items-center gap-1">
-                                <span className="data-mono text-[9px] text-muted-foreground">
-                                  {renderMode === "precise"
-                                    ? t("viewer.renderMode.preciseHint")
-                                    : t("viewer.planes.dragToRotate")}
-                                </span>
-                                {!isMobile && (
-                                  <button
-                                    className="icon-btn-sm"
-                                    title={
-                                      expanded === "3d"
-                                        ? t("viewer.grid.backToGrid")
-                                        : t("viewer.grid.expand")
-                                    }
-                                    aria-label={
-                                      expanded === "3d"
-                                        ? t("viewer.grid.backToGrid")
-                                        : t("viewer.grid.expand3d")
-                                    }
-                                    onClick={() => setExpanded((e) => (e === "3d" ? null : "3d"))}
-                                  >
-                                    {expanded === "3d" ? (
-                                      <Minimize2 className="h-3.5 w-3.5" />
-                                    ) : (
-                                      <Maximize2 className="h-3.5 w-3.5" />
-                                    )}
-                                  </button>
-                                )}
-                              </span>
-                            </div>
-                            <div className="min-h-0 flex-1">
-                              <Volume3D
-                                volume={volume}
-                                meshes={meshes}
-                                threshold={threshold}
-                                opacity={opacity}
-                                showVolume={showVolume}
-                                showPlanes={showPlanes}
-                                cross={cross}
-                                planes={planeStates}
-                                wc={wc}
-                                ww={ww}
-                                invert={invert}
-                                centerRequest={centerRequest}
-                                recordingNamePattern={cfg?.recordingNamePattern}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      <ViewportGrid
+                        volume={volume}
+                        meshes={meshes}
+                        threshold={threshold}
+                        opacity={opacity}
+                        showVolume={showVolume}
+                        showPlanes={showPlanes}
+                        cross={cross}
+                        planeStates={planeStates}
+                        wc={wc}
+                        ww={ww}
+                        invert={invert}
+                        centerRequest={centerRequest}
+                        recordingNamePattern={cfg?.recordingNamePattern}
+                        preciseRender={renderMode === "precise"}
+                        expanded={expanded}
+                        setExpanded={setExpanded}
+                        isMobile={isMobile}
+                        annMode={annMode}
+                        annTool={annTool}
+                        annotations={annotations}
+                        annActive={annActive}
+                        onCreateAnnotation={onCreateAnnotation}
+                        showLines={showLines}
+                        onToggleLines={() => setShowLines((v) => !v)}
+                        resetPlane={resetPlane}
+                        onWindow={(a, b) => {
+                          setWc(a);
+                          setWw(b);
+                        }}
+                        onStates={(fn) => setPlaneStates((s) => fn(s))}
+                      />
                     )}
                   </main>
 
                   {/* ── Painel de parâmetros (desktop/tablet) ─────────── */}
-                  {!isMobile && route === "viewer" && panelOpen && hasData && (
-                    <aside
-                      className="flex max-h-full min-h-0 w-[280px] shrink-0 flex-col gap-2.5 overflow-x-hidden overflow-y-auto border-l border-border bg-card p-3"
-                      aria-label={t("viewer.panel.aria")}
-                    >
-                      <Section title={t("viewer.panel.studyTitle")}>
-                        <p className="truncate text-xs font-semibold">{sceneName.trim() || "—"}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {volume?.studyDescription ?? t("viewer.panel.noStudy")}
-                        </p>
-                        {volume && (
-                          <p className="data-mono text-[10px] leading-relaxed text-muted-foreground">
-                            {volume.modality} · {volume.nx}×{volume.ny}×{volume.nz}
-                            <br />
-                            {volume.sx.toFixed(2)} / {volume.sz.toFixed(2)} mm
-                          </p>
-                        )}
-                      </Section>
-
-                      {volume && (
-                        <Section
-                          title={t("viewer.panel.windowingTitle")}
-                          right={<MousePointer2 className="h-3 w-3 text-muted-foreground" />}
-                        >
-                          <Range
-                            label={`WL ${Math.round(wc)}`}
-                            min={-1000}
-                            max={3000}
-                            value={wc}
-                            onChange={setWc}
-                          />
-                          <Range
-                            label={`WW ${Math.round(ww)}`}
-                            min={1}
-                            max={4000}
-                            value={ww}
-                            onChange={setWw}
-                          />
-                        </Section>
-                      )}
-
-                      {volume && (
-                        <Section title="MPR">
-                          <button className="btn-chip w-full" onClick={resetAllPlanes}>
-                            <RotateCcw className="h-3.5 w-3.5" />
-                            {t("viewer.mpr.resetOblique")}
-                          </button>
-                        </Section>
-                      )}
-
-                      {volume && (
-                        <Section title={t("viewer.orientation.title")}>
-                          <FlipControls
-                            flags={volumeFlip}
-                            onToggle={toggleFlip}
-                            onReset={resetFlip}
-                          />
-                        </Section>
-                      )}
-
-                      {volume && (
-                        <Section title={t("viewer.panel.reconstructionTitle")}>
-                          <Range
-                            label={`${t("viewer.panel.density")} ${(threshold * 100).toFixed(0)}%`}
-                            min={0}
-                            max={0.95}
-                            step={0.01}
-                            value={threshold}
-                            onChange={setThreshold}
-                          />
-                          <Range
-                            label={`${t("viewer.panel.opacity")} ${(opacity * 100).toFixed(0)}%`}
-                            min={0.02}
-                            max={1}
-                            step={0.01}
-                            value={opacity}
-                            onChange={setOpacity}
-                          />
-                          <button
-                            className="btn-chip w-full"
-                            onClick={() => setShowVolume((s) => !s)}
-                          >
-                            {showVolume
-                              ? t("viewer.panel.hideVolume")
-                              : t("viewer.panel.showVolume")}
-                          </button>
-
-                          <p className="group-title pt-1">{t("viewer.panel.planesIn3d")}</p>
-                          <div className="grid grid-cols-3 gap-1">
-                            {(["axial", "coronal", "sagittal"] as const).map((p) => (
-                              <button
-                                key={p}
-                                className="btn-chip"
-                                style={{ opacity: showPlanes[p] ? 1 : 0.4 }}
-                                onClick={() => setShowPlanes((s) => ({ ...s, [p]: !s[p] }))}
-                                aria-pressed={showPlanes[p]}
-                              >
-                                {p === "axial" ? "Ax" : p === "coronal" ? "Cor" : "Sag"}
-                              </button>
-                            ))}
-                          </div>
-                        </Section>
-                      )}
-
-                      {meshes.length > 0 && (
-                        <Section
-                          title={t("viewer.panel.modelsTitle")}
-                          defaultOpen={false}
-                          right={
-                            <span className="data-mono text-[9px] text-muted-foreground">
-                              {meshes.length}
-                            </span>
-                          }
-                        >
-                          <MeshList
-                            meshes={meshes}
-                            meshVolumes={meshVolumes}
-                            onPatch={patchMesh}
-                            onRemove={requestMeshDelete}
-                            onCenter={centerMesh}
-                          />
-                          {meshes.length > 1 && (
-                            <button
-                              className="btn-chip w-full"
-                              onClick={() =>
-                                setMeshes((list) => {
-                                  const allOn = list.every((x) => x.visible);
-                                  return list.map((x) => ({ ...x, visible: !allOn }));
-                                })
-                              }
-                            >
-                              {t("viewer.panel.showHideAll")}
-                            </button>
-                          )}
-                          {meshes.length > 0 && (
-                            <button className="btn-chip w-full" onClick={() => setMeshes([])}>
-                              {t("viewer.panel.removeAll")}
-                            </button>
-                          )}
-                        </Section>
-                      )}
-
-                      {volume && canUpload && (
-                        <Section
-                          title={t("viewer.panel.annotationsTitle")}
-                          defaultOpen={false}
-                          right={
-                            annotations.length > 0 ? (
-                              <span className="data-mono text-[9px] text-muted-foreground">
-                                {annotations.length}
-                              </span>
-                            ) : undefined
-                          }
-                        >
-                          {!annotations.length && (
-                            <p className="text-[11px] text-muted-foreground">
-                              {annMode
-                                ? t("viewer.annotations.emptyDraw")
-                                : t("viewer.annotations.empty")}
-                            </p>
-                          )}
-                          <div className="max-h-44 space-y-1 overflow-y-auto pr-0.5">
-                            {sortedAnnotations.map((a) => (
-                              <button
-                                key={a.id}
-                                onClick={() => selectAnnotation(a)}
-                                className={cn(
-                                  "flex w-full items-center gap-1.5 rounded-md border px-1.5 py-1 text-left text-[11px]",
-                                  annActive === a.id
-                                    ? "border-primary bg-panel-2"
-                                    : "border-border bg-panel-2/60 hover:border-primary",
-                                  a.hidden && "opacity-50",
-                                )}
-                              >
-                                <i
-                                  className="h-2 w-2 shrink-0 rounded-full"
-                                  style={{ background: a.color }}
-                                />
-                                <span className="min-w-0 flex-1 truncate">
-                                  {a.kind === "measure"
-                                    ? a.measure
-                                      ? `${a.measure.lengthMm.toFixed(1)} mm`
-                                      : t("viewer.annotations.measure")
-                                    : a.kind === "text"
-                                      ? a.text || a.label || t("viewer.annotations.text")
-                                      : a.kind === "arrow"
-                                        ? t("viewer.annTools.arrow")
-                                        : a.kind === "draw"
-                                          ? t("viewer.annTools.draw")
-                                          : t("viewer.annTools.mark")}
-                                </span>
-                                <span className="data-mono text-[9px] uppercase text-muted-foreground">
-                                  {a.plane.slice(0, 3)}
-                                </span>
-                                {canUpload && (
-                                  <span
-                                    className="cursor-pointer px-0.5 text-[11px] text-muted-foreground hover:text-foreground"
-                                    title={
-                                      a.hidden
-                                        ? t("viewer.annotations.show")
-                                        : t("viewer.annotations.hide")
-                                    }
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleAnnotationVisibility(a.id);
-                                    }}
-                                  >
-                                    {a.hidden ? (
-                                      <EyeOff className="h-3 w-3" />
-                                    ) : (
-                                      <Eye className="h-3 w-3" />
-                                    )}
-                                  </span>
-                                )}
-                                {annMode && canUpload && (
-                                  <span
-                                    className="px-1 text-[11px] text-destructive hover:opacity-70"
-                                    title={t("viewer.annotations.delete")}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteAnnotation(a.id);
-                                    }}
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </span>
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        </Section>
-                      )}
-
-                      {volume && (
-                        <Section title={t("viewer.panel.shortcutsTitle")} defaultOpen={false}>
-                          <div className="space-y-1 text-[10px] leading-relaxed text-muted-foreground">
-                            <p>{t("viewer.shortcuts.wheel")}</p>
-                            <p>{t("viewer.shortcuts.dragIntersection")}</p>
-                            <p>{t("viewer.shortcuts.dragLine")}</p>
-                            <p>{t("viewer.shortcuts.dragCircles")}</p>
-                            <p>{t("viewer.shortcuts.rightButton")}</p>
-                            <p>{t("viewer.shortcuts.ctrlWheel")}</p>
-                            <p>{t("viewer.shortcuts.eye")}</p>
-                          </div>
-                        </Section>
-                      )}
-
-                      {hasData && (
-                        <button className="btn-ghost w-full" onClick={handleResetAll}>
-                          <RotateCcw className="h-3.5 w-3.5" />
-                          {t("viewer.panel.resetAll")}
-                        </button>
-                      )}
-                    </aside>
-                  )}
+                  <ViewerSidePanel
+                    isMobile={isMobile}
+                    route={route}
+                    panelOpen={panelOpen}
+                    hasData={hasData}
+                    volume={volume}
+                    sceneName={sceneName}
+                    meshes={meshes}
+                    meshVolumes={meshVolumes}
+                    wc={wc}
+                    ww={ww}
+                    setWc={setWc}
+                    setWw={setWw}
+                    threshold={threshold}
+                    setThreshold={setThreshold}
+                    opacity={opacity}
+                    setOpacity={setOpacity}
+                    showVolume={showVolume}
+                    setShowVolume={setShowVolume}
+                    showPlanes={showPlanes}
+                    setShowPlanes={setShowPlanes}
+                    volumeFlip={volumeFlip}
+                    toggleFlip={toggleFlip}
+                    resetFlip={resetFlip}
+                    annotations={annotations}
+                    sortedAnnotations={sortedAnnotations}
+                    annMode={annMode}
+                    annActive={annActive}
+                    canUpload={canUpload}
+                    selectAnnotation={selectAnnotation}
+                    toggleAnnotationVisibility={toggleAnnotationVisibility}
+                    deleteAnnotation={deleteAnnotation}
+                    patchMesh={patchMesh}
+                    requestMeshDelete={requestMeshDelete}
+                    centerMesh={centerMesh}
+                    setMeshes={setMeshes}
+                    resetAllPlanes={resetAllPlanes}
+                    handleResetAll={handleResetAll}
+                  />
                 </div>
               </div>
             </>
@@ -3323,632 +2080,98 @@ export function Viewer() {
         </div>
 
         {/* ── Navegação inferior (mobile) ─────────────────────────────── */}
-        {isMobile && route === "viewer" && volume && !status && (
-          <nav
-            className="flex h-14 shrink-0 items-stretch border-t border-border bg-card"
-            aria-label={t("viewer.nav.label")}
-          >
-            {(
-              [
-                { key: "cortes", label: t("viewer.mobile.navCortes"), icon: Layers, show: true },
-                {
-                  key: "janela",
-                  label: t("viewer.mobile.navJanela"),
-                  icon: SlidersHorizontal,
-                  show: true,
-                },
-                { key: "3d", label: "3D", icon: Box, show: true },
-                {
-                  key: "modelos",
-                  label: t("viewer.mobile.navModelos"),
-                  icon: Boxes,
-                  show: canUpload || meshes.length > 0,
-                },
-                {
-                  key: "anotar",
-                  label: t("viewer.mobile.navAnotar"),
-                  icon: PenTool,
-                  show: canUpload,
-                },
-              ] as Array<{
-                key: "cortes" | "janela" | "3d" | "modelos" | "anotar";
-                label: string;
-                icon: LucideIcon;
-                show: boolean;
-              }>
-            )
-              .filter((i) => i.show)
-              .map((i) => {
-                const open = activeSheet === i.key;
-                return (
-                  <button
-                    key={i.key}
-                    className={cn(
-                      "flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition",
-                      open ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-                    )}
-                    onClick={() => {
-                      setActiveSheet((s) => (s === i.key ? null : i.key));
-                    }}
-                    aria-pressed={open}
-                  >
-                    <i.icon className="h-5 w-5" />
-                    <span>{i.label}</span>
-                  </button>
-                );
-              })}
-          </nav>
-        )}
+        <MobileBottomNav
+          isMobile={isMobile}
+          route={route}
+          volume={volume}
+          status={status}
+          activeSheet={activeSheet}
+          setActiveSheet={setActiveSheet}
+          canUpload={canUpload}
+          meshes={meshes}
+        />
 
         {/* ── Painel secundário (mobile) ──────────────────────────────── */}
-        {isMobile && route === "viewer" && activeSheet && volume && !status && (
-          <div className="absolute inset-x-0 bottom-14 top-12 z-40 flex flex-col justify-end">
-            <div className="absolute inset-0" onClick={() => setActiveSheet(null)} aria-hidden />
-            <div
-              className="relative max-h-[75%] w-full overflow-y-auto rounded-t-2xl border-t border-l border-r border-border bg-card p-3 shadow-2xl"
-              role="dialog"
-              aria-modal="true"
-              aria-label={t("viewer.mobile.panelAria", { sheet: activeSheet })}
-            >
-              <div className="mb-2.5 flex items-center justify-between">
-                <span className="group-title">
-                  {activeSheet === "cortes"
-                    ? t("viewer.mobile.navCortes")
-                    : activeSheet === "janela"
-                      ? t("viewer.mobile.navJanela")
-                      : activeSheet === "3d"
-                        ? t("viewer.panel.reconstructionTitle")
-                        : activeSheet === "modelos"
-                          ? t("viewer.panel.modelsTitle")
-                          : t("viewer.panel.annotationsTitle")}
-                </span>
-                <button
-                  className="icon-btn-sm"
-                  onClick={() => setActiveSheet(null)}
-                  aria-label={t("viewer.mobile.closePanel")}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-
-              {activeSheet === "cortes" && (
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-2 rounded-md border border-border bg-panel px-3 py-2">
-                    {(() => {
-                      const tab = PLANE_TABS.find((tb) => tb.key === (expanded ?? "axial"));
-                      return (
-                        <>
-                          <i className="h-2 w-2 rounded-full" style={{ background: tab?.color }} />
-                          <span className="plane-label" style={{ color: tab?.color }}>
-                            {tab ? t(tab.labelKey) : null}
-                          </span>
-                        </>
-                      );
-                    })()}
-                  </div>
-                  <button className="btn-chip w-full" onClick={resetAllPlanes}>
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    {t("viewer.mpr.resetOblique")}
-                  </button>
-                  <p className="group-title">{t("viewer.orientation.title")}</p>
-                  <FlipControls flags={volumeFlip} onToggle={toggleFlip} onReset={resetFlip} />
-                  <div className="space-y-1 text-[10px] leading-relaxed text-muted-foreground">
-                    <p>{t("viewer.mobile.slicesHint1")}</p>
-                    <p>{t("viewer.mobile.slicesHint2")}</p>
-                  </div>
-                </div>
-              )}
-
-              {activeSheet === "janela" && (
-                <div className="space-y-3">
-                  <Range
-                    label={`WL ${Math.round(wc)}`}
-                    min={-1000}
-                    max={3000}
-                    value={wc}
-                    onChange={setWc}
-                  />
-                  <Range
-                    label={`WW ${Math.round(ww)}`}
-                    min={1}
-                    max={4000}
-                    value={ww}
-                    onChange={setWw}
-                  />
-                  <button className="btn-chip w-full" onClick={handleResetAll}>
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    {t("viewer.panel.resetAll")}
-                  </button>
-                </div>
-              )}
-
-              {activeSheet === "3d" && (
-                <div className="space-y-3">
-                  <Range
-                    label={`${t("viewer.panel.density")} ${(threshold * 100).toFixed(0)}%`}
-                    min={0}
-                    max={0.95}
-                    step={0.01}
-                    value={threshold}
-                    onChange={setThreshold}
-                  />
-                  <Range
-                    label={`${t("viewer.panel.opacity")} ${(opacity * 100).toFixed(0)}%`}
-                    min={0.02}
-                    max={1}
-                    step={0.01}
-                    value={opacity}
-                    onChange={setOpacity}
-                  />
-                  <button className="btn-chip w-full" onClick={() => setShowVolume((s) => !s)}>
-                    {showVolume ? t("viewer.panel.hideVolume") : t("viewer.panel.showVolume")}
-                  </button>
-                  <div>
-                    <p className="group-title mb-1.5">{t("viewer.panel.planesIn3d")}</p>
-                    <div className="grid grid-cols-3 gap-1">
-                      {(["axial", "coronal", "sagittal"] as const).map((p) => (
-                        <button
-                          key={p}
-                          className="btn-chip"
-                          style={{ opacity: showPlanes[p] ? 1 : 0.4 }}
-                          onClick={() => setShowPlanes((s) => ({ ...s, [p]: !s[p] }))}
-                          aria-pressed={showPlanes[p]}
-                        >
-                          {p === "axial" ? "Ax" : p === "coronal" ? "Cor" : "Sag"}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeSheet === "modelos" && (
-                <div className="space-y-2.5">
-                  {cfg?.canUpload && (
-                    <button className="btn-ghost w-full" onClick={() => stlInput.current?.click()}>
-                      <Plus className="h-3.5 w-3.5" />
-                      {t("viewer.panel.addModels")}
-                    </button>
-                  )}
-                  {!meshes.length && (
-                    <p className="text-[11px] text-muted-foreground">
-                      {t("viewer.panel.noModels")}
-                    </p>
-                  )}
-                  <MeshList
-                    meshes={meshes}
-                    meshVolumes={meshVolumes}
-                    containerClassName="rounded-md border border-border bg-panel p-2"
-                    onPatch={patchMesh}
-                    onRemove={requestMeshDelete}
-                    onCenter={centerMesh}
-                  />
-                  {meshes.length > 1 && (
-                    <button
-                      className="btn-chip w-full"
-                      onClick={() =>
-                        setMeshes((list) => {
-                          const allOn = list.every((x) => x.visible);
-                          return list.map((x) => ({ ...x, visible: !allOn }));
-                        })
-                      }
-                    >
-                      {t("viewer.panel.showHideAll")}
-                    </button>
-                  )}
-                  {meshes.length > 0 && (
-                    <button className="btn-chip w-full" onClick={() => setMeshes([])}>
-                      {t("viewer.panel.removeAll")}
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {activeSheet === "anotar" && canUpload && (
-                <div className="space-y-2.5">
-                  <button
-                    className={cn(
-                      "flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2.5 text-xs font-bold transition",
-                      annMode
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-panel text-muted-foreground",
-                    )}
-                    onClick={() => {
-                      const next = !annMode;
-                      setAnnMode(next);
-                      if (next && annTool !== "mark" && annTool !== "text") setAnnTool("mark");
-                    }}
-                    aria-pressed={annMode}
-                  >
-                    {annMode ? (
-                      <>
-                        <Eye className="h-3.5 w-3.5" /> {t("viewer.annotations.modeActive")}
-                      </>
-                    ) : (
-                      <>
-                        <PenTool className="h-3.5 w-3.5" /> {t("viewer.annotations.modeEnable")}
-                      </>
-                    )}
-                  </button>
-                  {annMode && (
-                    <>
-                      <div>
-                        <p className="group-title mb-1.5">{t("viewer.annTools.tool")}</p>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {ANN_TOOLS.filter(
-                            (tool) => tool.key === "mark" || tool.key === "text",
-                          ).map((tool) => (
-                            <button
-                              key={tool.key}
-                              className={cn(
-                                "flex flex-col items-center gap-1 rounded-md border px-2 py-2 text-[10px] font-semibold transition",
-                                annTool === tool.key
-                                  ? "border-primary bg-panel-2 text-foreground"
-                                  : "border-border bg-panel text-muted-foreground hover:text-foreground",
-                              )}
-                              onClick={() => setAnnTool(tool.key)}
-                              aria-pressed={annTool === tool.key}
-                            >
-                              <tool.icon className="h-4 w-4" />
-                              {t(tool.labelKey)}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <label className="flex items-center justify-between rounded-md border border-border bg-panel px-3 py-2">
-                        <span className="text-[11px] font-medium">
-                          {t("viewer.annotations.color")}
-                        </span>
-                        <input
-                          type="color"
-                          value={annColor}
-                          onChange={(e) => setAnnColor(e.target.value)}
-                          className="h-6 w-10 cursor-pointer rounded border border-border bg-transparent"
-                          aria-label={t("viewer.annotations.color")}
-                        />
-                      </label>
-                      <p className="text-[10px] text-muted-foreground">
-                        {t("viewer.annotations.lockedHintMobile")}
-                      </p>
-                    </>
-                  )}
-                  {!annMode && (
-                    <p className="text-center text-[10px] text-muted-foreground">
-                      {t("viewer.annotations.enableHint")}
-                    </p>
-                  )}
-                  <button className="btn-chip w-full" onClick={() => setShowLines((v) => !v)}>
-                    {showLines ? (
-                      <>
-                        <Eye className="h-3.5 w-3.5" /> {t("viewer.rail.hideReferenceLines")}
-                      </>
-                    ) : (
-                      <>
-                        <EyeOff className="h-3.5 w-3.5" /> {t("viewer.rail.showReferenceLines")}
-                      </>
-                    )}
-                  </button>
-                  <div>
-                    <p className="group-title mb-1.5">
-                      {t("viewer.annotations.title")}{" "}
-                      {annotations.length ? `· ${annotations.length}` : ""}
-                    </p>
-                    {!annotations.length ? (
-                      <p className="text-[11px] text-muted-foreground">
-                        {t("viewer.annotations.empty")}
-                      </p>
-                    ) : (
-                      <div className="max-h-48 space-y-1 overflow-y-auto pr-0.5">
-                        {sortedAnnotations.map((a) => (
-                          <button
-                            key={a.id}
-                            onClick={() => selectAnnotation(a)}
-                            className={cn(
-                              "flex w-full items-center gap-1.5 rounded-md border px-2 py-2 text-left text-[11px]",
-                              annActive === a.id
-                                ? "border-primary bg-panel-2"
-                                : "border-border bg-panel-2/60 hover:border-primary",
-                              a.hidden && "opacity-50",
-                            )}
-                          >
-                            <i
-                              className="h-2 w-2 shrink-0 rounded-full"
-                              style={{ background: a.color }}
-                            />
-                            <span className="min-w-0 flex-1 truncate">
-                              {a.kind === "measure"
-                                ? a.measure
-                                  ? `${a.measure.lengthMm.toFixed(1)} mm`
-                                  : t("viewer.annotations.measure")
-                                : a.kind === "text"
-                                  ? a.text || a.label || t("viewer.annotations.text")
-                                  : a.kind === "arrow"
-                                    ? t("viewer.annTools.arrow")
-                                    : a.kind === "draw"
-                                      ? t("viewer.annTools.draw")
-                                      : t("viewer.annTools.mark")}
-                            </span>
-                            <span className="data-mono shrink-0 text-[9px] uppercase text-muted-foreground">
-                              {a.plane.slice(0, 3)}
-                            </span>
-                            <span
-                              className="shrink-0 p-1 text-muted-foreground hover:text-foreground"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleAnnotationVisibility(a.id);
-                              }}
-                              role="button"
-                              tabIndex={0}
-                              aria-label={
-                                a.hidden
-                                  ? t("viewer.annotations.show")
-                                  : t("viewer.annotations.hide")
-                              }
-                            >
-                              {a.hidden ? (
-                                <EyeOff className="h-3.5 w-3.5" />
-                              ) : (
-                                <Eye className="h-3.5 w-3.5" />
-                              )}
-                            </span>
-                            {annMode && (
-                              <span
-                                className="shrink-0 p-1 text-destructive hover:opacity-70"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteAnnotation(a.id);
-                                }}
-                                role="button"
-                                tabIndex={0}
-                                aria-label={t("viewer.annotations.delete")}
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        <MobileSheets
+          isMobile={isMobile}
+          route={route}
+          activeSheet={activeSheet}
+          volume={volume}
+          status={status}
+          setActiveSheet={setActiveSheet}
+          expanded={expanded}
+          resetAllPlanes={resetAllPlanes}
+          wc={wc}
+          ww={ww}
+          setWc={setWc}
+          setWw={setWw}
+          handleResetAll={handleResetAll}
+          volumeFlip={volumeFlip}
+          toggleFlip={toggleFlip}
+          resetFlip={resetFlip}
+          threshold={threshold}
+          setThreshold={setThreshold}
+          opacity={opacity}
+          setOpacity={setOpacity}
+          showVolume={showVolume}
+          setShowVolume={setShowVolume}
+          showPlanes={showPlanes}
+          setShowPlanes={setShowPlanes}
+          meshes={meshes}
+          meshVolumes={meshVolumes}
+          cfg={cfg}
+          annMode={annMode}
+          setAnnMode={setAnnMode}
+          annTool={annTool}
+          setAnnTool={setAnnTool}
+          annColor={annColor}
+          setAnnColor={setAnnColor}
+          annotations={annotations}
+          sortedAnnotations={sortedAnnotations}
+          annActive={annActive}
+          canUpload={canUpload}
+          selectAnnotation={selectAnnotation}
+          toggleAnnotationVisibility={toggleAnnotationVisibility}
+          deleteAnnotation={deleteAnnotation}
+          patchMesh={patchMesh}
+          requestMeshDelete={requestMeshDelete}
+          centerMesh={centerMesh}
+          setMeshes={setMeshes}
+          stlInput={stlInput}
+          showLines={showLines}
+          setShowLines={setShowLines}
+        />
       </div>
       {DEBUG_OVERLAY_ENABLED && <DebugOverlay />}
 
-      <Dialog open={urlOpen} onOpenChange={setUrlOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.header.openByUrl")}</DialogTitle>
-            <DialogDescription>
-              {t("viewer.urlDialog.descBefore")} <strong>.zip</strong>{" "}
-              {t("viewer.urlDialog.descAfter")}
-            </DialogDescription>
-          </DialogHeader>
-          <form
-            className="flex flex-col gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void openByUrl(urlValue);
-            }}
-          >
-            <Input
-              ref={urlInput}
-              autoFocus
-              type="url"
-              inputMode="url"
-              value={urlValue}
-              onChange={(e) => setUrlValue(e.target.value)}
-              placeholder={t("viewer.urlDialog.placeholder")}
-              aria-label={t("viewer.urlDialog.fileUrlAria")}
-            />
-            <p className="text-[11px] text-muted-foreground">{t("viewer.urlDialog.publicHint")}</p>
-            <DialogFooter>
-              <button type="button" className="btn-ghost" onClick={() => setUrlOpen(false)}>
-                {t("viewer.common.cancel")}
-              </button>
-              <button type="submit" className="btn-primary" disabled={!urlValue.trim()}>
-                <Link2 className="h-3.5 w-3.5" />
-                {t("viewer.urlDialog.submit")}
-              </button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <OpenUrlDialog
+        open={urlOpen}
+        onOpenChange={setUrlOpen}
+        value={urlValue}
+        onValueChange={setUrlValue}
+        onSubmit={(url) => void openByUrl(url)}
+      />
 
-      <Dialog open={urlErrorOpen} onOpenChange={setUrlErrorOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.urlError.title")}</DialogTitle>
-            <DialogDescription>{t("viewer.urlError.description")}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 text-sm">
-            <ol className="list-decimal space-y-1 pl-5">
-              <li>
-                <strong>{t("viewer.urlError.publicLinkLabel")}</strong>{" "}
-                {t("viewer.urlError.publicLinkText")}
-              </li>
-              <li>
-                <strong>{t("viewer.urlError.zipLabel")}</strong> {t("viewer.urlError.zipText")}
-              </li>
-            </ol>
-            <p className="text-xs text-muted-foreground">{t("viewer.urlError.hint")}</p>
-            {urlErrorDetail && (
-              <details className="rounded border border-border bg-panel p-2">
-                <summary className="cursor-pointer text-xs font-semibold">
-                  {t("viewer.urlError.details")}
-                </summary>
-                <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap break-all text-[11px]">
-                  {urlErrorDetail}
-                </pre>
-              </details>
-            )}
-          </div>
-          <DialogFooter>
-            <button className="btn-primary" onClick={() => setUrlErrorOpen(false)}>
-              {t("viewer.urlError.understood")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UrlErrorDialog open={urlErrorOpen} onOpenChange={setUrlErrorOpen} detail={urlErrorDetail} />
 
-      <Dialog
-        open={!!segModal}
-        onOpenChange={(o) => {
-          if (!o) setSegModal(null);
+      <SegmentationProgressDialog
+        modal={segModal}
+        pct={segFakePct}
+        onClose={() => setSegModal(null)}
+      />
+
+      <SegmentationPickerDialog
+        picker={segPicker}
+        types={segTypesEnabled}
+        credits={userPanel?.credits ?? 0}
+        busy={!!segBusy}
+        getStatus={(summary, typeId) => (summary ? getSegStatus(summary, typeId) : null)}
+        onClose={() => setSegPicker(null)}
+        onChoose={(summary, typeId) => {
+          setSegPicker(null);
+          void handleSegmentScene(summary, typeId);
         }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.segmentation.modalTitle")}</DialogTitle>
-            <DialogDescription>
-              {segModal?.title
-                ? t("viewer.segmentation.modalScene", { title: segModal.title })
-                : t("viewer.segmentation.modalDesc")}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="h-2 w-full overflow-hidden rounded-full bg-panel-2">
-              <div
-                className="h-full bg-primary transition-all duration-500"
-                style={{ width: `${Math.min(100, segFakePct)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>{Math.min(100, segFakePct).toFixed(1)}%</span>
-              <span>
-                {(() => {
-                  if (!segModal) return "";
-                  const elapsed = Math.floor((Date.now() - segModal.startAt) / 1000);
-                  const remain = Math.max(0, SEG_FAKE_TOTAL_S - elapsed);
-                  const m = Math.floor(remain / 60);
-                  const s = remain % 60;
-                  return t("viewer.segmentation.modalEta", {
-                    time: `${m}:${String(s).padStart(2, "0")}`,
-                  });
-                })()}
-              </span>
-            </div>
-            <p className="text-xs text-muted-foreground">{t("viewer.segmentation.modalLeave")}</p>
-            <p className="text-xs text-muted-foreground">{t("viewer.segmentation.modalEmail")}</p>
-          </div>
-          <DialogFooter>
-            <button className="btn-ghost" onClick={() => setSegModal(null)}>
-              {t("viewer.segmentation.modalBackground")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!segPicker}
-        onOpenChange={(o) => {
-          if (!o) setSegPicker(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.segmentation.pickerTitle")}</DialogTitle>
-            <DialogDescription>{t("viewer.segmentation.pickerDesc")}</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-            {segTypesEnabled.map((segType) => {
-              const st = segPicker?.summary ? getSegStatus(segPicker.summary, segType.id) : null;
-              const done = st && st !== "FAILED";
-              const failed = st === "FAILED";
-              const running = st && st !== "COMPLETED" && st !== "FAILED";
-              const canAfford = segType.cost === 0 || (userPanel?.credits ?? 0) >= segType.cost;
-              const disabled = !!done || !!running || !!segBusy || !canAfford;
-              const costLabel =
-                segType.cost === 0
-                  ? t("viewer.segmentation.free")
-                  : t("viewer.segmentation.credits", { count: segType.cost });
-              return (
-                <div key={segType.id} className="rounded border border-border p-3 space-y-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-bold">{segType.name}</span>
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-panel-2">
-                      {costLabel}
-                    </span>
-                  </div>
-                  {segType.description && (
-                    <div
-                      className="text-[11px] leading-relaxed text-muted-foreground max-w-none break-words [&_p]:my-1 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_a]:text-primary [&_a]:underline [&_strong]:font-bold [&_em]:italic [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-xs"
-                      dangerouslySetInnerHTML={{ __html: segType.description }}
-                    />
-                  )}
-                  {st && (
-                    <p className="text-[11px] font-mono">
-                      {st === "COMPLETED" ? (
-                        <span className="text-green-500">
-                          ✓ {t("viewer.segmentation.completedWord")}
-                        </span>
-                      ) : st === "FAILED" ? (
-                        <span className="text-destructive">
-                          ✕ {t("viewer.segmentation.failedWord")}
-                        </span>
-                      ) : (
-                        <span className="text-yellow-500">⏳ {st}</span>
-                      )}
-                    </p>
-                  )}
-                  <button
-                    className="btn-primary w-full mt-2"
-                    disabled={disabled}
-                    title={
-                      !canAfford
-                        ? t("viewer.segmentation.notEnoughCredits")
-                        : done
-                          ? t("viewer.segmentation.alreadySegmentedTitle")
-                          : running
-                            ? t("viewer.segmentation.inProgress")
-                            : undefined
-                    }
-                    onClick={() => {
-                      if (!segPicker) return;
-                      const s = segPicker.summary ?? {
-                        key: segPicker.key,
-                        title: segPicker.title,
-                        fileCount: 0,
-                        bytes: 0,
-                        created: new Date().toISOString(),
-                        segmentationUsed: false,
-                        segmentationStatus: null,
-                        segmentations: {},
-                      };
-                      setSegPicker(null);
-                      void handleSegmentScene(s, segType.id);
-                    }}
-                  >
-                    {failed
-                      ? t("viewer.segmentation.retry")
-                      : done
-                        ? t("viewer.segmentation.alreadySegmented")
-                        : running
-                          ? t("viewer.segmentation.inProgress")
-                          : t("viewer.segmentation.segmentWithNameCost", {
-                              name: segType.name,
-                              cost: costLabel,
-                            })}
-                  </button>
-                  {!canAfford && (
-                    <p className="text-[10px] text-destructive">
-                      {t("viewer.segmentation.noCredits")}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          <DialogFooter>
-            <button className="btn-ghost" onClick={() => setSegPicker(null)}>
-              {t("viewer.common.close")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      />
 
       {multiSeriesGroups && multiSeriesGroups.length > 1 && (
         <MultiSeriesModal
@@ -3959,208 +2182,34 @@ export function Viewer() {
         />
       )}
 
-      <Dialog open={creditConfirmOpen} onOpenChange={setCreditConfirmOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.credit.title")}</DialogTitle>
-            <DialogDescription>
-              {t("viewer.credit.descIntro")} <strong>{t("viewer.credit.oneCredit")}</strong>.
-              <br />
-              {t("viewer.credit.balanceLabel")}{" "}
-              <strong>
-                {t("viewer.credit.balance", { count: creditConfirmData.current?.credits ?? 0 })}
-              </strong>
-              .
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <button
-              className="btn-ghost"
-              onClick={() => {
-                creditConfirmResolve.current(false);
-                setCreditConfirmOpen(false);
-              }}
-            >
-              {t("viewer.common.cancel")}
-            </button>
-            <button
-              className="btn-primary"
-              onClick={() => {
-                creditConfirmResolve.current(true);
-                setCreditConfirmOpen(false);
-              }}
-            >
-              {t("viewer.credit.confirm")}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={meshDeleteConfirmOpen} onOpenChange={setMeshDeleteConfirmOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("viewer.meshes.confirmDeleteTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("viewer.meshes.confirmDeleteMessage", {
-                name: meshDeleteConfirmData.current?.name,
-              })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button className="btn-ghost w-full sm:w-auto" onClick={cancelMeshDelete}>
-              {t("viewer.common.cancel")}
-            </button>
-            <button
-              className="btn-outline w-full sm:w-auto"
-              onClick={() => {
-                const data = meshDeleteConfirmData.current;
-                if (data) {
-                  patchMesh(data.id, { visible: false });
-                }
-                cancelMeshDelete();
-              }}
-            >
-              <Eye className="h-3.5 w-3.5 text-white" aria-hidden="true" />
-              {t("viewer.meshes.hide", { name: meshDeleteConfirmData.current?.name })}
-            </button>
-            <button className="btn-destructive w-full sm:w-auto" onClick={confirmMeshDelete}>
-              <Trash2 className="h-3.5 w-3.5 text-white" aria-hidden="true" />
-              {t("viewer.meshes.remove", { name: meshDeleteConfirmData.current?.name })}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-/** Controles de correção da orientação do volume (espelhamento por eixo). */
-function FlipControls({
-  flags,
-  onToggle,
-  onReset,
-}: {
-  flags: FlipFlags;
-  onToggle: (axis: VolumeAxis) => void;
-  onReset: () => void;
-}) {
-  const { t } = useTranslation();
-  const items: Array<{ axis: VolumeAxis; icon: LucideIcon; labelKey: string; hintKey: string }> = [
-    {
-      axis: "x",
-      icon: FlipHorizontal2,
-      labelKey: "viewer.orientation.leftRight",
-      hintKey: "viewer.orientation.leftRightHint",
-    },
-    {
-      axis: "y",
-      icon: FlipVertical2,
-      labelKey: "viewer.orientation.antPost",
-      hintKey: "viewer.orientation.antPostHint",
-    },
-    {
-      axis: "z",
-      icon: ArrowUpDown,
-      labelKey: "viewer.orientation.supInf",
-      hintKey: "viewer.orientation.supInfHint",
-    },
-  ];
-  return (
-    <>
-      <p className="text-[10px] leading-relaxed text-muted-foreground">
-        {t("viewer.orientation.hint")}
-      </p>
-      <div className="grid grid-cols-3 gap-1">
-        {items.map((item) => (
-          <button
-            key={item.axis}
-            className={cn("btn-chip", flags[item.axis] && "border-primary text-foreground")}
-            onClick={() => onToggle(item.axis)}
-            aria-pressed={flags[item.axis]}
-            title={t(item.hintKey)}
-          >
-            <item.icon className="h-3.5 w-3.5" />
-            {t(item.labelKey)}
-          </button>
-        ))}
-      </div>
-      <button className="btn-chip w-full" onClick={onReset}>
-        <RotateCcw className="h-3.5 w-3.5" />
-        {t("viewer.orientation.reset")}
-      </button>
-    </>
-  );
-}
-
-/** Grupo colapsável do painel de parâmetros. */
-function Section({
-  title,
-  defaultOpen = true,
-  right,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  right?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <section className="min-w-0 shrink-0 overflow-visible rounded-lg border border-border bg-panel">
-      <button
-        type="button"
-        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-      >
-        <span className="group-title">{title}</span>
-        <span className="flex items-center gap-1.5">
-          {right}
-          <ChevronDown
-            className={cn(
-              "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
-              open && "rotate-180",
-            )}
-          />
-        </span>
-      </button>
-      {open && (
-        <div className="min-w-0 space-y-2.5 break-words border-t border-border px-3 py-2.5">
-          {children}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function Range({
-  label,
-  min,
-  max,
-  step = 1,
-  value,
-  onChange,
-}: {
-  label: string;
-  min: number;
-  max: number;
-  step?: number;
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="block space-y-1">
-      <span className="data-mono text-[10px] text-muted-foreground">{label}</span>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full"
-        style={{ accentColor: "var(--primary)" }}
+      <CreditConfirmDialog
+        open={creditConfirmOpen}
+        credits={creditConfirmData.current?.credits ?? 0}
+        onOpenChange={setCreditConfirmOpen}
+        onCancel={() => {
+          creditConfirmResolve.current(false);
+          setCreditConfirmOpen(false);
+        }}
+        onConfirm={() => {
+          creditConfirmResolve.current(true);
+          setCreditConfirmOpen(false);
+        }}
       />
-    </label>
+
+      <MeshDeleteDialog
+        open={meshDeleteConfirmOpen}
+        meshName={meshDeleteConfirmData.current?.name}
+        onOpenChange={setMeshDeleteConfirmOpen}
+        onCancel={cancelMeshDelete}
+        onHide={() => {
+          const data = meshDeleteConfirmData.current;
+          if (data) {
+            patchMesh(data.id, { visible: false });
+          }
+          cancelMeshDelete();
+        }}
+        onDelete={confirmMeshDelete}
+      />
+    </div>
   );
 }

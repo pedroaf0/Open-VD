@@ -17,7 +17,7 @@ export async function run(page, config) {
   await expect(pluginRow).toBeVisible({ timeout: 5000 });
 
   const activateLink = pluginRow.locator('a[href*="action=activate"]');
-  if (await activateLink.count() > 0) {
+  if ((await activateLink.count()) > 0) {
     console.log("  ⚠ Plugin v-dicom encontrado mas inativo — ativando...");
     await activateLink.click();
     await page.waitForSelector(".updated, .notice-success", { timeout: 5000 });

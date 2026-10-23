@@ -106,6 +106,7 @@ const PRECISE_MIN_FRAME_MS = 110;
 const RECORDING_FPS = 30;
 const RECORDING_BITRATE = 8_000_000;
 const RECORDING_CHUNK_MS = 250;
+const RECORDING_FRAME_MS = 1000 / RECORDING_FPS;
 
 const RENDER_MODE_META: Array<{
   id: RenderMode;
@@ -271,6 +272,7 @@ export function Volume3D({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
+  const recordingActiveRef = useRef(false);
   const recordingStartedAtRef = useRef(0);
   const recordingTimerRef = useRef<number | null>(null);
   const videoUrlRef = useRef<string | null>(null);
@@ -403,6 +405,7 @@ export function Volume3D({
       };
       recorder.onerror = () => {
         recorder.onstop = null;
+        recordingActiveRef.current = false;
         clearRecordingTimer();
         stream?.getTracks().forEach((track) => track.stop());
         recorderRef.current = null;
@@ -412,6 +415,7 @@ export function Volume3D({
         setCaptureError(t("viewer.recording.failed"));
       };
       recorder.onstop = () => {
+        recordingActiveRef.current = false;
         clearRecordingTimer();
         stream?.getTracks().forEach((track) => track.stop());
         const recordedMime = recorder.mimeType || selectedMime || "video/webm";
@@ -428,6 +432,8 @@ export function Volume3D({
         openVideoPreview(blob, recordedMime);
       };
 
+      recordingActiveRef.current = true;
+      invalidateRef.current();
       recorder.start(RECORDING_CHUNK_MS);
       recordingStartedAtRef.current = performance.now();
       setRecordedSeconds(0);
@@ -439,6 +445,7 @@ export function Volume3D({
       }, 250);
     } catch (error) {
       console.warn("Falha ao iniciar a gravação da cena 3D:", error);
+      recordingActiveRef.current = false;
       stream?.getTracks().forEach((track) => track.stop());
       recorderRef.current = null;
       recordingStreamRef.current = null;
@@ -456,6 +463,7 @@ export function Volume3D({
       recorder.stop();
     } catch (error) {
       console.warn("Falha ao encerrar a gravação da cena 3D:", error);
+      recordingActiveRef.current = false;
       clearRecordingTimer();
       recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
       recorderRef.current = null;
@@ -468,6 +476,7 @@ export function Volume3D({
 
   useEffect(() => {
     return () => {
+      recordingActiveRef.current = false;
       clearRecordingTimer();
       const recorder = recorderRef.current;
       if (recorder) {
@@ -568,6 +577,7 @@ export function Volume3D({
     let configuredMode: RenderMode | null = null;
     let dirty = true;
     let lastPreciseRender = Number.NEGATIVE_INFINITY;
+    let lastRecordingRender = Number.NEGATIVE_INFINITY;
 
     const collectMeshes = (): THREE.Mesh[] => {
       const result: THREE.Mesh[] = [];
@@ -793,12 +803,20 @@ export function Volume3D({
       raf = requestAnimationFrame(loop);
       controls.update();
       const preciseHeavy = modeRef.current === "precise" && hasVisibleMeshes();
-      if (preciseHeavy) {
+      if (preciseHeavy && !recordingActiveRef.current) {
         // Modo preciso: prioriza imagens estáticas. Só redesenha quando algo
         // muda, com um limite modesto de atualizações por segundo.
         if (dirty && now - lastPreciseRender >= PRECISE_MIN_FRAME_MS) {
           dirty = false;
           lastPreciseRender = now;
+          renderFrame();
+        }
+      } else if (preciseHeavy) {
+        // Durante a gravação o canvas precisa receber frames contínuos,
+        // mesmo no modo preciso, senão o vídeo fica congelado/vazio.
+        if (now - lastRecordingRender >= RECORDING_FRAME_MS) {
+          lastRecordingRender = now;
+          dirty = false;
           renderFrame();
         }
       } else {

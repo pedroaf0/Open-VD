@@ -20,7 +20,9 @@ export async function run(page, config) {
 
   const sceneKey = readSceneKey();
   if (!sceneKey) {
-    throw new Error("Nenhuma chave de cena compartilhada disponível — teste share-scene deve rodar antes");
+    throw new Error(
+      "Nenhuma chave de cena compartilhada disponível — teste share-scene deve rodar antes",
+    );
   }
   console.log(`  📝 Usando cena: ${sceneKey}`);
 

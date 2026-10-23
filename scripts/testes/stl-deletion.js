@@ -8,12 +8,7 @@
  * - Orphaned file cleanup runs on the server
  */
 import { expect } from "@playwright/test";
-import {
-  ensurePanelOpen,
-  openSection,
-  readSceneKey,
-  waitForViewerReady,
-} from "./test-helpers.mjs";
+import { ensurePanelOpen, openSection, readSceneKey, waitForViewerReady } from "./test-helpers.mjs";
 
 export const name = "stl-deletion";
 export const description = "Testes de exclusão de modelos STL com persistência na cena";
@@ -42,7 +37,7 @@ export async function run(page, config) {
   const meshNameButtons = modelsSection.locator(
     'button[title$=".stl"]:not([aria-label]), ' +
       'button[title$=".ply"]:not([aria-label]), ' +
-      'button[title$=".obj"]:not([aria-label])'
+      'button[title$=".obj"]:not([aria-label])',
   );
 
   const meshCount = await meshNameButtons.count();
@@ -56,7 +51,9 @@ export async function run(page, config) {
   // Find the delete button for the first mesh
   // It's an icon button with aria-label containing "Remover" or "Remove" or "Eliminar"
   const deleteButton = modelsSection
-    .locator('button[aria-label*="Remover"], button[aria-label*="Remove"], button[aria-label*="Eliminar"]')
+    .locator(
+      'button[aria-label*="Remover"], button[aria-label*="Remove"], button[aria-label*="Eliminar"]',
+    )
     .first();
 
   await expect(deleteButton).toBeAttached({ timeout: 10000 });
@@ -68,7 +65,10 @@ export async function run(page, config) {
   console.log("\n  === TESTE 1: Diálogo de confirmação abre ao clicar excluir ===");
   await deleteButton.click();
 
-  const dialog = page.locator('[role="dialog"]').filter({ hasText: /Excluir.*STL|Delete.*STL|Eliminar.*STL/i }).first();
+  const dialog = page
+    .locator('[role="dialog"]')
+    .filter({ hasText: /Excluir.*STL|Delete.*STL|Eliminar.*STL/i })
+    .first();
   await expect(dialog).toBeVisible({ timeout: 5000 });
   console.log("  ✓ Diálogo de confirmação visível");
 
@@ -86,14 +86,18 @@ export async function run(page, config) {
   // ============================================================
   console.log("\n  === TESTE 2: Cancelar mantém o modelo ===");
   // Cancel button uses t("viewer.common.cancel") -> "Cancelar" (pt), "Cancel" (en), "Cancelar" (es)
-  const cancelBtn = dialog.locator("button:has-text('Cancelar'), button:has-text('Cancel')").first();
+  const cancelBtn = dialog
+    .locator("button:has-text('Cancelar'), button:has-text('Cancel')")
+    .first();
   await cancelBtn.click();
 
   await expect(dialog).not.toBeVisible({ timeout: 5000 });
   console.log("  ✓ Diálogo fechado ao cancelar");
 
   // Verify the model is still in the list
-  await expect(modelsSection.locator(`button[title="${firstMeshName}"]`)).toBeVisible({ timeout: 5000 });
+  await expect(modelsSection.locator(`button[title="${firstMeshName}"]`)).toBeVisible({
+    timeout: 5000,
+  });
   console.log(`  ✓ Modelo "${firstMeshName}" permanece na lista após cancelar`);
 
   // ============================================================
@@ -107,7 +111,12 @@ export async function run(page, config) {
   // which renders as "Remover {{name}}" (pt), "Remove {{name}}" (en), "Eliminar {{name}}" (es)
   const confirmBtn = dialog
     .locator("button")
-    .filter({ hasText: new RegExp(`(Remover|Remove|Eliminar).*${firstMeshName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i") })
+    .filter({
+      hasText: new RegExp(
+        `(Remover|Remove|Eliminar).*${firstMeshName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i",
+      ),
+    })
     .first();
   await expect(confirmBtn).toBeVisible({ timeout: 5000 });
   await confirmBtn.click();
@@ -116,7 +125,9 @@ export async function run(page, config) {
   console.log("  ✓ Diálogo fechado ao confirmar exclusão");
 
   // Verify the model is removed from the list
-  await expect(modelsSection.locator(`button[title="${firstMeshName}"]`)).not.toBeVisible({ timeout: 10000 });
+  await expect(modelsSection.locator(`button[title="${firstMeshName}"]`)).not.toBeVisible({
+    timeout: 10000,
+  });
   console.log(`  ✓ Modelo "${firstMeshName}" removido da lista`);
 
   // Verify mesh count decreased
@@ -151,7 +162,9 @@ export async function run(page, config) {
     const modelsSectionAfterRefresh = await openSection(page, "Modelos");
 
     // The deleted mesh should NOT be in the list
-    await expect(modelsSectionAfterRefresh.locator(`button[title="${firstMeshName}"]`)).not.toBeVisible({ timeout: 10000 });
+    await expect(
+      modelsSectionAfterRefresh.locator(`button[title="${firstMeshName}"]`),
+    ).not.toBeVisible({ timeout: 10000 });
     console.log(`  ✓ Modelo "${firstMeshName}" NÃO reapareceu após refresh`);
 
     // Verify the remaining meshes are still there
@@ -159,7 +172,7 @@ export async function run(page, config) {
       .locator(
         'button[title$=".stl"]:not([aria-label]), ' +
           'button[title$=".ply"]:not([aria-label]), ' +
-          'button[title$=".obj"]:not([aria-label])'
+          'button[title$=".obj"]:not([aria-label])',
       )
       .count();
     expect(meshCountAfterRefresh).toBe(meshCountAfter);
@@ -170,9 +183,7 @@ export async function run(page, config) {
   // TEST 5: Verify server-side cleanup via REST API
   // ============================================================
   console.log("\n  === TESTE 5: Verificação via API - arquivo órfão removido do servidor ===");
-  const payloadResponse = await page.request.get(
-    `${WP_URL}/wp-json/v-dicom/v1/scenes/${sceneKey}`
-  );
+  const payloadResponse = await page.request.get(`${WP_URL}/wp-json/v-dicom/v1/scenes/${sceneKey}`);
   expect(payloadResponse.status()).toBe(200);
   const payload = await payloadResponse.json();
 

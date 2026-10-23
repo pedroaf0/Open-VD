@@ -65,8 +65,8 @@ const EN = {
   Buscar: "Search",
   "Buscar por nome, usuário ou e-mail…": "Search by name, username or e-mail…",
   "Buscar por título, chave ou dono…": "Search by title, key or owner…",
-  "Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque \"Ativo\" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.":
-    "Each type represents a serverless cloud service. The run URL receives the payload, the status URL is polled while processing and the callback reports completion. Uncheck \"Active\" to disable a type without deleting it. The same scene can use several types.",
+  'Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque "Ativo" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.':
+    'Each type represents a serverless cloud service. The run URL receives the payload, the status URL is polled while processing and the callback reports completion. Uncheck "Active" to disable a type without deleting it. The same scene can use several types.',
   "Campo status ausente.": "Missing status field.",
   "Carregamento de DICOM": "DICOM loading",
   "Cena DICOM": "DICOM Scene",
@@ -290,8 +290,7 @@ const EN = {
   "Payload enviado:": "Payload sent:",
   Placeholder: "Placeholder",
   "Placeholders disponíveis": "Available placeholders",
-  "Se ficar vazia, o plugin usa {{url}}/run.":
-    "If empty, the plugin uses {{url}}/run.",
+  "Se ficar vazia, o plugin usa {{url}}/run.": "If empty, the plugin uses {{url}}/run.",
   "Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}.":
     "If empty, the plugin uses {{url}}/status/{{job_id}}.",
   "Timestamp Unix do envio.": "Unix timestamp of the request.",
@@ -347,8 +346,8 @@ const ES = {
   Buscar: "Buscar",
   "Buscar por nome, usuário ou e-mail…": "Buscar por nombre, usuario o correo…",
   "Buscar por título, chave ou dono…": "Buscar por título, clave o propietario…",
-  "Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque \"Ativo\" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.":
-    "Cada tipo representa un servicio de nube serverless. La URL de ejecución recibe el payload, la URL de estado se consulta durante el procesamiento y el callback informa la finalización. Desmarca \"Activo\" para deshabilitar un tipo sin eliminarlo. La misma escena puede usar varios tipos.",
+  'Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque "Ativo" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.':
+    'Cada tipo representa un servicio de nube serverless. La URL de ejecución recibe el payload, la URL de estado se consulta durante el procesamiento y el callback informa la finalización. Desmarca "Activo" para deshabilitar un tipo sin eliminarlo. La misma escena puede usar varios tipos.',
   "Campo status ausente.": "Falta el campo status.",
   "Carregamento de DICOM": "Carga de DICOM",
   "Cena DICOM": "Escena DICOM",
@@ -484,7 +483,8 @@ const ES = {
   "Requisição não autorizada.": "Solicitud no autorizada.",
   "Resposta do serviço:": "Respuesta del servicio:",
   "Resposta inválida do OneDrive.": "Respuesta no válida de OneDrive.",
-  "Resposta inválida do serviço de segmentação.": "Respuesta no válida del servicio de segmentación.",
+  "Resposta inválida do serviço de segmentação.":
+    "Respuesta no válida del servicio de segmentación.",
   "Salvar API key": "Guardar API key",
   "Salvar autorização de URL": "Guardar autorización de URL",
   "Salvar carregamento de DICOM": "Guardar carga de DICOM",
@@ -576,8 +576,7 @@ const ES = {
   "Payload enviado:": "Payload enviado:",
   Placeholder: "Placeholder",
   "Placeholders disponíveis": "Placeholders disponibles",
-  "Se ficar vazia, o plugin usa {{url}}/run.":
-    "Si queda vacía, el plugin usa {{url}}/run.",
+  "Se ficar vazia, o plugin usa {{url}}/run.": "Si queda vacía, el plugin usa {{url}}/run.",
   "Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}.":
     "Si queda vacía, el plugin usa {{url}}/status/{{job_id}}.",
   "Timestamp Unix do envio.": "Timestamp Unix del envío.",

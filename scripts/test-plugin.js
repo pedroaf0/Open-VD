@@ -82,8 +82,9 @@ const CONFIG = {
 };
 
 async function loadTestModules() {
-  const files = fs.readdirSync(TESTS_DIR)
-    .filter(f => f.endsWith(".js"))
+  const files = fs
+    .readdirSync(TESTS_DIR)
+    .filter((f) => f.endsWith(".js"))
     .sort(); // alphabetical order for predictable execution
 
   const modules = [];
@@ -108,10 +109,18 @@ async function loadTestModules() {
 async function run() {
   console.log("\n=== Iniciando suite de testes do plugin v-dicom ===\n");
   console.log("Configuração:");
-  console.log(`  Screenshots: ${CONFIG.ENABLE_SCREENSHOTS ? "HABILITADO (--screenshots)" : "DESABILITADO (padrão)"}`);
-  console.log(`  Vídeo:       ${CONFIG.ENABLE_VIDEO ? "HABILITADO (--video)" : "DESABILITADO (padrão)"}`);
-  console.log(`  Logs:        ${CONFIG.ENABLE_LOGS ? "HABILITADO (--logs)" : "DESABILITADO (padrão)"}`);
-  console.log(`  Vídeo 3D:    ${CONFIG.SAVE_RECORDING ? "SALVO NA RAIZ (--save-recording)" : "DESCARTADO (padrão)"}`);
+  console.log(
+    `  Screenshots: ${CONFIG.ENABLE_SCREENSHOTS ? "HABILITADO (--screenshots)" : "DESABILITADO (padrão)"}`,
+  );
+  console.log(
+    `  Vídeo:       ${CONFIG.ENABLE_VIDEO ? "HABILITADO (--video)" : "DESABILITADO (padrão)"}`,
+  );
+  console.log(
+    `  Logs:        ${CONFIG.ENABLE_LOGS ? "HABILITADO (--logs)" : "DESABILITADO (padrão)"}`,
+  );
+  console.log(
+    `  Vídeo 3D:    ${CONFIG.SAVE_RECORDING ? "SALVO NA RAIZ (--save-recording)" : "DESCARTADO (padrão)"}`,
+  );
   console.log("");
 
   const allModules = await loadTestModules();
@@ -130,41 +139,51 @@ async function run() {
   }
 
   console.log(`Módulos carregados (ordem de execução):`);
-  testModules.forEach((m, i) => console.log(`  ${i+1}. ${m.name} (order: ${m.order}) — ${m.description}`));
+  testModules.forEach((m, i) =>
+    console.log(`  ${i + 1}. ${m.name} (order: ${m.order}) — ${m.description}`),
+  );
   console.log("");
 
-  const browser = await chromium.launch({ headless: CONFIG.HEADLESS, slowMo: CONFIG.HEADLESS ? 0 : 200 });
+  const browser = await chromium.launch({
+    headless: CONFIG.HEADLESS,
+    slowMo: CONFIG.HEADLESS ? 0 : 200,
+  });
 
   // Setup video recording if enabled - use single context for tests
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
-    ...(CONFIG.ENABLE_VIDEO && { recordVideo: { dir: path.join(root, "test-results", "videos"), size: { width: 1920, height: 1080 } } }),
+    ...(CONFIG.ENABLE_VIDEO && {
+      recordVideo: {
+        dir: path.join(root, "test-results", "videos"),
+        size: { width: 1920, height: 1080 },
+      },
+    }),
   });
   const page = await context.newPage();
 
   // Log collection if enabled
   const collectedLogs = [];
   if (CONFIG.ENABLE_LOGS) {
-    page.on("console", msg => {
+    page.on("console", (msg) => {
       const entry = `[${msg.type().toUpperCase()}] ${msg.text()}`;
       collectedLogs.push(entry);
       if (msg.type() === "error") {
         console.log(`  [CONSOLE ERROR] ${msg.text()}`);
       }
     });
-    page.on("pageerror", err => {
+    page.on("pageerror", (err) => {
       const entry = `[PAGE ERROR] ${err.message}`;
       collectedLogs.push(entry);
       console.log(`  [PAGE ERROR] ${err.message}`);
     });
   } else {
     // Default: only show errors in console
-    page.on("console", msg => {
+    page.on("console", (msg) => {
       if (msg.type() === "error") {
         console.log(`  [CONSOLE ERROR] ${msg.text()}`);
       }
     });
-    page.on("pageerror", err => {
+    page.on("pageerror", (err) => {
       console.log(`  [PAGE ERROR] ${err.message}`);
     });
   }
@@ -187,7 +206,9 @@ async function run() {
       if (CONFIG.ENABLE_SCREENSHOTS) {
         const screenshotDir = path.join(root, "test-results");
         fs.mkdirSync(screenshotDir, { recursive: true });
-        await page.screenshot({ path: path.join(screenshotDir, `failed-${mod.name}.png`), fullPage: true }).catch(() => {});
+        await page
+          .screenshot({ path: path.join(screenshotDir, `failed-${mod.name}.png`), fullPage: true })
+          .catch(() => {});
       }
       failed++;
     }

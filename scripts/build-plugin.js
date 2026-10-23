@@ -194,7 +194,9 @@ try {
   console.log("  OK: todas as chamadas gettext com placeholders tem comentario translators:");
 
   step("5/5 Empacotando v-dicom.zip");
-  const version = fs.readFileSync(pluginMain, "utf-8").match(/V_DICOM_VERSION',\s*'(\d+\.\d+\.\d+)'/)[1];
+  const version = fs
+    .readFileSync(pluginMain, "utf-8")
+    .match(/V_DICOM_VERSION',\s*'(\d+\.\d+\.\d+)'/)[1];
   const outZip = path.join(root, `v-dicom-${version}.zip`);
 
   const { zipSync } = await import("fflate");

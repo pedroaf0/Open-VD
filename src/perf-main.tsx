@@ -124,6 +124,7 @@ async function step(canvas: HTMLCanvasElement, deltaY: number): Promise<number> 
   return lastPut - t0;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- harness local de performance
 function App() {
   const [states, setStates] = useState<Record<Plane, PlaneState>>(() => defaultPlaneStates(volume));
   const [wc, setWc] = useState(volume.windowCenter);

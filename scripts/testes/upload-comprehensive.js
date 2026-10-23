@@ -74,7 +74,9 @@ export async function run(page, config) {
   for (const file of testFiles) {
     fs.copyFileSync(file, path.join(dicomSelectionDir, path.basename(file)));
   }
-  console.log(`  📤 Selecionando pasta DICOM (${testFiles.length} de ${allDcmFiles.length} arquivos .dcm)...`);
+  console.log(
+    `  📤 Selecionando pasta DICOM (${testFiles.length} de ${allDcmFiles.length} arquivos .dcm)...`,
+  );
 
   await dicomFolderInput.setInputFiles(dicomSelectionDir);
   console.log("  ⏳ Aguardando processamento DICOM (MPR + 3D)...");
@@ -152,9 +154,7 @@ export async function run(page, config) {
   console.log(`  💾 Chave ${sceneKey} salva em test-scene-key.json`);
 
   // Prove the server really persisted the files (including the STLs).
-  const payloadResponse = await page.request.get(
-    `${WP_URL}/wp-json/v-dicom/v1/scenes/${sceneKey}`,
-  );
+  const payloadResponse = await page.request.get(`${WP_URL}/wp-json/v-dicom/v1/scenes/${sceneKey}`);
   expect(payloadResponse.status()).toBe(200);
   const payload = await payloadResponse.json();
   const fileNames = (payload.files ?? []).map((f) => f.name ?? "");

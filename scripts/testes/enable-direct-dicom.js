@@ -6,7 +6,8 @@ import { expect } from "@playwright/test";
 import { ensureLoggedIn } from "./test-helpers.mjs";
 
 export const name = "enable-direct-dicom";
-export const description = "Habilita directDicomEnabled, publicLoadingEnabled e define limite de armazenamento";
+export const description =
+  "Habilita directDicomEnabled, publicLoadingEnabled e define limite de armazenamento";
 export const order = 30;
 
 export async function run(page, config) {

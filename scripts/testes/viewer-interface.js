@@ -162,9 +162,7 @@ export async function run(page, config) {
     .filter({ hasText: "Modelos" })
     .first();
   if ((await modelsTitle.count()) === 0) {
-    console.log(
-      "  🧱 Nenhum modelo restante — seção 'Modelos' ausente (esperado após exclusão)",
-    );
+    console.log("  🧱 Nenhum modelo restante — seção 'Modelos' ausente (esperado após exclusão)");
   } else {
     await expect(modelsTitle).toBeVisible({ timeout: 10000 });
     const modelsSection = await openSection(page, "Modelos");

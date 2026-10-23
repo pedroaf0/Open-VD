@@ -131,9 +131,7 @@ export async function ensureAnnotationMode(page) {
 /** Get a valid `wp_rest` nonce for the authenticated browser context. */
 export async function getRestNonce(page, WP_URL) {
   // Core exposes a `rest-nonce` action through admin-ajax for logged-in users.
-  const response = await page.request.get(
-    `${WP_URL}/wp-admin/admin-ajax.php?action=rest-nonce`,
-  );
+  const response = await page.request.get(`${WP_URL}/wp-admin/admin-ajax.php?action=rest-nonce`);
   if (response.ok()) {
     const text = (await response.text()).trim();
     if (/^[a-f0-9]{8,12}$/i.test(text)) return text;

@@ -3,12 +3,7 @@
  * Re-saves an existing scene and verifies the generated public link.
  */
 import { expect } from "@playwright/test";
-import {
-  readSceneKey,
-  restSceneUrl,
-  waitForViewerReady,
-  writeSceneKey,
-} from "./test-helpers.mjs";
+import { readSceneKey, restSceneUrl, waitForViewerReady, writeSceneKey } from "./test-helpers.mjs";
 
 export const name = "share-scene";
 export const description = "Compartilhamento de cena existente (usa chave do upload)";
@@ -19,7 +14,9 @@ export async function run(page, config) {
 
   const sceneKey = readSceneKey();
   if (!sceneKey) {
-    throw new Error("Nenhuma chave de cena disponível — teste upload-comprehensive deve rodar antes");
+    throw new Error(
+      "Nenhuma chave de cena disponível — teste upload-comprehensive deve rodar antes",
+    );
   }
   console.log(`  📝 Usando cena existente: ${sceneKey}`);
 

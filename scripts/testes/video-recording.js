@@ -14,7 +14,7 @@ import { expect } from "@playwright/test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readSceneKey, waitForViewerReady } from "./test-helpers.mjs";
+import { ensureLoggedIn, readSceneKey, waitForViewerReady } from "./test-helpers.mjs";
 
 export const name = "video-recording";
 export const description = "Gravação do viewport 3D: botão, indicador, prévia e download";
@@ -22,6 +22,35 @@ export const order = 85;
 
 const VIEWPORT_3D = '.viewport-frame:has(.plane-label:text-is("3D / STL"))';
 const STOP_LABEL = /Parar gravação|Stop Recording|Detener grabación/;
+const DEFAULT_PATTERN = "openvd-3d-recording-{timestamp}";
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Converte o padrão configurado no admin no nome de arquivo esperado. */
+function recordingNamePatternToRegExp(pattern) {
+  const template =
+    (pattern || DEFAULT_PATTERN).replace(/\.(?:mp4|webm)\s*$/i, "").trim() || DEFAULT_PATTERN;
+  const hasTimestamp = /\{timestamp\}/i.test(template);
+  const hasDate = /\{data\}/i.test(template);
+  const hasTime = /\{hora\}/i.test(template);
+  let source = template
+    .split(/(\{timestamp\}|\{data\}|\{hora\})/i)
+    .map((part) => {
+      if (/^\{timestamp\}$/i.test(part)) return "\\d{8}-\\d{6}";
+      if (/^\{data\}$/i.test(part)) return "\\d{8}";
+      if (/^\{hora\}$/i.test(part)) return "\\d{6}";
+      return escapeRegExp(part);
+    })
+    .join("");
+  if (!hasTimestamp) {
+    if (!hasDate && !hasTime) source += "-\\d{8}-\\d{6}";
+    else if (!hasTime) source += "-\\d{6}";
+    else if (!hasDate) source += "-\\d{8}";
+  }
+  return new RegExp(`^${source}\\.(webm|mp4)$`);
+}
 
 function screenshotDir() {
   const dir = path.join(process.cwd(), "test-results", "final");
@@ -59,6 +88,19 @@ export async function run(page, config) {
     throw new Error("Nenhuma cena disponível — testes de upload/share devem rodar antes");
   }
   console.log(`  📝 Usando cena: ${sceneKey}`);
+
+  // O módulo recording-name-pattern define este global na suíte completa.
+  // Quando este teste roda isolado, lê o padrão efetivamente salvo no admin.
+  let configuredPattern = globalThis.__TEST_RECORDING_NAME_PATTERN__;
+  if (!configuredPattern) {
+    await ensureLoggedIn(page, config);
+    await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom`);
+    await page.waitForLoadState("networkidle");
+    const patternInput = page.locator("#v-dicom-recording-name-pattern");
+    await expect(patternInput).toBeVisible({ timeout: 10000 });
+    configuredPattern = (await patternInput.inputValue()).trim() || DEFAULT_PATTERN;
+    console.log(`  🏷 Padrão configurado no admin: ${configuredPattern}`);
+  }
 
   await page.goto(`${WP_URL}/v-dicom/${sceneKey}/`);
   await waitForViewerReady(page, 4, 240000);
@@ -176,15 +218,7 @@ export async function run(page, config) {
 
   // The name must follow the pattern configured in WP Admin by
   // recording-name-pattern (defaults to openvd-3d-recording-{timestamp}).
-  const configuredPattern =
-    globalThis.__TEST_RECORDING_NAME_PATTERN__ || "openvd-3d-recording-{timestamp}";
-  const patternParts = configuredPattern.split(/\{timestamp\}/i);
-  const escapedParts = patternParts.map((part) =>
-    part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-  );
-  const expectedName = new RegExp(
-    `^${escapedParts.join("\\d{8}-\\d{6}")}\\.(webm|mp4)$`,
-  );
+  const expectedName = recordingNamePatternToRegExp(configuredPattern);
   expect(fileName).toMatch(expectedName);
   console.log(`  🏷 Nome seguiu o padrão do admin: ${configuredPattern}`);
 
