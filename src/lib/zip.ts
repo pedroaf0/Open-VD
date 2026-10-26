@@ -23,13 +23,9 @@
  */
 import { inflateSync, unzipSync, Inflate } from "fflate";
 import type { Unzipped } from "fflate";
-import {
-  configure,
-  ZipReader,
-  Uint8ArrayReader,
-  Uint8ArrayWriter,
-} from "@zip.js/zip.js/lib/zip-core-custom.js";
 import i18n from "@/i18n";
+
+type ZipJsModule = typeof import("@zip.js/zip.js/lib/zip-core-custom.js");
 
 const SIG_LFH = 0x04034b50;
 const SIG_DD = 0x08074b50;
@@ -376,7 +372,7 @@ function isJunkEntry(name: string): boolean {
  * WASM file is ever fetched by the bundler.
  */
 
-let zipJsReady = false;
+let zipJsReady: Promise<ZipJsModule> | null = null;
 
 /** A `deflate-raw` decompression stream backed by fflate's pure-JS Inflate. */
 class FflateInflateStream extends TransformStream {
@@ -399,19 +395,31 @@ class FflateInflateStream extends TransformStream {
   }
 }
 
-function ensureZipJs(): void {
-  if (zipJsReady) return;
-  zipJsReady = true;
-  try {
-    configure({
-      useWebWorkers: false,
-      useCompressionStream: false,
-      DecompressionStreamFallback: FflateInflateStream,
+/**
+ * Loads the zip.js fallback only when a broken archive actually needs it.
+ * Keeping this import dynamic removes the library from the initial bundle.
+ */
+function loadZipJs(): Promise<ZipJsModule> {
+  if (!zipJsReady) {
+    zipJsReady = (async () => {
+      const mod = await import("@zip.js/zip.js/lib/zip-core-custom.js");
+      try {
+        mod.configure({
+          useWebWorkers: false,
+          useCompressionStream: false,
+          DecompressionStreamFallback: FflateInflateStream,
+        });
+        console.info(`[zip-debug] zip.js configurado (main thread, sem worker/wasm).`);
+      } catch (e) {
+        console.warn("[zip-debug] zip.js não pôde ser configurado:", e);
+      }
+      return mod;
+    })().catch((e) => {
+      zipJsReady = null;
+      throw e;
     });
-    console.info(`[zip-debug] zip.js configurado (main thread, sem worker/wasm).`);
-  } catch (e) {
-    console.warn("[zip-debug] zip.js não pôde ser configurado:", e);
   }
+  return zipJsReady;
 }
 
 /**
@@ -426,8 +434,8 @@ async function expandViaZipJs(
   label = "ZIP",
   forceJs = false,
 ): Promise<boolean> {
-  ensureZipJs();
   try {
+    const { ZipReader, Uint8ArrayReader, Uint8ArrayWriter } = await loadZipJs();
     const reader = new ZipReader(new Uint8ArrayReader(buf), {
       checkCrc32: true,
     });

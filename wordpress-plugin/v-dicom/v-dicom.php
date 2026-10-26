@@ -3,7 +3,7 @@
  * Plugin Name:       v-dicom
  * Plugin URI:        https://v-dicom.online-web.app.br/
  * Description:       Visualizador DICOM/CBCT no navegador (cortes axial, coronal, sagital, reconstrução 3D e modelos STL/PLY) com upload de estudos e compartilhamento por link. Inclui reorientação multiplanar (MPR oblíquo) para alinhar os cortes ao longo eixo do dente.
- * Version:           1.107.0
+ * Version:           1.109.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            v-dicom
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'V_DICOM_VERSION', '1.107.0' );
+define( 'V_DICOM_VERSION', '1.109.0' );
 define( 'V_DICOM_FILE', __FILE__ );
 define( 'V_DICOM_DIR', plugin_dir_path( __FILE__ ) );
 define( 'V_DICOM_URL', plugin_dir_url( __FILE__ ) );
@@ -27,6 +27,11 @@ require_once V_DICOM_DIR . 'includes/class-v-dicom-theme.php';
 require_once V_DICOM_DIR . 'includes/class-v-dicom-rest.php';
 require_once V_DICOM_DIR . 'includes/class-v-dicom-page.php';
 require_once V_DICOM_DIR . 'includes/class-v-dicom-admin.php';
+require_once V_DICOM_DIR . 'includes/class-v-dicom-admin-scenes.php';
+require_once V_DICOM_DIR . 'includes/class-v-dicom-admin-users.php';
+require_once V_DICOM_DIR . 'includes/class-v-dicom-admin-settings.php';
+require_once V_DICOM_DIR . 'includes/class-v-dicom-admin-segmentation.php';
+require_once V_DICOM_DIR . 'includes/class-v-dicom-admin-mesh-colors.php';
 
 /**
  * Register the scene post type. Scenes are private containers: the viewer

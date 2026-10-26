@@ -38,7 +38,7 @@ Dois modos de execução:
 | Modo | Entrada | Build |
 | --- | --- | --- |
 | App standalone (SSR) | `src/routes/index.tsx` → `Viewer` | `vite.config.ts` + TanStack Start/Nitro |
-| Embutido no WordPress | `src/embed.tsx` → `#v-dicom-root` | `vite.embed.config.ts` (IIFE única) |
+| Embutido no WordPress | `src/embed.tsx` → `#v-dicom-root` | `vite.embed.config.ts` (ESM + chunks lazy) |
 
 - Licença: **GPL-2.0-or-later**
 - Idioma-fonte da UI: **pt-BR**; também `en` e `es`
@@ -55,7 +55,8 @@ Dois modos de execução:
    reformate mudanças alheias para “limpar” o worktree.
 2. **Não edite arquivos gerados à mão:** `src/routeTree.gen.ts` (regenere via
    TanStack Router e versione se as rotas mudarem), os bundles
-   `wordpress-plugin/v-dicom/assets/v-dicom.js|css`, os ícones gerados e `*.zip`.
+   `wordpress-plugin/v-dicom/assets/v-dicom.js|css` e `assets/chunks/*.js`, os
+   ícones gerados e `*.zip`.
 3. **Toda string de UI é i18n.** Adicione a chave nos **três** idiomas
    (`pt-BR`, `en`, `es`) no namespace correto. Nunca deixe texto cru em
    `tsx`, `aria-label`, `title` ou `placeholder`.
@@ -208,7 +209,7 @@ Open-VD/
 │  │  ├─ class-v-dicom-admin.php  # admin, listas, segmentação, cores
 │  │  ├─ class-v-dicom-theme.php  # white-label
 │  │  └─ download.php             # proxy Google Drive/OneDrive
-│  ├─ assets/                     # GERADO e gitignored
+│  ├─ assets/                     # v-dicom.js/css + chunks/ (GERADO, gitignored)
 │  ├─ icon/                       # gerado por npm run icons
 │  └─ languages/                  # .pot/.po/.mo
 ├─ public/perf.html               # harness de performance
@@ -229,9 +230,12 @@ sempre no código.
 
 - **SSR:** `vite.config.ts` + TanStack Start + Nitro. Entrada
   `src/routes/index.tsx`.
-- **Plugin:** `vite.embed.config.ts`, entrada `src/embed.tsx`, saída IIFE
-  `wordpress-plugin/v-dicom/assets/v-dicom.{js,css}`. Monta em
-  `#v-dicom-root`, com guarda `data-mounted`.
+- **Plugin:** `vite.embed.config.ts`, entrada `src/embed.tsx`, saída **ESM**
+  `wordpress-plugin/v-dicom/assets/v-dicom.js` + `assets/chunks/*.js` (+
+  `v-dicom.css`). Monta em `#v-dicom-root`, com guarda `data-mounted`.
+  O entry é enqueued como `type="module"` (filtro `script_loader_tag` em
+  `class-v-dicom-page.php`); imports dinâmicos viram chunks lazy (codecs
+  openjpeg/charls, Three.js/`Volume3D`, fallback ZIP, loaders de malha).
 
 ### 6.2 Standalone vs. WordPress
 
@@ -519,7 +523,15 @@ Relate o comando exato, o resultado e qualquer falha pré-existente.
   destrutiva para XAMPP.
 - **`routeTree.gen.ts` é gerado** pelo TanStack Router e versionado; não edite
   à mão. Se as rotas mudarem, regenere e inclua o arquivo no commit.
-- **Bundles `assets/v-dicom.js|css` são gerados** e gitignored.
+- **Bundles `assets/v-dicom.js|css` e `assets/chunks/*.js` são gerados** e
+  gitignored.
+- **O entry do plugin é um ES module:** o WordPress o imprime como
+  `type="module"` via filtro `script_loader_tag`. Se esse filtro for removido,
+  o bundle não executa; os chunks são resolvidos relativamente a `assets/`.
+- **Cache do entry com chunks:** o entry é estável (`v-dicom.js?ver=...`), mas
+  os chunks têm hash e `emptyOutDir` apaga os antigos. Um build manual sem bump
+  de versão pode deixar um entry em cache apontando para chunks removidos; faça
+  hard refresh ou use `build:plugin` (que incrementa a versão).
 - **`Viewer.tsx` é grande**, mas agora é um orquestrador com subcomponentes em
   `viewer/`. Não reintroduza lógica de layout/diálogo nele sem necessidade.
 - **`precise` desativa OrbitControls:** novas interações 3D devem checar o modo.

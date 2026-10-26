@@ -17,10 +17,11 @@ export async function run(page, config) {
   await ensureLoggedIn(page, config);
   console.log("  ✓ Login realizado");
 
-  await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom`);
+  // Navigate to the users page for the storage limits form.
+  await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom-users`);
   await page.waitForLoadState("networkidle");
   await page.waitForTimeout(500);
-  console.log("  📄 Página de configurações carregada");
+  console.log("  📄 Página de usuários carregada");
 
   // ============================================================
   // 1. Set the admin user's storage limit and credits
@@ -73,8 +74,13 @@ export async function run(page, config) {
   console.log("  ✓ Limite de 10000 MB confirmado");
 
   // ============================================================
-  // 2. Enable direct DICOM loading
+  // 2. Enable direct DICOM loading (on settings page)
   // ============================================================
+  await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom-settings`);
+  await page.waitForLoadState("networkidle");
+  await page.waitForTimeout(500);
+  console.log("  📄 Página de configurações carregada");
+
   const directForm = page.locator("form:has(#v-dicom-direct-dicom-enabled)").first();
   const directCheckbox = directForm.locator("#v-dicom-direct-dicom-enabled");
   await expect(directCheckbox).toBeAttached({ timeout: 5000 });
@@ -95,7 +101,7 @@ export async function run(page, config) {
   }
 
   // ============================================================
-  // 3. Enable public loading
+  // 3. Enable public loading (on settings page)
   // ============================================================
   const publicForm = page.locator("form:has(#v-dicom-public-loading-enabled)").first();
   const publicCheckbox = publicForm.locator("#v-dicom-public-loading-enabled");

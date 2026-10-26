@@ -98,12 +98,12 @@ Open-VD/
 │  │  ├─ class-v-dicom-admin.php    # Tela admin (cenas, limites, tema, API key, segmentação)
 │  │  ├─ class-v-dicom-theme.php    # White-label (nome, cores, logo, quiz)
 │  │  └─ download.php               # Proxy de download (Google Drive/OneDrive)
-│  ├─ assets/                   # v-dicom.js / v-dicom.css (GERADOS, gitignored)
+│  ├─ assets/                   # v-dicom.js / v-dicom.css / chunks/ (GERADOS, gitignored)
 │  ├─ icon/                     # Ícones PWA/iOS (gerados)
 │  ├─ languages/                # .pot/.po/.mo (en_US, es_ES)
 │  └─ readme.txt
 ├─ vite.config.ts               # Build principal (SSR/TanStack Start)
-├─ vite.embed.config.ts         # Build do bundle do plugin (IIFE, ofuscação opcional)
+├─ vite.embed.config.ts         # Build do plugin (ESM + chunks; ofuscação opcional do entry)
 ├─ tsconfig.json, eslint.config.js, components.json, bunfig.toml
 ├─ README.md / README.pt.md / README.es.md
 └─ v-dicom.zip                  # Instalável gerado (gitignored)
@@ -122,8 +122,10 @@ Diretórios gerados/ignorados: `.output`, `.nitro`, `.tanstack`, `.wrangler`,
    (`cloudflare-module`). Entrada `src/routes/index.tsx` → `Viewer`.
    Roda como site standalone (deploy Cloudflare via Nitro).
 2. **Bundle do plugin (embed)** — `vite.embed.config.ts`, entrada `src/embed.tsx`,
-   saída **IIFE única** `wordpress-plugin/v-dicom/assets/v-dicom.js` (+ `.css`).
-   Monta o `<Viewer/>` em `<div id="v-dicom-root">`. Ofuscação com
+   saída **ESM** `wordpress-plugin/v-dicom/assets/v-dicom.js` (+ `.css`) e
+   `assets/chunks/*.js` carregados sob demanda. O entry é enqueued como
+   `type="module"` (`script_loader_tag` em `class-v-dicom-page.php`). Monta o
+   `<Viewer/>` em `<div id="v-dicom-root">`. Ofuscação do entry com
    `javascript-obfuscator` é **opcional** (`ofuscationEnabled = false` por padrão).
 
 ### 4.2 Modo standalone vs. embutido no WordPress
@@ -267,7 +269,8 @@ Parser ZIP em streaming (EOCD → Central Directory → entradas), ZIP64, com
 
 ### `meshVolume.ts`
 `computeGeometryVolumeInfo` (volume assinado + teste de "watertight"),
-`computeMeshFileVolume` (STL/PLY/OBJ, soma meshes de OBJ), `formatMeshVolume`.
+`computeMeshFileVolume` (STL/PLY/OBJ assíncrono, carrega Three.js/loaders em chunk
+lazy e soma meshes de OBJ), `formatMeshVolume`.
 
 ### `meshColors.ts`
 Regras de **cor especial por nome de modelo** (STL/PLY/OBJ), antes _hardcoded_
@@ -499,7 +502,8 @@ npm run format         # prettier --write .
 ```
 
 **`build:plugin`** (`scripts/build-plugin.js`) faz, em ordem:
-1. `vite build --config vite.embed.config.ts` (gera `assets/v-dicom.{js,css}`).
+1. `vite build --config vite.embed.config.ts` (gera `assets/v-dicom.{js,css}` e
+   `assets/chunks/*.js`).
 2. Remove BOM e normaliza line endings (evita warnings do Plugin Check).
 3. **Bump de versão** minor (`X.Y.0` → `X.(Y+1).0`) em `v-dicom.php` e sincroniza
    o `Stable tag` do `readme.txt`.
@@ -525,7 +529,8 @@ npm run format         # prettier --write .
   toda string traduzível usa `__()` etc.; gettext com `%s`/`%d` **exige** comentário
   `/* translators: ... */` imediatamente acima (validado no build).
 - **Comentários**: o código mistura PT-BR e EN; mantenha o tom do arquivo.
-- **Não commitar** artefatos: `v-dicom.zip`, `assets/v-dicom.js|css` (gitignored).
+- **Não commitar** artefatos: `v-dicom.zip`, `assets/v-dicom.js|css` e
+  `assets/chunks/` (gitignored).
 - **Prettier** `.prettierrc` + `eslint-plugin-prettier` (eslint falha em formatação).
 - **Cuidados de iOS/WebKit**: evitar `File.arrayBuffer()` de arquivos grandes;
   preferir bytes em memória; ZIP com CRC para detectar falhas silenciosas.
@@ -553,12 +558,18 @@ npm run format         # prettier --write .
 - `README.md` cita versão **1.71.0**; `v-dicom.php`/`readme.txt` estão em
   **1.78.0** (o bump é esperado e ocorre via `npm run build:plugin`, minor,
   `X.Y.0`).
-- `assets/v-dicom.js|css` são **gerados** e gitignored — não edite à mão.
+- `assets/v-dicom.js|css` e `assets/chunks/*.js` são **gerados** e gitignored —
+  não edite à mão.
 - `src/routeTree.gen.ts` é gerado pelo TanStack Router (não editar).
 - `Viewer.tsx` é muito grande (~3.5k linhas) — mudanças pontuais exigem âncoras de
   texto únicas; considere extrair subcomponentes só quando fizer sentido.
-- O build embutido usa **IIFE + `inlineDynamicImports`**; imports dinâmicos
-  (codecs openjpeg/charls) entram no mesmo chunk.
+- O build embutido usa **ESM + code splitting**: imports dinâmicos viram chunks
+  em `assets/chunks/` (codecs openjpeg/charls, Three.js/`Volume3D`, fallback ZIP
+  e loaders de malha). O entry precisa ser carregado como `type="module"`.
+- O entry é estável, mas os chunks têm hash e são apagados no rebuild
+  (`emptyOutDir`). Builds manuais sem bump de versão podem deixar clients com
+  entry antigo apontando para chunks removidos; use hard refresh ou
+  `build:plugin`.
 - `nitro` está em versão **beta** (fixada).
 - `bunfig.toml` impõe **guarda de 24h** contra pacotes recém-publicados
   (`minimumReleaseAge = 86400`).

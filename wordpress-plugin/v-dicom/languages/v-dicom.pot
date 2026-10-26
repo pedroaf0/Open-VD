@@ -9,7 +9,7 @@ msgstr ""
 "X-Generator: v-dicom/plugin-i18n.js\n"
 
 #. /* translators: %d: days remaining */
-#: includes/class-v-dicom-admin.php:1118
+#: includes/class-v-dicom-admin-users.php:273 includes/class-v-dicom-admin.php:126
 #, php-format
 msgid "%d dia restante"
 msgid_plural "%d dias restantes"
@@ -17,7 +17,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. /* translators: %d: number of months */
-#: includes/class-v-dicom-admin.php:1102
+#: includes/class-v-dicom-admin-users.php:257 includes/class-v-dicom-admin.php:110
 #, php-format
 msgid "%d mês"
 msgid_plural "%d meses"
@@ -25,21 +25,21 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. /* translators: %s: number of rows found. */
-#: includes/class-v-dicom-admin.php:411
+#: includes/class-v-dicom-admin-scenes.php:156 includes/class-v-dicom-admin-users.php:116
 #, php-format
 msgid "%s resultado(s)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1300 includes/class-v-dicom-admin.php:1386
+#: includes/class-v-dicom-admin-scenes.php:267 includes/class-v-dicom-admin-scenes.php:353
 msgid "(em andamento)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1068
+#: includes/class-v-dicom-admin-users.php:223 includes/class-v-dicom-admin.php:76
 msgid "(usados para segmentação automática)"
 msgstr ""
 
 #. <?php /* translators: %d: extra storage in megabytes provided by active plans */ ?>
-#: includes/class-v-dicom-admin.php:1222
+#: includes/class-v-dicom-admin-users.php:374
 #, php-format
 msgid "+ %d MB em planos"
 msgstr ""
@@ -60,31 +60,31 @@ msgstr ""
 msgid "A segmentação da cena \"%1$s\" falhou.%2$sO crédito foi estornado. Tente novamente ou contate o suporte.%3$sCena: %4$s"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1431
+#: includes/class-v-dicom-admin-scenes.php:398
 msgid "A segmentação falhou."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:926
+#: includes/class-v-dicom-admin-settings.php:202
 msgid "API key (upload/download por chave)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:929
+#: includes/class-v-dicom-admin-settings.php:205
 msgid "API key atualizada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1372
+#: includes/class-v-dicom-admin-scenes.php:339
 msgid "Abrir"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:742
+#: includes/class-v-dicom-admin-mesh-colors.php:103
 msgid "Adicionar regra"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:594
+#: includes/class-v-dicom-admin-segmentation.php:192
 msgid "Adicionar tipo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:883 includes/class-v-dicom-theme.php:27
+#: includes/class-v-dicom-admin-settings.php:161 includes/class-v-dicom-theme.php:27
 msgid "Aguarde, carregando sua cena…"
 msgstr ""
 
@@ -92,51 +92,55 @@ msgstr ""
 msgid "Apenas o dono da cena pode solicitar a segmentação."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1174
+#: includes/class-v-dicom-admin-users.php:329
 msgid "Aplicado automaticamente quando uma nova conta é criada (ou na primeira sessão de contas ainda sem cota)."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:652
+#: includes/class-v-dicom-admin-segmentation.php:250
 msgid "Após salvar, este campo virará editor visual com formatação."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1166
+#: includes/class-v-dicom-admin-users.php:321
 msgid "Armazenamento inicial (MB)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1257
+#: includes/class-v-dicom-admin-scenes.php:224
 msgid "Arquivos"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:899
+#: includes/class-v-dicom-admin-settings.php:177
 msgid "As cores dos cortes (axial, coronal e sagital) são fixas e não podem ser alteradas. As outras cores são aplicadas automaticamente ao visualizador."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1112 includes/class-v-dicom-admin.php:542 includes/class-v-dicom-admin.php:621
+#: includes/class-v-dicom-admin-segmentation.php:140 includes/class-v-dicom-admin-segmentation.php:219 includes/class-v-dicom-admin-users.php:267 includes/class-v-dicom-admin.php:120
 msgid "Ativo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:534 includes/class-v-dicom-admin.php:613
+#: includes/class-v-dicom-admin-segmentation.php:132 includes/class-v-dicom-admin-segmentation.php:211
 msgid "Authorization (opcional)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:401
+#: includes/class-v-dicom-admin.php:41
+msgid "Bem-vindo ao painel do v-dicom. Use o menu lateral para navegar entre as seções."
+msgstr ""
+
+#: includes/class-v-dicom-admin-scenes.php:146 includes/class-v-dicom-admin-users.php:106
 msgid "Buscar"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1187
+#: includes/class-v-dicom-admin-users.php:339
 msgid "Buscar por nome, usuário ou e-mail…"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1251
+#: includes/class-v-dicom-admin-scenes.php:218
 msgid "Buscar por título, chave ou dono…"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:706
+#: includes/class-v-dicom-admin-mesh-colors.php:67
 msgid "Cada regra força a cor de um modelo 3D (STL/PLY/OBJ) pelo nome do arquivo, ignorando a cor salva na cena. O nome é comparado sem a extensão, sem acentos e sem diferenciar maiúsculas de minúsculas."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:482
+#: includes/class-v-dicom-admin-segmentation.php:80
 msgid "Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque \"Ativo\" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos."
 msgstr ""
 
@@ -144,7 +148,7 @@ msgstr ""
 msgid "Campo status ausente."
 msgstr ""
 
-#: includes/class-v-dicom-storage.php:953 v-dicom.php:41
+#: includes/class-v-dicom-storage.php:953 v-dicom.php:46
 msgid "Cena DICOM"
 msgstr ""
 
@@ -152,23 +156,27 @@ msgstr ""
 msgid "Cena não encontrada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:841
+#: includes/class-v-dicom-admin-scenes.php:213
 msgid "Cena removida."
 msgstr ""
 
-#: v-dicom.php:40
+#: includes/class-v-dicom-admin-scenes.php:23 includes/class-v-dicom-admin.php:54
+msgid "Cenas"
+msgstr ""
+
+#: v-dicom.php:45
 msgid "Cenas DICOM"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1250
+#: includes/class-v-dicom-admin-scenes.php:210 includes/class-v-dicom-admin-scenes.php:22
 msgid "Cenas salvas"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:500
+#: includes/class-v-dicom-admin-segmentation.php:98
 msgid "Chave da cena."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:937
+#: includes/class-v-dicom-admin-settings.php:213
 msgid "Chave de API"
 msgstr ""
 
@@ -186,15 +194,15 @@ msgstr ""
 msgid "Chunk %1$d de %2$d não encontrado."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:979
+#: includes/class-v-dicom-admin-settings.php:255
 msgid "Configuração de autorização de URL atualizada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:982
+#: includes/class-v-dicom-admin-settings.php:258
 msgid "Configuração de carregamento de DICOM atualizada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:985
+#: includes/class-v-dicom-admin-settings.php:261
 msgid "Configuração de carregamento público atualizada."
 msgstr ""
 
@@ -202,67 +210,75 @@ msgstr ""
 msgid "Configuração do serviço de segmentação ausente para este tipo."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:973
+#: includes/class-v-dicom-admin-settings.php:120 includes/class-v-dicom-admin-settings.php:32 includes/class-v-dicom-admin-settings.php:33 includes/class-v-dicom-admin.php:50
+msgid "Configurações"
+msgstr ""
+
+#: includes/class-v-dicom-admin-settings.php:249
 msgid "Configurações gerais"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:976
+#: includes/class-v-dicom-admin-settings.php:252
 msgid "Configurações salvas."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1080
+#: includes/class-v-dicom-admin-users.php:235 includes/class-v-dicom-admin.php:88
 msgid "Contratado em"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:732 includes/class-v-dicom-admin.php:755
+#: includes/class-v-dicom-admin-mesh-colors.php:116 includes/class-v-dicom-admin-mesh-colors.php:93
 msgid "Contém"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:719 includes/class-v-dicom-admin.php:752
+#: includes/class-v-dicom-admin-mesh-colors.php:113 includes/class-v-dicom-admin-mesh-colors.php:80
 msgid "Cor"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:890
+#: includes/class-v-dicom-admin-settings.php:168
 msgid "Cor da interface"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:894
+#: includes/class-v-dicom-admin-settings.php:172
 msgid "Cor de destaque"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:886
+#: includes/class-v-dicom-admin-settings.php:164
 msgid "Cor de fundo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:59
+#: includes/class-v-dicom-admin-mesh-colors.php:20 includes/class-v-dicom-admin.php:52
 msgid "Cores dos modelos"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:58 includes/class-v-dicom-admin.php:700
+#: includes/class-v-dicom-admin-mesh-colors.php:19 includes/class-v-dicom-admin-mesh-colors.php:61
 msgid "Cores dos modelos (STL)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:703
+#: includes/class-v-dicom-admin-mesh-colors.php:64
 msgid "Cores dos modelos atualizadas."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:568 includes/class-v-dicom-admin.php:647
+#: includes/class-v-dicom-admin-segmentation.php:166 includes/class-v-dicom-admin-segmentation.php:245
 msgid "Corpo enviado na requisição de execução. Use os placeholders acima para montar o formato esperado pelo serviço."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:720 includes/class-v-dicom-admin.php:753
+#: includes/class-v-dicom-admin-mesh-colors.php:114 includes/class-v-dicom-admin-mesh-colors.php:81
 msgid "Correspondência"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1156
+#: includes/class-v-dicom-admin.php:53
+msgid "Cotas de armazenamento, créditos, limites por usuário e cotas padrão para novas contas."
+msgstr ""
+
+#: includes/class-v-dicom-admin-users.php:311
 msgid "Cotas para novas contas"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1159
+#: includes/class-v-dicom-admin-users.php:314
 msgid "Cotas para novas contas atualizadas."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1258
+#: includes/class-v-dicom-admin-scenes.php:225
 msgid "Criada em"
 msgstr ""
 
@@ -272,51 +288,51 @@ msgstr ""
 msgid "Crédito insuficiente para segmentar. Custo: %d créditos."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1197
+#: includes/class-v-dicom-admin-users.php:349
 msgid "Créditos"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1064
+#: includes/class-v-dicom-admin-users.php:219 includes/class-v-dicom-admin.php:72
 msgid "Créditos de processamento:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1170
+#: includes/class-v-dicom-admin-users.php:325
 msgid "Créditos iniciais"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:538 includes/class-v-dicom-admin.php:617
+#: includes/class-v-dicom-admin-segmentation.php:136 includes/class-v-dicom-admin-segmentation.php:215
 msgid "Custo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1382
+#: includes/class-v-dicom-admin-scenes.php:349
 msgid "Debug da segmentação — por cena (admin)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:942
+#: includes/class-v-dicom-admin-settings.php:218
 msgid "Deixe vazio para desativar. Endpoints aceitos com a chave:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:571
+#: includes/class-v-dicom-admin-segmentation.php:169
 msgid "Descrição (texto rico — exibida no painel de segmentação)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:650
+#: includes/class-v-dicom-admin-segmentation.php:248
 msgid "Descrição (texto rico)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:651
+#: includes/class-v-dicom-admin-segmentation.php:249
 msgid "Descrição com formatação — após salvar vira editor rico"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1256
+#: includes/class-v-dicom-admin-scenes.php:223
 msgid "Dono"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1079
+#: includes/class-v-dicom-admin-users.php:234 includes/class-v-dicom-admin.php:87
 msgid "Duração"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1198
+#: includes/class-v-dicom-admin-users.php:350
 msgid "Em uso agora"
 msgstr ""
 
@@ -328,11 +344,11 @@ msgstr ""
 msgid "Endereço de status do serviço de segmentação ausente."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1435
+#: includes/class-v-dicom-admin-scenes.php:402
 msgid "Enviando…"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1436
+#: includes/class-v-dicom-admin-scenes.php:403
 msgid "Erro ao iniciar a segmentação."
 msgstr ""
 
@@ -344,15 +360,15 @@ msgstr ""
 msgid "Erro ao resolver OneDrive: "
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1437
+#: includes/class-v-dicom-admin-scenes.php:404
 msgid "Erro de rede ao iniciar a segmentação."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:911
+#: includes/class-v-dicom-admin-settings.php:189
 msgid "Escolher logo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1078
+#: includes/class-v-dicom-admin-users.php:233 includes/class-v-dicom-admin.php:86
 msgid "Espaço"
 msgstr ""
 
@@ -368,35 +384,35 @@ msgstr ""
 msgid "Este tipo de segmentação está desabilitado."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:527 includes/class-v-dicom-admin.php:606
+#: includes/class-v-dicom-admin-segmentation.php:125 includes/class-v-dicom-admin-segmentation.php:204
 msgid "Ex.: Ossos"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:727 includes/class-v-dicom-admin.php:751
+#: includes/class-v-dicom-admin-mesh-colors.php:112 includes/class-v-dicom-admin-mesh-colors.php:88
 msgid "Ex.: mandibula"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:731 includes/class-v-dicom-admin.php:754
+#: includes/class-v-dicom-admin-mesh-colors.php:115 includes/class-v-dicom-admin-mesh-colors.php:92
 msgid "Exato"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1375 includes/class-v-dicom-admin.php:546 includes/class-v-dicom-admin.php:625 includes/class-v-dicom-admin.php:721 includes/class-v-dicom-admin.php:757
+#: includes/class-v-dicom-admin-mesh-colors.php:118 includes/class-v-dicom-admin-mesh-colors.php:82 includes/class-v-dicom-admin-scenes.php:342 includes/class-v-dicom-admin-segmentation.php:144 includes/class-v-dicom-admin-segmentation.php:223
 msgid "Excluir"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:997
+#: includes/class-v-dicom-admin-settings.php:273
 msgid "Exigir autorização (1 crédito) para baixar arquivos de Google Drive/OneDrive."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:992
+#: includes/class-v-dicom-admin-settings.php:268
 msgid "Exigir autorização de URL"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1081
+#: includes/class-v-dicom-admin-users.php:236 includes/class-v-dicom-admin.php:89
 msgid "Expira em"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1125
+#: includes/class-v-dicom-admin-users.php:280 includes/class-v-dicom-admin.php:133
 msgid "Expirado"
 msgstr ""
 
@@ -404,23 +420,23 @@ msgstr ""
 msgid "Falha ao consultar o arquivo no OneDrive."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1386
+#: includes/class-v-dicom-admin-scenes.php:353
 msgid "Fim:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:512
+#: includes/class-v-dicom-admin-segmentation.php:110
 msgid "Fora de aspas o placeholder vira um valor JSON (texto com aspas, número ou array). Dentro de aspas ele vira texto já escapado. Exemplo de payload:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:940
+#: includes/class-v-dicom-admin-settings.php:216
 msgid "Gerar chave"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:501
+#: includes/class-v-dicom-admin-segmentation.php:99
 msgid "Identificador deste tipo de segmentação."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:503
+#: includes/class-v-dicom-admin-segmentation.php:101
 msgid "Identificador do job (disponível na URL de status e no callback)."
 msgstr ""
 
@@ -433,12 +449,12 @@ msgid "Informe o tipo de segmentação (type)."
 msgstr ""
 
 #. /* translators: %s: segmentation type name or id. */
-#: includes/class-v-dicom-admin.php:1434
+#: includes/class-v-dicom-admin-scenes.php:401
 #, php-format
 msgid "Iniciar %s? Confirme para consumir os créditos do tipo."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1385
+#: includes/class-v-dicom-admin-scenes.php:352
 msgid "Início:"
 msgstr ""
 
@@ -446,11 +462,11 @@ msgstr ""
 msgid "Já foi feita uma segmentação deste tipo para esta cena."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1196
+#: includes/class-v-dicom-admin-users.php:348
 msgid "Limite (MB)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1241
+#: includes/class-v-dicom-admin-users.php:393
 msgid "Limite 0 bloqueia novos uploads. O valor definido aqui é a cota base do usuário; planos de armazenamento ativos, quando existirem, somam-se a ele. Créditos são consumidos pela segmentação automática e pela autorização de URLs."
 msgstr ""
 
@@ -458,19 +474,19 @@ msgstr ""
 msgid "Limite de armazenamento atingido. Exclua uma cena em \"Minhas cenas\" ou peça mais espaço ao administrador."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1181
+#: includes/class-v-dicom-admin-users.php:336
 msgid "Limites atualizados."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1178
+#: includes/class-v-dicom-admin-users.php:333
 msgid "Limites de armazenamento por usuário"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:403
+#: includes/class-v-dicom-admin-scenes.php:148 includes/class-v-dicom-admin-users.php:108
 msgid "Limpar"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1259
+#: includes/class-v-dicom-admin-scenes.php:226
 msgid "Link de compartilhamento"
 msgstr ""
 
@@ -478,23 +494,31 @@ msgstr ""
 msgid "Link não reconhecido. Use Google Drive ou OneDrive."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:496
+#: includes/class-v-dicom-admin-segmentation.php:94
 msgid "Lista de URLs de download da cena (array JSON)."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:868
+#: includes/class-v-dicom-admin-scenes.php:216
+msgid "Lista de cenas salvas pelos usuários. Cada cena contém os arquivos do estudo, anotações e configurações."
+msgstr ""
+
+#: includes/class-v-dicom-admin.php:54
+msgid "Listagem de cenas salvas, links de compartilhamento, segmentação e exclusão."
+msgstr ""
+
+#: includes/class-v-dicom-admin-settings.php:146
 msgid "Logo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1415
+#: includes/class-v-dicom-admin-scenes.php:382
 msgid "Logs salvos no post meta da cena. DEBUG_SEGMENTATION=true também inclui debug na resposta JSON de /run e /segmentation-status."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1062
+#: includes/class-v-dicom-admin-users.php:217 includes/class-v-dicom-admin.php:70
 msgid "Meu armazenamento"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1074
+#: includes/class-v-dicom-admin-users.php:229 includes/class-v-dicom-admin.php:82
 msgid "Meus planos de armazenamento"
 msgstr ""
 
@@ -514,7 +538,7 @@ msgstr ""
 msgid "Nenhum job de segmentação encontrado para este tipo nesta cena."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1338
+#: includes/class-v-dicom-admin-scenes.php:305
 msgid "Nenhum tipo configurado."
 msgstr ""
 
@@ -522,43 +546,43 @@ msgstr ""
 msgid "Nenhum tipo de segmentação configurado."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1203
+#: includes/class-v-dicom-admin-users.php:355
 msgid "Nenhum usuário com cenas ou limite definido ainda."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1203
+#: includes/class-v-dicom-admin-users.php:355
 msgid "Nenhum usuário encontrado para a busca."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1266
+#: includes/class-v-dicom-admin-scenes.php:233
 msgid "Nenhuma cena encontrada para a busca."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1266
+#: includes/class-v-dicom-admin-scenes.php:233
 msgid "Nenhuma cena salva ainda."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:502
+#: includes/class-v-dicom-admin-segmentation.php:100
 msgid "Nome deste tipo de segmentação."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:718 includes/class-v-dicom-admin.php:750
+#: includes/class-v-dicom-admin-mesh-colors.php:111 includes/class-v-dicom-admin-mesh-colors.php:79
 msgid "Nome do modelo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:864
+#: includes/class-v-dicom-admin-settings.php:142
 msgid "Nome do visualizador"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1035
+#: includes/class-v-dicom-admin-settings.php:311
 msgid "Nome usado no download do vídeo gravado no viewport 3D. Use {data}, {hora} ou {timestamp} para inserir a data/hora. Se não usar nenhum marcador de data/hora, o carimbo será acrescentado automaticamente. Não inclua a extensão (.mp4 ou .webm)."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:526 includes/class-v-dicom-admin.php:605
+#: includes/class-v-dicom-admin-segmentation.php:124 includes/class-v-dicom-admin-segmentation.php:203
 msgid "Nome*"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:595
+#: includes/class-v-dicom-admin-segmentation.php:193
 msgid "Novo tipo ganha editor rico após salvar."
 msgstr ""
 
@@ -616,7 +640,7 @@ msgstr ""
 msgid "O serviço de segmentação respondeu com HTTP %d."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:845
+#: includes/class-v-dicom-admin-settings.php:123
 msgid "O visualizador tem página própria, carregada sem o tema do site."
 msgstr ""
 
@@ -632,7 +656,7 @@ msgstr ""
 msgid "Padrão"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1031
+#: includes/class-v-dicom-admin-settings.php:307
 msgid "Padrão do nome do vídeo 3D"
 msgstr ""
 
@@ -640,59 +664,59 @@ msgstr ""
 msgid "Pasta não encontrada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:564 includes/class-v-dicom-admin.php:643
+#: includes/class-v-dicom-admin-segmentation.php:162 includes/class-v-dicom-admin-segmentation.php:241
 msgid "Payload (template)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1392
+#: includes/class-v-dicom-admin-scenes.php:359
 msgid "Payload enviado:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:127 includes/class-v-dicom-admin.php:146 includes/class-v-dicom-admin.php:170 includes/class-v-dicom-admin.php:183 includes/class-v-dicom-admin.php:194 includes/class-v-dicom-admin.php:233 includes/class-v-dicom-admin.php:245 includes/class-v-dicom-admin.php:256 includes/class-v-dicom-admin.php:267 includes/class-v-dicom-admin.php:280 includes/class-v-dicom-admin.php:296 includes/class-v-dicom-admin.php:470 includes/class-v-dicom-admin.php:695
+#: includes/class-v-dicom-admin-mesh-colors.php:30 includes/class-v-dicom-admin-mesh-colors.php:56 includes/class-v-dicom-admin-scenes.php:91 includes/class-v-dicom-admin-segmentation.php:29 includes/class-v-dicom-admin-segmentation.php:68 includes/class-v-dicom-admin-settings.php:103 includes/class-v-dicom-admin-settings.php:43 includes/class-v-dicom-admin-settings.php:56 includes/class-v-dicom-admin-settings.php:68 includes/class-v-dicom-admin-settings.php:79 includes/class-v-dicom-admin-settings.php:90 includes/class-v-dicom-admin-users.php:155 includes/class-v-dicom-admin-users.php:178
 msgid "Permissão negada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1005
+#: includes/class-v-dicom-admin-settings.php:281
 msgid "Permitir carregamento direto de DICOM"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1018
+#: includes/class-v-dicom-admin-settings.php:294
 msgid "Permitir carregamento público de exames"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1010
+#: includes/class-v-dicom-admin-settings.php:286
 msgid "Permitir que os usuários abram DICOM de arquivos/pastas do próprio computador e façam upload direto (sem precisar de link do Drive/OneDrive)."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1023
+#: includes/class-v-dicom-admin-settings.php:299
 msgid "Permitir que visitantes não autenticados carreguem e visualizem exames (arquivos locais ou URLs suportados) sem fazer login."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:490
+#: includes/class-v-dicom-admin-segmentation.php:88
 msgid "Placeholder"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:486
+#: includes/class-v-dicom-admin-segmentation.php:84
 msgid "Placeholders disponíveis"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:873
+#: includes/class-v-dicom-admin-settings.php:151
 msgid "Pré-visualização do logo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:848
+#: includes/class-v-dicom-admin-settings.php:126 includes/class-v-dicom-admin.php:44
 msgid "Página do visualizador:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1000
+#: includes/class-v-dicom-admin-settings.php:276
 msgid "Quando ativado, URLs externas precisam ser autorizadas antes do download. Ao desativar, todos os links são baixados sem autorização prévia."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1026
+#: includes/class-v-dicom-admin-settings.php:302
 msgid "Quando ativado, qualquer pessoa pode abrir o visualizador e carregar exames. Ações protegidas (compartilhar, segmentar) continuam exigindo login. Quando desativado (padrão), o visualizador exige autenticação para carregar exames."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1013
+#: includes/class-v-dicom-admin-settings.php:289
 msgid "Quando desativado (padrão), os exames só podem ser carregados por link público do Google Drive ou do OneDrive. Quando ativado, também é possível selecionar arquivos ou uma pasta com as fatias DICOM e salvá-las na cena."
 msgstr ""
 
@@ -700,11 +724,15 @@ msgstr ""
 msgid "Redirect inválido do OneDrive."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:733 includes/class-v-dicom-admin.php:756
+#: includes/class-v-dicom-admin-mesh-colors.php:117 includes/class-v-dicom-admin-mesh-colors.php:94
 msgid "Regex"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1374
+#: includes/class-v-dicom-admin.php:52
+msgid "Regras de cor forçada para modelos STL/PLY/OBJ por nome."
+msgstr ""
+
+#: includes/class-v-dicom-admin-scenes.php:341
 msgid "Remover esta cena e seus arquivos?"
 msgstr ""
 
@@ -712,7 +740,7 @@ msgstr ""
 msgid "Requisição não autorizada."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1395
+#: includes/class-v-dicom-admin-scenes.php:362
 msgid "Resposta do serviço:"
 msgstr ""
 
@@ -724,59 +752,59 @@ msgstr ""
 msgid "Resposta inválida do serviço de segmentação."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:758
+#: includes/class-v-dicom-admin-mesh-colors.php:119
 msgid "Restaurar as regras padrão? As alterações atuais serão perdidas ao salvar."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:743
+#: includes/class-v-dicom-admin-mesh-colors.php:104
 msgid "Restaurar padrões"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:949
+#: includes/class-v-dicom-admin-settings.php:225
 msgid "Salvar API key"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1044
+#: includes/class-v-dicom-admin-settings.php:320
 msgid "Salvar configurações"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:745
+#: includes/class-v-dicom-admin-mesh-colors.php:106
 msgid "Salvar cores"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1175
+#: includes/class-v-dicom-admin-users.php:330
 msgid "Salvar cotas para novas contas"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1245
+#: includes/class-v-dicom-admin-users.php:397
 msgid "Salvar limites e créditos"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:597
+#: includes/class-v-dicom-admin-segmentation.php:195
 msgid "Salvar tipos de segmentação"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:901
+#: includes/class-v-dicom-admin-settings.php:179
 msgid "Salvar visual"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:554 includes/class-v-dicom-admin.php:633
+#: includes/class-v-dicom-admin-segmentation.php:152 includes/class-v-dicom-admin-segmentation.php:231
 msgid "Se ficar vazia, o plugin usa {{url}}/run."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:559 includes/class-v-dicom-admin.php:638
+#: includes/class-v-dicom-admin-segmentation.php:157 includes/class-v-dicom-admin-segmentation.php:236
 msgid "Se ficar vazia, o plugin usa {{url}}/status/{{job_id}}."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:710
+#: includes/class-v-dicom-admin-mesh-colors.php:71
 msgid "Se todas as regras forem excluídas, nenhuma cor especial é forçada e cada modelo usa a cor salva na cena. Regras com regex inválida são descartadas."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1260 includes/class-v-dicom-admin.php:51
+#: includes/class-v-dicom-admin-scenes.php:227 includes/class-v-dicom-admin-segmentation.php:20 includes/class-v-dicom-admin.php:51
 msgid "Segmentação"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:476 includes/class-v-dicom-admin.php:50
+#: includes/class-v-dicom-admin-segmentation.php:19 includes/class-v-dicom-admin-segmentation.php:74
 msgid "Segmentação automática"
 msgstr ""
 
@@ -792,7 +820,7 @@ msgstr ""
 msgid "Segmentação falhou — %s"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:871
+#: includes/class-v-dicom-admin-settings.php:149
 msgid "Selecionar na biblioteca"
 msgstr ""
 
@@ -804,7 +832,11 @@ msgstr ""
 msgid "Seu limite de armazenamento é zero. Peça ao administrador para definir um limite antes de enviar estudos."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1082
+#: includes/class-v-dicom-admin.php:48
+msgid "Seções do painel"
+msgstr ""
+
+#: includes/class-v-dicom-admin-users.php:237 includes/class-v-dicom-admin.php:90
 msgid "Situação"
 msgstr ""
 
@@ -812,7 +844,7 @@ msgstr ""
 msgid "Somente HTTP/HTTPS é permitido."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1243
+#: includes/class-v-dicom-admin-users.php:395
 msgid "Somente os usuários desta página são salvos."
 msgstr ""
 
@@ -828,19 +860,19 @@ msgstr ""
 msgid "Sua segmentação da cena \"%1$s\" foi concluída%2$s.%3$sAbra a cena: %4$s"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:509
+#: includes/class-v-dicom-admin-segmentation.php:107
 msgid "Também aceita os apelidos {{uploadlink}}, {{downloadlink}} e {{callbacklink}}."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1350
+#: includes/class-v-dicom-admin-scenes.php:317
 msgid "Tentar novamente"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:882
+#: includes/class-v-dicom-admin-settings.php:160
 msgid "Texto de espera"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:505
+#: includes/class-v-dicom-admin-segmentation.php:103
 msgid "Timestamp Unix do envio."
 msgstr ""
 
@@ -852,15 +884,19 @@ msgstr ""
 msgid "Tipo migrado automaticamente da configuração anterior."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:479
+#: includes/class-v-dicom-admin-segmentation.php:77
 msgid "Tipos de segmentação atualizados."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1387
+#: includes/class-v-dicom-admin.php:51
+msgid "Tipos de segmentação automática (serviços serverless, endpoints, payloads, custos)."
+msgstr ""
+
+#: includes/class-v-dicom-admin-scenes.php:354
 msgid "Total:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1255
+#: includes/class-v-dicom-admin-scenes.php:222
 msgid "Título"
 msgstr ""
 
@@ -872,35 +908,35 @@ msgstr ""
 msgid "URL autorizará com 1 crédito. Confirme para prosseguir."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:530 includes/class-v-dicom-admin.php:609
+#: includes/class-v-dicom-admin-segmentation.php:128 includes/class-v-dicom-admin-segmentation.php:207
 msgid "URL base do serviço"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:499
+#: includes/class-v-dicom-admin-segmentation.php:97
 msgid "URL base do serviço."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:498
+#: includes/class-v-dicom-admin-segmentation.php:96
 msgid "URL de callback para o serviço informar o status."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:878
+#: includes/class-v-dicom-admin-settings.php:156
 msgid "URL de espera"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:552 includes/class-v-dicom-admin.php:631
+#: includes/class-v-dicom-admin-segmentation.php:150 includes/class-v-dicom-admin-segmentation.php:229
 msgid "URL de execução (opcional)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:557 includes/class-v-dicom-admin.php:636
+#: includes/class-v-dicom-admin-segmentation.php:155 includes/class-v-dicom-admin-segmentation.php:234
 msgid "URL de status (opcional)"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:495
+#: includes/class-v-dicom-admin-segmentation.php:93
 msgid "URL do ZIP da cena (texto)."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:504
+#: includes/class-v-dicom-admin-segmentation.php:102
 msgid "URL do site WordPress."
 msgstr ""
 
@@ -908,7 +944,7 @@ msgstr ""
 msgid "URL inválida."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:497
+#: includes/class-v-dicom-admin-segmentation.php:95
 msgid "URL para o serviço enviar os modelos STL gerados."
 msgstr ""
 
@@ -917,48 +953,60 @@ msgid "Upload inválido."
 msgstr ""
 
 #. /* translators: 1: used space 2: total limit 3: available space */
-#: includes/class-v-dicom-admin.php:1142
+#: includes/class-v-dicom-admin-users.php:297 includes/class-v-dicom-admin.php:150
 #, php-format
 msgid "Usado: %1$s de %2$s (%3$s disponíveis)."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:565 includes/class-v-dicom-admin.php:644
+#: includes/class-v-dicom-admin-segmentation.php:163 includes/class-v-dicom-admin-segmentation.php:242
 msgid "Usar payload padrão"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:709
+#: includes/class-v-dicom-admin-mesh-colors.php:70
 msgid "Use \"Exato\" para casar o nome inteiro (ex.: mandibula), \"Contém\" para casar qualquer nome que inclua o texto (ex.: dente também casa dente 11) ou \"Regex\" para uma expressão regular (ex.: ^dente \\d+$). A regex é testada no nome normalizado — sem extensão, sem acentos e em minúsculas — sem diferenciar maiúsculas/minúsculas. A primeira regra que combinar é aplicada; deixe as mais específicas no topo."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1195
+#: includes/class-v-dicom-admin-users.php:347
 msgid "Usuário"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1329
+#: includes/class-v-dicom-admin-scenes.php:296
 msgid "Usuário removido"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:491
+#: includes/class-v-dicom-admin-users.php:24 includes/class-v-dicom-admin.php:53
+msgid "Usuários"
+msgstr ""
+
+#: includes/class-v-dicom-admin-users.php:215 includes/class-v-dicom-admin-users.php:23
+msgid "Usuários e cotas"
+msgstr ""
+
+#: includes/class-v-dicom-admin-segmentation.php:89
 msgid "Valor enviado"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1368
+#: includes/class-v-dicom-admin-scenes.php:335
 msgid "Ver logs da segmentação"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:853
+#: includes/class-v-dicom-admin.php:50
+msgid "Visual (white label), API key, configurações gerais (autorização de URL, DICOM direto, carregamento público, padrão de nome de vídeo)."
+msgstr ""
+
+#: includes/class-v-dicom-admin-settings.php:131
 msgid "Visual / White label"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:856
+#: includes/class-v-dicom-admin-settings.php:134
 msgid "Visual atualizado."
 msgstr ""
 
-#: includes/class-v-dicom-page.php:185
+#: includes/class-v-dicom-page.php:200
 msgid "Visualizador DICOM com cortes MPR, 3D e modelos STL."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1135
+#: includes/class-v-dicom-admin-users.php:290 includes/class-v-dicom-admin.php:143
 msgid "Você não tem armazenamento disponível. Contrate um plano ou peça ao administrador para definir um limite antes de enviar estudos."
 msgstr ""
 
@@ -982,27 +1030,27 @@ msgstr ""
 msgid "arquivo"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1232
+#: includes/class-v-dicom-admin-users.php:384
 msgid "de"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1409
+#: includes/class-v-dicom-admin-scenes.php:376
 msgid "error (até 4k):"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1410
+#: includes/class-v-dicom-admin-scenes.php:377
 msgid "output (até 8k):"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1432
+#: includes/class-v-dicom-admin-scenes.php:399
 msgid "segmentação"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1406
+#: includes/class-v-dicom-admin-scenes.php:373
 msgid "status mapeado:"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:40 includes/class-v-dicom-admin.php:41 includes/class-v-dicom-admin.php:838
+#: includes/class-v-dicom-admin.php:24 includes/class-v-dicom-admin.php:25 includes/class-v-dicom-admin.php:38
 msgid "v-dicom"
 msgstr ""
 
@@ -1010,18 +1058,18 @@ msgstr ""
 msgid "É necessário estar logado."
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1399
+#: includes/class-v-dicom-admin-scenes.php:366
 msgid "último polling"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1349 includes/class-v-dicom-admin.php:1429
+#: includes/class-v-dicom-admin-scenes.php:316 includes/class-v-dicom-admin-scenes.php:396
 msgid "✓ Concluída"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1430
+#: includes/class-v-dicom-admin-scenes.php:397
 msgid "✕ Falhou"
 msgstr ""
 
-#: includes/class-v-dicom-admin.php:1350
+#: includes/class-v-dicom-admin-scenes.php:317
 msgid "✕ Falhou — crédito devolvido"
 msgstr ""

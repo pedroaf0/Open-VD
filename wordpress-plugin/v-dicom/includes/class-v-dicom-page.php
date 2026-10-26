@@ -19,6 +19,21 @@ class V_Dicom_Page {
 		add_filter( 'query_vars', array( $this, 'query_vars' ) );
 		add_action( 'template_redirect', array( $this, 'legacy_redirect' ), 1 );
 		add_action( 'template_redirect', array( $this, 'maybe_render' ), 5 );
+		add_filter( 'script_loader_tag', array( $this, 'module_script_tag' ), 10, 2 );
+	}
+
+	/**
+	 * Load the viewer bundle as an ES module so Vite's lazy chunks resolve.
+	 *
+	 * The inline config printed before it stays a classic script and runs before
+	 * the deferred module; only the app entry needs `type="module"`.
+	 */
+	public function module_script_tag( $tag, $handle ) {
+		if ( 'v-dicom-app' !== $handle ) {
+			return $tag;
+		}
+
+		return str_replace( '<script ', '<script type="module" ', $tag );
 	}
 
 	/**

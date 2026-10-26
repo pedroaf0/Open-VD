@@ -1,8 +1,12 @@
 /**
  * Build config for the WordPress plugin bundle (separate from the main app build).
- * Output: wordpress-plugin/v-dicom/assets/v-dicom.{js,css}
+ * Output: wordpress-plugin/v-dicom/assets/v-dicom.{js,css} + chunks/*.js
  *
- * O build é ofuscado (obfuscation) como proteção contra cópia/engenharia
+ * The entry is emitted as an ES module so Vite can split lazy imports (DICOM
+ * codecs, Three.js/Volume3D, ZIP fallback) into on-demand chunks. The WordPress
+ * page loads this entry with `type="module"` (see class-v-dicom-page.php).
+ *
+ * O build pode ser ofuscado (obfuscation) como proteção contra cópia/engenharia
  * reversa do código do bundle final.
  */
 import { defineConfig, type Plugin } from "vite";
@@ -14,8 +18,8 @@ const ofuscationEnabled = false; // true para ofuscar, false para debug
 
 /**
  * Ofusca o bundle JS após o build, usando javascript-obfuscator.
- * O hook generateBundle substitui o código do chunk antes de ser gravado,
- * funcionando em builds sem HTML (entry iife única).
+ * O hook generateBundle substitui o código do entry antes de ser gravado.
+ * Chunks lazy não são ofuscados (ficam legíveis para debug).
  */
 function obfuscateBundle(): Plugin {
   if (!ofuscationEnabled) {
@@ -70,6 +74,9 @@ function obfuscateBundle(): Plugin {
 }
 
 export default defineConfig({
+  // The entry is loaded from /wp-content/plugins/v-dicom/assets/v-dicom.js;
+  // relative URLs keep lazy chunk requests inside the plugin directory.
+  base: "./",
   publicDir: false,
   plugins: [react(), tailwindcss(), tsconfigPaths(), obfuscateBundle()],
   build: {
@@ -81,10 +88,10 @@ export default defineConfig({
     rollupOptions: {
       input: "src/embed.tsx",
       output: {
-        format: "iife",
+        format: "es",
         entryFileNames: "v-dicom.js",
+        chunkFileNames: "chunks/[name]-[hash].js",
         assetFileNames: "v-dicom.[ext]",
-        inlineDynamicImports: true,
       },
     },
   },

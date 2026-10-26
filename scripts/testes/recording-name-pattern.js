@@ -21,7 +21,7 @@ export async function run(page, config) {
   await ensureLoggedIn(page, config);
   console.log("  ✓ Sessão admin ativa");
 
-  await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom`);
+  await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom-settings`);
   await page.waitForLoadState("networkidle");
 
   const form = page.locator("form:has(#v-dicom-recording-name-pattern)").first();

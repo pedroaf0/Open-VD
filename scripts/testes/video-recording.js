@@ -94,7 +94,7 @@ export async function run(page, config) {
   let configuredPattern = globalThis.__TEST_RECORDING_NAME_PATTERN__;
   if (!configuredPattern) {
     await ensureLoggedIn(page, config);
-    await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom`);
+    await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom-settings`);
     await page.waitForLoadState("networkidle");
     const patternInput = page.locator("#v-dicom-recording-name-pattern");
     await expect(patternInput).toBeVisible({ timeout: 10000 });
