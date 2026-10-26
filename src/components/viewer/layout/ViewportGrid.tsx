@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { SliceView } from "@/components/SliceView";
-import { Volume3D } from "@/components/Volume3D";
+import { Volume3DAsync } from "@/components/Volume3DAsync";
 import { cn } from "@/lib/utils";
 import { PLANE_TABS } from "@/components/viewer/constants";
 import { ACCENTS } from "@/components/viewer/constants";
@@ -151,7 +151,7 @@ export function ViewportGrid({
             </span>
           </div>
           <div className="min-h-0 flex-1">
-            <Volume3D
+            <Volume3DAsync
               volume={volume}
               meshes={meshes}
               threshold={threshold}

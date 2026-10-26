@@ -1,7 +1,4 @@
-import * as THREE from "three";
-import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { PLYLoader } from "three/examples/jsm/loaders/PLYLoader.js";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import type * as THREE from "three";
 import type { MeshFile } from "@/components/Volume3D";
 
 function signedVolumeTriangle(
@@ -118,11 +115,12 @@ export function computeGeometryVolumeInfo(
   return { volumeMm3: vol, closed };
 }
 
-export function computeMeshFileVolume(
+export async function computeMeshFileVolume(
   file: Pick<MeshFile, "data" | "ext" | "mtl">,
-): { volumeMm3: number; closed: boolean } | null {
+): Promise<{ volumeMm3: number; closed: boolean } | null> {
   try {
     if (file.ext === "obj" && file.data) {
+      const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
       const text = new TextDecoder().decode(file.data);
       const parsed = new OBJLoader().parse(text);
       let total = 0;
@@ -143,8 +141,13 @@ export function computeMeshFileVolume(
       return { volumeMm3: total, closed: allClosed };
     }
     let geo: THREE.BufferGeometry;
-    if (file.ext === "ply") geo = new PLYLoader().parse(file.data as ArrayBuffer);
-    else geo = new STLLoader().parse(file.data as ArrayBuffer);
+    if (file.ext === "ply") {
+      const { PLYLoader } = await import("three/examples/jsm/loaders/PLYLoader.js");
+      geo = new PLYLoader().parse(file.data as ArrayBuffer);
+    } else {
+      const { STLLoader } = await import("three/examples/jsm/loaders/STLLoader.js");
+      geo = new STLLoader().parse(file.data as ArrayBuffer);
+    }
     const info = computeGeometryVolumeInfo(geo);
     geo.dispose();
     return info;

@@ -53,7 +53,8 @@ import {
   type AnnotationDraft,
   type Tool,
 } from "@/lib/annotations";
-import { Volume3D, type MeshFile } from "@/components/Volume3D";
+import type { MeshFile } from "@/components/Volume3D";
+import { Volume3DAsync } from "@/components/Volume3DAsync";
 import { ProfileView } from "@/components/ProfileView";
 import { SceneDownloadModal } from "@/components/SceneDownloadModal";
 import { LoginRequiredModal } from "@/components/LoginRequiredModal";
@@ -245,21 +246,36 @@ export function Viewer() {
     meshesRef.current = meshes;
   }, [meshes]);
   const meshVolumeCacheRef = useRef<Map<string, string | null>>(new Map());
-  const meshVolumes = useMemo(() => {
+  const [meshVolumes, setMeshVolumes] = useState<Map<string, string | null>>(() => new Map());
+  useEffect(() => {
+    let cancelled = false;
     const cache = meshVolumeCacheRef.current;
+    const currentIds = new Set(meshes.map((mf) => mf.id));
+    for (const key of [...cache.keys()]) if (!currentIds.has(key)) cache.delete(key);
+
     const out = new Map<string, string | null>();
+    const pending: MeshFile[] = [];
     for (const mf of meshes) {
-      if (cache.has(mf.id)) {
-        out.set(mf.id, cache.get(mf.id) ?? null);
-        continue;
-      }
-      const info = computeMeshFileVolume(mf);
-      const label = info?.closed && info.volumeMm3 > 0 ? formatMeshVolume(info.volumeMm3) : null;
-      cache.set(mf.id, label);
-      out.set(mf.id, label);
+      if (cache.has(mf.id)) out.set(mf.id, cache.get(mf.id) ?? null);
+      else pending.push(mf);
     }
-    for (const k of [...cache.keys()]) if (!out.has(k)) cache.delete(k);
-    return out;
+    setMeshVolumes(out);
+    if (!pending.length) return;
+
+    void (async () => {
+      for (const mf of pending) {
+        const info = await computeMeshFileVolume(mf);
+        if (cancelled) return;
+        const label = info?.closed && info.volumeMm3 > 0 ? formatMeshVolume(info.volumeMm3) : null;
+        cache.set(mf.id, label);
+        out.set(mf.id, label);
+      }
+      if (!cancelled) setMeshVolumes(new Map(out));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [meshes]);
   /**
    * Visibilidade real dos modelos (nome do arquivo → visível), usada pelo
@@ -1897,7 +1913,7 @@ export function Viewer() {
                           </span>
                         </div>
                         <div className="min-h-0 flex-1">
-                          <Volume3D
+                          <Volume3DAsync
                             volume={null}
                             meshes={meshes}
                             threshold={threshold}

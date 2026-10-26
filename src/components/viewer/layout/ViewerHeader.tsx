@@ -357,41 +357,6 @@ export function ViewerHeader({
               </span>
             </button>
           )}
-        {sceneKey &&
-        currentSceneSummary &&
-        currentSceneSummary.segmentations &&
-        Object.keys(currentSceneSummary.segmentations).length > 0 ? (
-          <span
-            className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex"
-            title={Object.entries(currentSceneSummary.segmentations)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(" | ")}
-          >
-            {Object.entries(currentSceneSummary.segmentations).map(([k, v]) => (
-              <span
-                key={k}
-                className={
-                  v === "COMPLETED" ? "text-green-500" : v === "FAILED" ? "text-destructive" : ""
-                }
-              >
-                {k}: {v === "COMPLETED" ? "✓" : v === "FAILED" ? "✕" : "⏳"} {v}
-              </span>
-            ))}
-          </span>
-        ) : sceneKey && currentSceneSummary?.segmentationUsed ? (
-          <span
-            className="hidden items-center gap-1 text-[10px] text-muted-foreground sm:inline-flex"
-            title={t("viewer.segmentation.statusTitle", {
-              status: currentSceneSummary.segmentationStatus ?? "",
-            })}
-          >
-            {currentSceneSummary.segmentationStatus === "COMPLETED"
-              ? t("viewer.segmentation.doneMark")
-              : currentSceneSummary.segmentationStatus === "FAILED"
-                ? t("viewer.segmentation.failedMark")
-                : `⏳ ${currentSceneSummary.segmentationStatus ?? "IN_QUEUE"}`}
-          </span>
-        ) : null}
 
         {/* Tela cheia (somente se suportado) */}
         {canFullscreen && (
