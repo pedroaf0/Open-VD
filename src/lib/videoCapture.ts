@@ -17,10 +17,27 @@ const RECORDING_MIME_CANDIDATES = [
   "video/webm",
 ] as const;
 
+/**
+ * Com microfone, os codecs de áudio precisam estar declarados para que o
+ * MediaRecorder grave as duas faixas no mesmo arquivo. O MP4/AAC continua
+ * primeiro; WebM/Opus é o fallback (Firefox).
+ */
+const RECORDING_AUDIO_MIME_CANDIDATES = [
+  "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+  "video/mp4;codecs=avc1,mp4a.40.2",
+  "video/mp4",
+  "video/webm;codecs=vp9,opus",
+  "video/webm;codecs=vp8,opus",
+  "video/webm",
+] as const;
+
 /** Escolhe o primeiro MIME suportado pelo MediaRecorder (ou null se nenhum). */
-export function chooseRecordingMimeType(): string | null {
+export function chooseRecordingMimeType(includeAudio = false): string | null {
   if (typeof MediaRecorder === "undefined") return null;
-  for (const mime of RECORDING_MIME_CANDIDATES) {
+  const candidates = includeAudio
+    ? [...RECORDING_AUDIO_MIME_CANDIDATES, ...RECORDING_MIME_CANDIDATES]
+    : RECORDING_MIME_CANDIDATES;
+  for (const mime of candidates) {
     try {
       if (MediaRecorder.isTypeSupported(mime)) return mime;
     } catch {

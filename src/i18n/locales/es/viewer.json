@@ -200,10 +200,15 @@
     "stop": "Detener grabación",
     "indicator": "Grabando",
     "previewTitle": "Vídeo del panel",
-    "previewDesc": "Vista previa de la grabación del panel actual. El vídeo incluye las ventanas visibles, sin los controles de la interfaz.",
+    "previewDesc": "Vista previa de la grabación del panel actual. El vídeo incluye las ventanas visibles, sin los controles de la interfaz. El micrófono se incluye solo cuando se selecciona al iniciar la grabación.",
     "download": "Descargar vídeo",
+    "audioTitle": "¿Grabar audio del micrófono?",
+    "audioDesc": "El vídeo del panel se grabará normalmente. ¿Deseas incluir tu voz usando el micrófono de este dispositivo?",
+    "audioWithout": "Grabar sin audio",
+    "audioWith": "Grabar con micrófono",
     "unsupported": "Este navegador no permite grabar vídeo del panel.",
-    "failed": "No se pudo grabar el vídeo del panel."
+    "failed": "No se pudo grabar el vídeo del panel.",
+    "microphoneFailed": "No se pudo acceder al micrófono. Revisa el permiso del navegador e inténtalo de nuevo."
   },
   "mpr": {
     "resetOblique": "Restablecer MPR oblicuo"

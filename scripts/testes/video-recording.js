@@ -1,11 +1,13 @@
 /**
  * Panel video recording test module.
  *
- * Covers the record button in the lateral rail, the red recording indicator
- * with its elapsed timer, the stop control, the preview modal with playback and
- * download, the composed 2×2 frame (all four viewports), a recording while one
- * viewport is expanded, and starting a second recording after the first one has
- * been finalized (resource cleanup).
+ * Covers the record button in the lateral rail, the audio choice prompt, the red
+ * recording indicator with its elapsed timer, the stop control, the preview
+ * modal with playback and download, the composed 2×2 frame (all four viewports),
+ * a recording while one viewport is expanded, and starting a second recording
+ * after the first one has been finalized (resource cleanup). The first preview
+ * proves the no-audio path; the second one uses Chromium's fake microphone and
+ * proves the audio track is included.
  *
  * Optional final verification screenshots are captured only when the runner is
  * invoked with `--screenshots` (disabled by default). The downloaded recording
@@ -19,13 +21,18 @@ import { ensureLoggedIn, readSceneKey, waitForViewerReady } from "./test-helpers
 
 export const name = "video-recording";
 export const description =
-  "Gravação do painel: trilho, quatro janelas, janela expandida, prévia e download";
+  "Gravação do painel: trilho, quatro janelas, áudio opcional, janela expandida, prévia e download";
 export const order = 85;
 
 const VIEWPORT_3D = '.viewport-frame:has(.plane-label:text-is("3D / STL"))';
 const START_LABEL = /Gravar vídeo do painel|Record panel video|Grabar vídeo del panel/;
 const STOP_LABEL = /Parar gravação|Stop Recording|Detener grabación/;
 const INDICATOR_LABEL = /Gravando|Recording|Grabando/;
+const AUDIO_PROMPT_LABEL =
+  /Gravar áudio do microfone|Record microphone audio|Grabar audio del micrófono/;
+const WITHOUT_AUDIO_LABEL = /Gravar sem áudio|Record without audio|Grabar sin audio/;
+const WITH_AUDIO_LABEL = /Gravar com microfone|Record with microphone|Grabar con micrófono/;
+const CANCEL_LABEL = /Cancelar|Cancel/;
 const BACK_TO_GRID_LABEL = /Voltar ao mosaico|Back to grid|Volver a la cuadrícula/;
 const PANEL_TOGGLE_LABEL = /Painel de parâmetros|Parameters panel|Panel de parámetros/;
 const DEFAULT_PATTERN = "openvd-3d-recording-{timestamp}";
@@ -74,6 +81,28 @@ async function capture(page, config, fileName, locator = null) {
     await page.screenshot({ path: target, fullPage: true });
   }
   console.log(`  📸 Screenshot salvo: ${target}`);
+}
+
+/** Abre a escolha de áudio e inicia a gravação com ou sem microfone. */
+async function startRecording(page, button, audio = false) {
+  await button.click();
+  const prompt = page.getByRole("dialog", { name: AUDIO_PROMPT_LABEL }).first();
+  await expect(prompt).toBeVisible({ timeout: 10000 });
+  await prompt
+    .getByRole("button", { name: audio ? WITH_AUDIO_LABEL : WITHOUT_AUDIO_LABEL })
+    .click();
+  await expect(prompt).not.toBeVisible({ timeout: 5000 });
+}
+
+/** Lê a quantidade de faixas de áudio do blob gravado (0 = vídeo sem áudio). */
+async function videoAudioTrackCount(video) {
+  return video.evaluate((element) => {
+    if (typeof element.captureStream !== "function") return -1;
+    const stream = element.captureStream();
+    const count = stream.getAudioTracks().length;
+    stream.getTracks().forEach((track) => track.stop());
+    return count;
+  });
 }
 
 async function waitForVideoMetadata(page) {
@@ -204,9 +233,22 @@ export async function run(page, config) {
   await capture(page, config, "video-recording-01-initial.png");
 
   // ============================================================
-  // TEST 1: start recording — stop state + red indicator + timer.
+  // TEST 1: the record button asks about microphone audio first.
+  // Cancelling must not start the recorder.
   // ============================================================
   await recordBtn.click();
+  const audioPrompt = page.getByRole("dialog", { name: AUDIO_PROMPT_LABEL }).first();
+  await expect(audioPrompt).toBeVisible({ timeout: 10000 });
+  await audioPrompt.getByRole("button", { name: CANCEL_LABEL }).click();
+  await expect(audioPrompt).not.toBeVisible({ timeout: 5000 });
+  await expect(recordBtn).toHaveAttribute("aria-pressed", "false");
+  expect(await rail.getByRole("button", { name: STOP_LABEL }).count()).toBe(0);
+  console.log("  🎙 Pergunta de áudio exibida; cancelar não iniciou a gravação");
+
+  // ============================================================
+  // TEST 2: start without audio — stop state + red indicator + timer.
+  // ============================================================
+  await startRecording(page, recordBtn);
 
   const stopBtn = rail.getByRole("button", { name: STOP_LABEL });
   await expect(stopBtn).toBeVisible({ timeout: 10000 });
@@ -236,7 +278,7 @@ export async function run(page, config) {
   await capture(page, config, "video-recording-02-active.png");
 
   // ============================================================
-  // TEST 2: stop finalizes the video and opens the preview modal.
+  // TEST 3: stop finalizes the video and opens the preview modal.
   // ============================================================
   await stopBtn.click();
 
@@ -260,7 +302,8 @@ export async function run(page, config) {
   const viewport3dBox = await viewport3d.boundingBox();
   expect(viewport3dBox).toBeTruthy();
   expect(metadata.width).toBeGreaterThan(viewport3dBox.width * 1.5);
-  console.log(`  🎬 Prévia do painel aberta (${metadata.width}×${metadata.height})`);
+  expect(await videoAudioTrackCount(video)).toBe(0);
+  console.log(`  🎬 Prévia do painel aberta sem áudio (${metadata.width}×${metadata.height})`);
 
   const frame = await analyzeVideoFrame(video);
   expect(frame.width).toBe(metadata.width);
@@ -276,7 +319,7 @@ export async function run(page, config) {
   await capture(page, config, "video-recording-03-preview.png");
 
   // ============================================================
-  // TEST 3: download the recorded file.
+  // TEST 4: download the recorded file.
   // ============================================================
   const downloadPromise = page.waitForEvent("download");
   await dialog.locator("button:has(svg.lucide-download)").first().click();
@@ -319,15 +362,15 @@ export async function run(page, config) {
   console.log(`  ⬇ Download do vídeo validado: ${fileName} (${size} bytes)`);
 
   // ============================================================
-  // TEST 4: close the modal and prove the recorder can be reused
-  // (stream tracks and object URL were released).
+  // TEST 5: close the modal, record again with microphone audio, and prove
+  // the recorder and its tracks were released between recordings.
   // ============================================================
   await dialog.locator("button.btn-chip").first().click();
   await expect(dialog).not.toBeVisible({ timeout: 5000 });
 
   const recordAgain = rail.getByRole("button", { name: START_LABEL });
   await expect(recordAgain).toBeVisible({ timeout: 10000 });
-  await recordAgain.click();
+  await startRecording(page, recordAgain, true);
   await page.waitForTimeout(1200);
   const stopAgain = rail.getByRole("button", { name: STOP_LABEL });
   await expect(stopAgain).toBeVisible({ timeout: 10000 });
@@ -335,19 +378,22 @@ export async function run(page, config) {
 
   const secondDialog = page.locator('[role="dialog"]:has(video)').first();
   await expect(secondDialog).toBeVisible({ timeout: 20000 });
+  await waitForVideoMetadata(page);
+  const secondVideo = secondDialog.locator("video").first();
+  await expect.poll(() => videoAudioTrackCount(secondVideo), { timeout: 10000 }).toBeGreaterThan(0);
   await secondDialog.locator("button.btn-chip").first().click();
   await expect(secondDialog).not.toBeVisible({ timeout: 5000 });
-  console.log("  🔁 Segunda gravação iniciada/encerrada (recursos liberados)");
+  console.log("  🎙 Segunda gravação com microfone incluiu faixa de áudio");
 
   // ============================================================
-  // TEST 5: recording follows the expanded single-viewport layout.
+  // TEST 6: recording follows the expanded single-viewport layout.
   // ============================================================
   const expandBtn = page.locator('main button[aria-label^="Expandir"]').first();
   await expect(expandBtn).toBeVisible({ timeout: 10000 });
   await expandBtn.click();
   await expect(page.locator("[data-recording-viewport]")).toHaveCount(1);
 
-  await rail.getByRole("button", { name: START_LABEL }).click();
+  await startRecording(page, rail.getByRole("button", { name: START_LABEL }));
   await page.waitForTimeout(1200);
   const stopExpanded = rail.getByRole("button", { name: STOP_LABEL });
   await expect(stopExpanded).toBeVisible({ timeout: 10000 });
@@ -382,7 +428,7 @@ export async function run(page, config) {
   await expect(page.locator("[data-recording-viewport]")).toHaveCount(4);
 
   // ============================================================
-  // TEST 6: tablet has no rail, so the same control lives in the
+  // TEST 7: tablet has no rail, so the same control lives in the
   // parameters side panel and records the panel there too.
   // ============================================================
   await page.setViewportSize({ width: 900, height: 800 });
@@ -392,7 +438,7 @@ export async function run(page, config) {
   await expect(page.locator("nav.rail")).toHaveCount(0);
   const tabletRecord = page.getByRole("button", { name: START_LABEL }).first();
   await expect(tabletRecord).toBeVisible({ timeout: 10000 });
-  await tabletRecord.click();
+  await startRecording(page, tabletRecord);
   const tabletStop = page.getByRole("button", { name: STOP_LABEL }).first();
   await expect(tabletStop).toBeVisible({ timeout: 10000 });
   await page.waitForTimeout(1000);
@@ -413,7 +459,7 @@ export async function run(page, config) {
   await expect(tabletDialog).not.toBeVisible({ timeout: 5000 });
 
   // ============================================================
-  // TEST 7: mobile records from the 3D sheet (only the focused
+  // TEST 8: mobile records from the 3D sheet (only the focused
   // viewport is visible, so the composed video follows it).
   // ============================================================
   await page.setViewportSize({ width: 390, height: 844 });
@@ -423,7 +469,7 @@ export async function run(page, config) {
   await expect(mobileSheet).toBeVisible({ timeout: 10000 });
   const mobileRecord = mobileSheet.getByRole("button", { name: START_LABEL });
   await expect(mobileRecord).toBeVisible({ timeout: 10000 });
-  await mobileRecord.click();
+  await startRecording(page, mobileRecord);
   const mobileStop = mobileSheet.getByRole("button", { name: STOP_LABEL });
   await expect(mobileStop).toBeVisible({ timeout: 10000 });
   await page.waitForTimeout(1000);

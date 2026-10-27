@@ -147,11 +147,14 @@ async function run() {
   const browser = await chromium.launch({
     headless: CONFIG.HEADLESS,
     slowMo: CONFIG.HEADLESS ? 0 : 200,
+    // Microfone simulado para o teste de áudio da gravação do painel.
+    args: ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream"],
   });
 
   // Setup video recording if enabled - use single context for tests
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
+    permissions: ["microphone"],
     ...(CONFIG.ENABLE_VIDEO && {
       recordVideo: {
         dir: path.join(root, "test-results", "videos"),

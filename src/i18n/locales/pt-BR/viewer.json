@@ -200,10 +200,15 @@
     "stop": "Parar gravação",
     "indicator": "Gravando",
     "previewTitle": "Vídeo do painel",
-    "previewDesc": "Prévia da gravação do painel atual. O vídeo inclui as janelas visíveis, sem os controles da interface.",
+    "previewDesc": "Prévia da gravação do painel atual. O vídeo inclui as janelas visíveis, sem os controles da interface. O microfone é incluído apenas quando escolhido no início da gravação.",
     "download": "Baixar vídeo",
+    "audioTitle": "Gravar áudio do microfone?",
+    "audioDesc": "O vídeo do painel será gravado normalmente. Deseja incluir sua voz usando o microfone deste dispositivo?",
+    "audioWithout": "Gravar sem áudio",
+    "audioWith": "Gravar com microfone",
     "unsupported": "Este navegador não permite gravar vídeo do painel.",
-    "failed": "Não foi possível gravar o vídeo do painel."
+    "failed": "Não foi possível gravar o vídeo do painel.",
+    "microphoneFailed": "Não foi possível acessar o microfone. Verifique a permissão do navegador e tente novamente."
   },
   "mpr": {
     "resetOblique": "Zerar MPR oblíquo"

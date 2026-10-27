@@ -200,10 +200,15 @@
     "stop": "Stop Recording",
     "indicator": "Recording",
     "previewTitle": "Panel video",
-    "previewDesc": "Preview of the current panel recording. The video includes the visible viewports but not the interface controls.",
+    "previewDesc": "Preview of the current panel recording. The video includes the visible viewports but not the interface controls. The microphone is included only when selected at the start of the recording.",
     "download": "Download video",
+    "audioTitle": "Record microphone audio?",
+    "audioDesc": "The panel video will be recorded normally. Do you want to include your voice using this device's microphone?",
+    "audioWithout": "Record without audio",
+    "audioWith": "Record with microphone",
     "unsupported": "This browser does not support recording the panel.",
-    "failed": "Could not record the panel video."
+    "failed": "Could not record the panel video.",
+    "microphoneFailed": "Could not access the microphone. Check your browser permission and try again."
   },
   "mpr": {
     "resetOblique": "Reset oblique MPR"

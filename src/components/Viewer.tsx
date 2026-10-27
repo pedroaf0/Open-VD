@@ -18,6 +18,7 @@ import { CreditConfirmDialog } from "@/components/viewer/dialogs/CreditConfirmDi
 import { MeshDeleteDialog } from "@/components/viewer/dialogs/MeshDeleteDialog";
 import { OpenUrlDialog } from "@/components/viewer/dialogs/OpenUrlDialog";
 import { QrDialog } from "@/components/viewer/dialogs/QrDialog";
+import { RecordingAudioDialog } from "@/components/viewer/dialogs/RecordingAudioDialog";
 import { SegmentationPickerDialog } from "@/components/viewer/dialogs/SegmentationPickerDialog";
 import { SegmentationProgressDialog } from "@/components/viewer/dialogs/SegmentationProgressDialog";
 import { ShareDialog } from "@/components/viewer/dialogs/ShareDialog";
@@ -365,6 +366,9 @@ export function Viewer() {
   const meshDeleteConfirmResolve = useRef<(value: boolean) => void>(() => {});
   const meshDeleteConfirmData = useRef<{ id: string; name: string } | null>(null);
 
+  // Pergunta se a gravação do painel deve incluir o microfone.
+  const [recordingAudioOpen, setRecordingAudioOpen] = useState(false);
+
   /** original files currently loaded (used when saving the scene to WordPress) */
   const sourceFiles = useRef<ExpandInput[]>([]);
   const sceneLoaded = useRef(false);
@@ -380,19 +384,37 @@ export function Viewer() {
   const cfg = useWpConfig();
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
   const panelRecording = usePanelRecorder(viewportGridRef, volume3dRenderRef);
-  const { error: recordingError, clearError: clearRecordingError } = panelRecording;
+  const {
+    error: recordingError,
+    clearError: clearRecordingError,
+    start: startPanelRecorder,
+    stop: stopPanelRecorder,
+  } = panelRecording;
 
   useEffect(() => {
     if (!recordingError) return;
-    setError(
-      t(
-        recordingError === "unsupported"
-          ? "viewer.recording.unsupported"
-          : "viewer.recording.failed",
-      ),
-    );
+    let messageKey = "viewer.recording.failed";
+    if (recordingError === "unsupported") messageKey = "viewer.recording.unsupported";
+    else if (recordingError === "microphone") messageKey = "viewer.recording.microphoneFailed";
+    setError(t(messageKey));
     clearRecordingError();
   }, [recordingError, clearRecordingError, t]);
+
+  const requestRecordingToggle = useCallback(() => {
+    if (panelRecording.recording) {
+      stopPanelRecorder();
+      return;
+    }
+    setRecordingAudioOpen(true);
+  }, [panelRecording.recording, stopPanelRecorder]);
+
+  const startPanelRecording = useCallback(
+    (audio: boolean) => {
+      setRecordingAudioOpen(false);
+      void startPanelRecorder({ audio });
+    },
+    [startPanelRecorder],
+  );
 
   // Flags derivados da configuração — declarados cedo para uso em callbacks
   const canUpload = !cfg || cfg.canUpload;
@@ -1863,6 +1885,13 @@ export function Viewer() {
 
         <QrDialog open={qrOpen} share={share} onClose={() => setQrOpen(false)} />
 
+        <RecordingAudioDialog
+          open={recordingAudioOpen}
+          onOpenChange={setRecordingAudioOpen}
+          onStartWithoutAudio={() => startPanelRecording(false)}
+          onStartWithAudio={() => startPanelRecording(true)}
+        />
+
         <VideoPreviewDialog
           open={panelRecording.previewOpen}
           onOpenChange={panelRecording.setPreviewOpen}
@@ -1912,7 +1941,7 @@ export function Viewer() {
                 annColorPicker={annColorPicker}
                 recording={panelRecording.recording}
                 recordedSeconds={panelRecording.seconds}
-                onToggleRecording={panelRecording.toggle}
+                onToggleRecording={requestRecordingToggle}
               />
 
               <div className="flex min-h-0 flex-1 flex-col">
@@ -2129,7 +2158,7 @@ export function Viewer() {
                     handleResetAll={handleResetAll}
                     recording={panelRecording.recording}
                     recordedSeconds={panelRecording.seconds}
-                    onToggleRecording={panelRecording.toggle}
+                    onToggleRecording={requestRecordingToggle}
                   />
                 </div>
               </div>
@@ -2219,7 +2248,7 @@ export function Viewer() {
           setShowLines={setShowLines}
           recording={panelRecording.recording}
           recordedSeconds={panelRecording.seconds}
-          onToggleRecording={panelRecording.toggle}
+          onToggleRecording={requestRecordingToggle}
         />
       </div>
       {DEBUG_OVERLAY_ENABLED && <DebugOverlay />}

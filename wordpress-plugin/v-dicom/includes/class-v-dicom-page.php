@@ -395,7 +395,18 @@ $config = array(
 <link rel="apple-touch-icon" sizes="180x180" href="<?php echo esc_url( self::icon_url( 'apple-touch-icon-180x180.png' ) ); ?>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<?php wp_print_styles(); ?>
+<?php
+/*
+ * This standalone template skips wp_head(), so core's wp_enqueue_scripts
+ * hook (which enqueues the emoji styles and unhooks the legacy handler)
+ * never runs. Call the replacement directly so the deprecated
+ * print_emoji_styles() handler does not fire a notice on WP 6.4+.
+ */
+if ( function_exists( 'wp_enqueue_emoji_styles' ) ) {
+	wp_enqueue_emoji_styles();
+}
+wp_print_styles();
+?>
 <?php do_action( 'v_dicom_head' ); ?>
 </head>
 <body class="v-dicom-standalone">
