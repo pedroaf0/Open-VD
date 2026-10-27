@@ -50,27 +50,36 @@ Dois modos de execução:
 
 ## 2. Regras de ouro (não negociáveis)
 
-1. **Preserve o trabalho existente.** Rode `git status` antes de editar. Há
+1. **Corrija pela configuração, não pelo código.** Se o comportamento puder ser
+   ajustado por configuração (opções do admin, tipo de segmentação, URLs de
+   run/status, template de payload, arquivos de importação, limites/quotas),
+   **altere a configuração e não o código**. Mudar o código para compensar
+   configuração errada é **estritamente proibido**. Exemplo: um endpoint RunPod
+   `.../runsync` que estoura o timeout deve ser trocado para `.../run` na
+   configuração — nunca contornado com lógica no PHP. Se a configuração não
+   permitir resolver o problema, proponha a mudança de código e aguarde
+   aprovação explícita.
+2. **Preserve o trabalho existente.** Rode `git status` antes de editar. Há
    refatorações não commitadas com frequência; nunca descarte, reverta ou
    reformate mudanças alheias para “limpar” o worktree.
-2. **Não edite arquivos gerados à mão:** `src/routeTree.gen.ts` (regenere via
+3. **Não edite arquivos gerados à mão:** `src/routeTree.gen.ts` (regenere via
    TanStack Router e versione se as rotas mudarem), os bundles
    `wordpress-plugin/v-dicom/assets/v-dicom.js|css` e `assets/chunks/*.js`, os
    ícones gerados e `*.zip`.
-3. **Toda string de UI é i18n.** Adicione a chave nos **três** idiomas
+4. **Toda string de UI é i18n.** Adicione a chave nos **três** idiomas
    (`pt-BR`, `en`, `es`) no namespace correto. Nunca deixe texto cru em
    `tsx`, `aria-label`, `title` ou `placeholder`.
-4. **Use o alias `@/`** para imports de `src/`. Não invente caminhos relativos
+5. **Use o alias `@/`** para imports de `src/`. Não invente caminhos relativos
    profundos.
-5. **Mudanças pequenas e coesas.** Não faça refatoração ampla, renomeação em
+6. **Mudanças pequenas e coesas.** Não faça refatoração ampla, renomeação em
    massa ou `prettier --write .` sem relação com a tarefa.
-6. **Não rode comandos destrutivos por conta própria:** `npm run build:plugin`
+7. **Não rode comandos destrutivos por conta própria:** `npm run build:plugin`
    faz bump de versão, apaga/substitui a cópia em `C:\xampp\htdocs\...` e gera
    ZIP. A suíte E2E altera um WordPress local. Use apenas quando solicitado ou
    quando o ambiente local for claramente descartável.
-7. **Sem dados de paciente, segredos ou artefatos no commit.** Não commite
+8. **Sem dados de paciente, segredos ou artefatos no commit.** Não commite
    exames, `test-scene-key.json`, `test-results/`, ZIPs, bundles ou logs.
-8. **Não enfraqueça segurança:** permissões REST, nonces, sanitização,
+9. **Não enfraqueça segurança:** permissões REST, nonces, sanitização,
    escape de saída, criptografia de `window.V_DICOM` e bloqueios da pasta de
    uploads são requisitos, não detalhes.
 
