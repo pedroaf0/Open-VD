@@ -11,6 +11,7 @@ class V_Dicom_Admin_Mesh_Colors {
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_post_v_dicom_mesh_colors', array( $this, 'handle_mesh_colors' ) );
+		add_action( 'admin_post_v_dicom_mesh_colors_import', array( $this, 'handle_mesh_colors_import' ) );
 	}
 
 	public function menu() {
@@ -48,6 +49,52 @@ class V_Dicom_Admin_Mesh_Colors {
 		}
 		V_Dicom_Storage::set_mesh_colors( $rules );
 		wp_safe_redirect( add_query_arg( 'meshcolorssaved', 1, admin_url( 'admin.php?page=v-dicom-colors' ) ) );
+		exit;
+	}
+
+	/** Import mesh color rules from a JSON file. */
+	public function handle_mesh_colors_import() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		check_admin_referer( 'v_dicom_mesh_colors_import' );
+
+		if ( empty( $_FILES['v_dicom_mesh_colors_file']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'meshcolorserror', 'nofile', admin_url( 'admin.php?page=v-dicom-colors' ) ) );
+			exit;
+		}
+
+		$content = file_get_contents( $_FILES['v_dicom_mesh_colors_file']['tmp_name'] );
+		if ( false === $content ) {
+			wp_safe_redirect( add_query_arg( 'meshcolorserror', 'read', admin_url( 'admin.php?page=v-dicom-colors' ) ) );
+			exit;
+		}
+
+		$data = json_decode( $content, true );
+		if ( ! is_array( $data ) ) {
+			wp_safe_redirect( add_query_arg( 'meshcolorserror', 'invalid', admin_url( 'admin.php?page=v-dicom-colors' ) ) );
+			exit;
+		}
+
+		$rules = array();
+		foreach ( $data as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$rule = array(
+				'name'  => isset( $item['name'] ) ? (string) $item['name'] : '',
+				'color' => isset( $item['color'] ) ? (string) $item['color'] : '',
+				'match' => isset( $item['match'] ) ? (string) $item['match'] : 'exact',
+			);
+			// Validate match type
+			if ( ! in_array( $rule['match'], array( 'exact', 'contains', 'regex' ), true ) ) {
+				$rule['match'] = 'exact';
+			}
+			$rules[] = $rule;
+		}
+
+		V_Dicom_Storage::set_mesh_colors( $rules );
+		wp_safe_redirect( add_query_arg( 'meshcolorsimported', 1, admin_url( 'admin.php?page=v-dicom-colors' ) ) );
 		exit;
 	}
 
@@ -105,6 +152,45 @@ class V_Dicom_Admin_Mesh_Colors {
 				</p>
 				<?php submit_button( __( 'Salvar cores', 'v-dicom' ) ); ?>
 			</form>
+
+			<hr style="margin:24px 0;max-width:860px" />
+
+			<div style="max-width:860px">
+				<h2><?php esc_html_e( 'Exportar / Importar', 'v-dicom' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Exporte as regras atuais para um arquivo JSON e importe em outra instalação ou faça backup.', 'v-dicom' ); ?></p>
+
+				<?php if ( isset( $_GET['meshcolorsimported'] ) ) : ?>
+					<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Regras importadas com sucesso.', 'v-dicom' ); ?></p></div>
+				<?php endif; ?>
+				<?php if ( isset( $_GET['meshcolorserror'] ) ) : ?>
+					<div class="notice notice-error is-dismissible"><p>
+						<?php
+						$err = sanitize_text_field( wp_unslash( $_GET['meshcolorserror'] ) );
+						if ( 'nofile' === $err ) {
+							esc_html_e( 'Nenhum arquivo enviado.', 'v-dicom' );
+						} elseif ( 'read' === $err ) {
+							esc_html_e( 'Falha ao ler o arquivo.', 'v-dicom' );
+						} elseif ( 'invalid' === $err ) {
+							esc_html_e( 'Arquivo JSON inválido ou formato incorreto.', 'v-dicom' );
+						} else {
+							esc_html_e( 'Erro ao importar.', 'v-dicom' );
+						}
+						?>
+					</p></div>
+				<?php endif; ?>
+
+				<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+					<button type="button" class="button" id="vd-export-mesh-colors"><?php esc_html_e( 'Exportar JSON', 'v-dicom' ); ?></button>
+				</div>
+
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+					<input type="hidden" name="action" value="v_dicom_mesh_colors_import" />
+					<?php wp_nonce_field( 'v_dicom_mesh_colors_import' ); ?>
+					<input type="file" name="v_dicom_mesh_colors_file" accept=".json" style="max-width:300px" />
+					<?php submit_button( __( 'Importar JSON', 'v-dicom' ), 'secondary', 'vd_import_mesh_colors', false ); ?>
+				</form>
+			</div>
+
 			<script>
 			var vdMeshLabels = <?php echo wp_json_encode(
 				array(
@@ -120,10 +206,12 @@ class V_Dicom_Admin_Mesh_Colors {
 				)
 			); ?>;
 			var vdMeshDefaults = <?php echo wp_json_encode( V_Dicom_Storage::default_mesh_colors() ); ?>;
+			var vdMeshCurrentRules = <?php echo wp_json_encode( $rules ); ?>;
 			(function () {
 				var body = document.getElementById('vd-mesh-colors-body');
 				var addBtn = document.getElementById('vd-add-mesh-color');
 				var resetBtn = document.getElementById('vd-reset-mesh-colors');
+				var exportBtn = document.getElementById('vd-export-mesh-colors');
 				if (!body || !addBtn) {
 					return;
 				}
@@ -161,6 +249,20 @@ class V_Dicom_Admin_Mesh_Colors {
 						vdMeshDefaults.forEach(function (rule) {
 							addRow(rule.name, rule.color, rule.match);
 						});
+					});
+				}
+				if (exportBtn) {
+					exportBtn.addEventListener('click', function () {
+						var json = JSON.stringify(vdMeshCurrentRules, null, 2);
+						var blob = new Blob([json], { type: 'application/json' });
+						var url = URL.createObjectURL(blob);
+						var a = document.createElement('a');
+						a.href = url;
+						a.download = 'v-dicom-mesh-colors.json';
+						document.body.appendChild(a);
+						a.click();
+						document.body.removeChild(a);
+						URL.revokeObjectURL(url);
 					});
 				}
 			})();
