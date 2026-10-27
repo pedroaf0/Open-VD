@@ -114,6 +114,20 @@ const pluginMain = path.join(pluginDir, "v-dicom.php");
 const pluginReadme = path.join(pluginDir, "readme.txt");
 const testPluginDir = "C:\\xampp\\htdocs\\wp-content\\plugins\\v-dicom";
 
+function readPluginVersion() {
+  const php = fs.readFileSync(pluginMain, "utf-8");
+  const match = php.match(/V_DICOM_VERSION',\s*'(\d+\.\d+\.\d+)'/);
+  if (!match || !match[1]) {
+    throw new Error("Versao do plugin nao encontrada em v-dicom.php");
+  }
+  return match[1];
+}
+
+function nextMinorVersion(version) {
+  const [major, minor] = version.split(".");
+  return `${major}.${Number(minor) + 1}.0`;
+}
+
 function bumpVersion() {
   const php = fs.readFileSync(pluginMain, "utf-8");
   const match = php.match(/V_DICOM_VERSION',\s*'(\d+)\.(\d+)\.(\d+)'/);
@@ -157,10 +171,14 @@ if (process.argv.includes("--check-i18n")) {
 }
 
 try {
+  const buildVersion = nextMinorVersion(readPluginVersion());
+
   step("1/5 Gerando bundle do plugin (vite build)");
+  console.log(`  Versao de cache-busting dos chunks: ${buildVersion}`);
   execSync("npx vite build --config .\\vite.embed.config.ts", {
     cwd: root,
     stdio: "inherit",
+    env: { ...process.env, V_DICOM_ASSET_VERSION: buildVersion },
   });
 
   if (!fs.existsSync(pluginDir)) {
@@ -181,7 +199,12 @@ try {
   cleanWalk(pluginDir);
 
   step("3/5 Incrementando versao do plugin");
-  bumpVersion();
+  const bumpedVersion = bumpVersion();
+  if (bumpedVersion !== buildVersion) {
+    throw new Error(
+      `Versao do build (${buildVersion}) difere da versao gravada (${bumpedVersion})`,
+    );
+  }
 
   step("4/5 Verificando comentarios translators");
   const missingTranslators = findMissingTranslatorsComments();

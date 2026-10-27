@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -22,8 +22,6 @@ import {
   Plus,
   RotateCcw,
   Sparkles,
-  Square,
-  Video,
   X,
   Zap,
   type LucideIcon,
@@ -36,7 +34,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CapturePreviewDialog } from "@/components/CapturePreviewDialog";
-import { VideoPreviewDialog } from "@/components/VideoPreviewDialog";
 import { makeTextureVolume, type Plane, type Volume } from "@/lib/dicom";
 import {
   defaultPlaneStates,
@@ -47,11 +44,6 @@ import {
 } from "@/lib/mpr";
 import { forcedMeshColor } from "@/lib/meshColors";
 import { setRenderMode, useRenderMode, type RenderMode } from "@/lib/renderMode";
-import {
-  chooseRecordingMimeType,
-  formatRecordingDuration,
-  recordingFileExtension,
-} from "@/lib/videoCapture";
 import {
   createStaticDepthTarget,
   createTransparencyUniforms,
@@ -92,8 +84,8 @@ type Props = {
   invert: boolean;
   /** pedido de centralização da rotação num modelo (gera novo objeto a cada clique) */
   centerRequest?: { id: string; seq: number } | null;
-  /** Padrão do nome do vídeo definido no WP Admin (tokens {data}/{hora}/{timestamp}). */
-  recordingNamePattern?: string | undefined;
+  /** Permite ao gravador forçar um frame antes de ler o canvas WebGL. */
+  renderRequestRef?: RefObject<(() => void) | null>;
 };
 
 const TIP_STORAGE_KEY = "openvd:transparency-tip-seen:v1";
@@ -103,10 +95,6 @@ const AZIMUTH_STEP = 10;
 const ELEVATION_STEP = 5;
 const ZOOM_FACTOR = 1.14;
 const PRECISE_MIN_FRAME_MS = 110;
-const RECORDING_FPS = 30;
-const RECORDING_BITRATE = 8_000_000;
-const RECORDING_CHUNK_MS = 250;
-const RECORDING_FRAME_MS = 1000 / RECORDING_FPS;
 
 const RENDER_MODE_META: Array<{
   id: RenderMode;
@@ -213,7 +201,7 @@ export function Volume3D({
   ww,
   invert,
   centerRequest,
-  recordingNamePattern,
+  renderRequestRef,
 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const matRef = useRef<THREE.ShaderMaterial | null>(null);
@@ -267,20 +255,8 @@ export function Volume3D({
   const [captureUrl, setCaptureUrl] = useState<string | null>(null);
   const [captureError, setCaptureError] = useState<string | null>(null);
 
-  /** Canvas WebGL do viewport 3D; é a fonte da gravação (não a interface). */
+  /** Canvas WebGL do viewport 3D; usado na captura e na gravação do painel. */
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const recordingStreamRef = useRef<MediaStream | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
-  const recordingActiveRef = useRef(false);
-  const recordingStartedAtRef = useRef(0);
-  const recordingTimerRef = useRef<number | null>(null);
-  const videoUrlRef = useRef<string | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [recordedSeconds, setRecordedSeconds] = useState(0);
-  const [videoOpen, setVideoOpen] = useState(false);
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [videoMime, setVideoMime] = useState("video/webm");
 
   // ---- first-run hint -------------------------------------------------
   useEffect(() => {
@@ -335,172 +311,6 @@ export function Volume3D({
     setCaptureUrl(dataUrl);
     setCaptureOpen(true);
   };
-
-  const clearRecordingTimer = () => {
-    if (recordingTimerRef.current !== null) {
-      window.clearInterval(recordingTimerRef.current);
-      recordingTimerRef.current = null;
-    }
-  };
-
-  const releaseVideoUrl = () => {
-    if (videoUrlRef.current) {
-      URL.revokeObjectURL(videoUrlRef.current);
-      videoUrlRef.current = null;
-    }
-    setVideoUrl(null);
-  };
-
-  const openVideoPreview = (blob: Blob, mime: string) => {
-    releaseVideoUrl();
-    const url = URL.createObjectURL(blob);
-    videoUrlRef.current = url;
-    setVideoMime(mime || "video/webm");
-    setVideoUrl(url);
-    setVideoOpen(true);
-  };
-
-  const handleVideoOpenChange = (open: boolean) => {
-    setVideoOpen(open);
-    if (!open) releaseVideoUrl();
-  };
-
-  /** Grava o canvas WebGL do viewport (câmera e cena atuais), sem a interface. */
-  const startRecording = () => {
-    if (recorderRef.current) return;
-    const canvas = canvasRef.current;
-    if (
-      !canvas ||
-      typeof canvas.captureStream !== "function" ||
-      typeof MediaRecorder === "undefined"
-    ) {
-      setCaptureError(t("viewer.recording.unsupported"));
-      return;
-    }
-
-    let stream: MediaStream | null = null;
-    try {
-      stream = canvas.captureStream(RECORDING_FPS);
-      const selectedMime = chooseRecordingMimeType();
-      const options: MediaRecorderOptions = {
-        videoBitsPerSecond: RECORDING_BITRATE,
-      };
-      if (selectedMime) options.mimeType = selectedMime;
-
-      let recorder: MediaRecorder;
-      try {
-        recorder = new MediaRecorder(stream, options);
-      } catch {
-        recorder = new MediaRecorder(stream);
-      }
-
-      recordingChunksRef.current = [];
-      recorderRef.current = recorder;
-      recordingStreamRef.current = stream;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          recordingChunksRef.current.push(event.data);
-        }
-      };
-      recorder.onerror = () => {
-        recorder.onstop = null;
-        recordingActiveRef.current = false;
-        clearRecordingTimer();
-        stream?.getTracks().forEach((track) => track.stop());
-        recorderRef.current = null;
-        recordingStreamRef.current = null;
-        recordingChunksRef.current = [];
-        setRecording(false);
-        setCaptureError(t("viewer.recording.failed"));
-      };
-      recorder.onstop = () => {
-        recordingActiveRef.current = false;
-        clearRecordingTimer();
-        stream?.getTracks().forEach((track) => track.stop());
-        const recordedMime = recorder.mimeType || selectedMime || "video/webm";
-        const blob = new Blob(recordingChunksRef.current, { type: recordedMime });
-        recordingChunksRef.current = [];
-        recorderRef.current = null;
-        recordingStreamRef.current = null;
-        setRecording(false);
-        if (!blob.size) {
-          setCaptureError(t("viewer.recording.failed"));
-          return;
-        }
-        setCaptureError(null);
-        openVideoPreview(blob, recordedMime);
-      };
-
-      recordingActiveRef.current = true;
-      invalidateRef.current();
-      recorder.start(RECORDING_CHUNK_MS);
-      recordingStartedAtRef.current = performance.now();
-      setRecordedSeconds(0);
-      setRecording(true);
-      setCaptureError(null);
-      recordingTimerRef.current = window.setInterval(() => {
-        const elapsed = (performance.now() - recordingStartedAtRef.current) / 1000;
-        setRecordedSeconds(Math.floor(elapsed));
-      }, 250);
-    } catch (error) {
-      console.warn("Falha ao iniciar a gravação da cena 3D:", error);
-      recordingActiveRef.current = false;
-      stream?.getTracks().forEach((track) => track.stop());
-      recorderRef.current = null;
-      recordingStreamRef.current = null;
-      recordingChunksRef.current = [];
-      setRecording(false);
-      setCaptureError(t("viewer.recording.failed"));
-    }
-  };
-
-  /** Encerra a gravação; o onstop monta o Blob e abre a prévia. */
-  const stopRecording = () => {
-    const recorder = recorderRef.current;
-    if (!recorder || recorder.state === "inactive") return;
-    try {
-      recorder.stop();
-    } catch (error) {
-      console.warn("Falha ao encerrar a gravação da cena 3D:", error);
-      recordingActiveRef.current = false;
-      clearRecordingTimer();
-      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-      recorderRef.current = null;
-      recordingStreamRef.current = null;
-      recordingChunksRef.current = [];
-      setRecording(false);
-      setCaptureError(t("viewer.recording.failed"));
-    }
-  };
-
-  useEffect(() => {
-    return () => {
-      recordingActiveRef.current = false;
-      clearRecordingTimer();
-      const recorder = recorderRef.current;
-      if (recorder) {
-        recorder.ondataavailable = null;
-        recorder.onstop = null;
-        recorder.onerror = null;
-        if (recorder.state !== "inactive") {
-          try {
-            recorder.stop();
-          } catch {
-            /* já encerrado */
-          }
-        }
-      }
-      recorderRef.current = null;
-      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-      recordingStreamRef.current = null;
-      recordingChunksRef.current = [];
-      if (videoUrlRef.current) {
-        URL.revokeObjectURL(videoUrlRef.current);
-        videoUrlRef.current = null;
-      }
-    };
-  }, []);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -577,7 +387,7 @@ export function Volume3D({
     let configuredMode: RenderMode | null = null;
     let dirty = true;
     let lastPreciseRender = Number.NEGATIVE_INFINITY;
-    let lastRecordingRender = Number.NEGATIVE_INFINITY;
+    let lastRenderAt = Number.NEGATIVE_INFINITY;
 
     const collectMeshes = (): THREE.Mesh[] => {
       const result: THREE.Mesh[] = [];
@@ -776,6 +586,17 @@ export function Volume3D({
       }
     };
 
+    if (renderRequestRef) {
+      // O gravador chama esta função no mesmo frame do rAF; se o loop já
+      // desenhou, reaproveita o frame em vez de renderizar duas vezes.
+      renderRequestRef.current = () => {
+        if (performance.now() - lastRenderAt > 4) {
+          renderFrame();
+          lastRenderAt = performance.now();
+        }
+      };
+    }
+
     const resize = () => {
       const width = mount.clientWidth;
       const height = mount.clientHeight;
@@ -803,24 +624,18 @@ export function Volume3D({
       raf = requestAnimationFrame(loop);
       controls.update();
       const preciseHeavy = modeRef.current === "precise" && hasVisibleMeshes();
-      if (preciseHeavy && !recordingActiveRef.current) {
+      if (preciseHeavy) {
         // Modo preciso: prioriza imagens estáticas. Só redesenha quando algo
         // muda, com um limite modesto de atualizações por segundo.
         if (dirty && now - lastPreciseRender >= PRECISE_MIN_FRAME_MS) {
           dirty = false;
           lastPreciseRender = now;
           renderFrame();
-        }
-      } else if (preciseHeavy) {
-        // Durante a gravação o canvas precisa receber frames contínuos,
-        // mesmo no modo preciso, senão o vídeo fica congelado/vazio.
-        if (now - lastRecordingRender >= RECORDING_FRAME_MS) {
-          lastRecordingRender = now;
-          dirty = false;
-          renderFrame();
+          lastRenderAt = performance.now();
         }
       } else {
         renderFrame();
+        lastRenderAt = performance.now();
         dirty = false;
       }
     };
@@ -901,9 +716,10 @@ export function Volume3D({
       viewControlRef.current = null;
       if (canvasRef.current === canvas) canvasRef.current = null;
       captureRef.current = () => null;
+      if (renderRequestRef) renderRequestRef.current = null;
       invalidateRef.current = () => {};
     };
-  }, [transparencyUniforms]);
+  }, [transparencyUniforms, renderRequestRef]);
 
   // ---- volume rendering ------------------------------------------------
   useEffect(() => {
@@ -1305,23 +1121,6 @@ export function Volume3D({
           >
             <Camera className="h-3.5 w-3.5 text-sky-300" />
           </button>
-          <button
-            type="button"
-            aria-label={recording ? t("viewer.recording.stop") : t("viewer.recording.start")}
-            title={recording ? t("viewer.recording.stop") : t("viewer.recording.start")}
-            onClick={recording ? stopRecording : startRecording}
-            className={cn(
-              "flex h-7 items-center justify-center rounded-md border border-white/15 bg-black/60 text-white/85 shadow-lg backdrop-blur-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400",
-              recording ? "gap-1.5 px-2 text-[10px] font-semibold" : "w-7",
-            )}
-          >
-            {recording ? (
-              <Square className="h-3 w-3 fill-red-400 text-red-400" />
-            ) : (
-              <Video className="h-3.5 w-3.5 text-sky-300" />
-            )}
-            {recording && <span className="whitespace-nowrap">{t("viewer.recording.stop")}</span>}
-          </button>
           <DropdownMenu
             onOpenChange={(open) => {
               if (open) dismissTip();
@@ -1386,26 +1185,6 @@ export function Volume3D({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-
-        {recording && (
-          <div
-            role="status"
-            aria-live="polite"
-            aria-label={t("viewer.recording.indicator")}
-            className="pointer-events-none absolute bottom-2 left-2 z-30 flex items-center gap-2 rounded-full bg-red-600 px-2.5 py-1.5 text-white shadow-lg"
-          >
-            <span aria-hidden className="relative flex h-2.5 w-2.5 items-center justify-center">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
-            </span>
-            <span className="text-[9px] font-bold uppercase tracking-wider">
-              {t("viewer.recording.indicator")}
-            </span>
-            <span className="font-mono text-[11px] font-semibold leading-none tabular-nums">
-              {formatRecordingDuration(recordedSeconds)}
-            </span>
-          </div>
-        )}
 
         {captureError && (
           <div className="pointer-events-auto absolute right-2 top-14 z-40 w-[min(19rem,calc(100%-1rem))] rounded-lg border border-destructive/40 bg-zinc-950/95 p-2.5 text-destructive shadow-2xl backdrop-blur-md">
@@ -1492,12 +1271,7 @@ export function Volume3D({
         )}
 
         {mode === "precise" && (
-          <div
-            className={cn(
-              "pointer-events-auto absolute left-2 z-20 select-none",
-              recording ? "bottom-14" : "bottom-2",
-            )}
-          >
+          <div className="pointer-events-auto absolute bottom-2 left-2 z-20 select-none">
             {controlsCollapsed ? (
               <button
                 type="button"
@@ -1626,18 +1400,6 @@ export function Volume3D({
           copyFailed: t("viewer.capture.copyFailed"),
           download: t("viewer.capture.download"),
         }}
-      />
-
-      <VideoPreviewDialog
-        open={videoOpen}
-        onOpenChange={handleVideoOpenChange}
-        videoUrl={videoUrl}
-        fileNamePattern={recordingNamePattern}
-        fileExtension={recordingFileExtension(videoMime)}
-        title={t("viewer.recording.previewTitle")}
-        description={t("viewer.recording.previewDesc")}
-        downloadLabel={t("viewer.recording.download")}
-        closeLabel={t("viewer.common.close")}
       />
     </div>
   );

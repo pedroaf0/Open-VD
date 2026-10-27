@@ -1,10 +1,11 @@
 /**
- * 3D viewport video recording test module.
+ * Panel video recording test module.
  *
- * Covers the record button next to the screenshot button, the red recording
- * indicator with its elapsed timer, the stop control, the preview modal with
- * playback and download, and starting a second recording after the first one
- * has been finalized (resource cleanup).
+ * Covers the record button in the lateral rail, the red recording indicator
+ * with its elapsed timer, the stop control, the preview modal with playback and
+ * download, the composed 2×2 frame (all four viewports), a recording while one
+ * viewport is expanded, and starting a second recording after the first one has
+ * been finalized (resource cleanup).
  *
  * Optional final verification screenshots are captured only when the runner is
  * invoked with `--screenshots` (disabled by default). The downloaded recording
@@ -17,12 +18,18 @@ import path from "node:path";
 import { ensureLoggedIn, readSceneKey, waitForViewerReady } from "./test-helpers.mjs";
 
 export const name = "video-recording";
-export const description = "Gravação do viewport 3D: botão, indicador, prévia e download";
+export const description =
+  "Gravação do painel: trilho, quatro janelas, janela expandida, prévia e download";
 export const order = 85;
 
 const VIEWPORT_3D = '.viewport-frame:has(.plane-label:text-is("3D / STL"))';
+const START_LABEL = /Gravar vídeo do painel|Record panel video|Grabar vídeo del panel/;
 const STOP_LABEL = /Parar gravação|Stop Recording|Detener grabación/;
+const INDICATOR_LABEL = /Gravando|Recording|Grabando/;
+const BACK_TO_GRID_LABEL = /Voltar ao mosaico|Back to grid|Volver a la cuadrícula/;
+const PANEL_TOGGLE_LABEL = /Painel de parâmetros|Parameters panel|Panel de parámetros/;
 const DEFAULT_PATTERN = "openvd-3d-recording-{timestamp}";
+const MAX_OUTPUT = 1920;
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -80,6 +87,72 @@ async function waitForVideoMetadata(page) {
   );
 }
 
+/** Replica `outputSize()` de usePanelRecorder para conferir o canvas composto. */
+function expectedOutputSize(box, dpr) {
+  const scale = Math.min(2, dpr || 1);
+  let width = Math.max(2, Math.round(box.width * scale));
+  let height = Math.max(2, Math.round(box.height * scale));
+  const fit = Math.min(1, MAX_OUTPUT / width, MAX_OUTPUT / height);
+  width = Math.max(2, Math.round((width * fit) / 2) * 2);
+  height = Math.max(2, Math.round((height * fit) / 2) * 2);
+  return { width, height };
+}
+
+/**
+ * Procura um frame no meio do vídeo e conta os pixels claros em cada
+ * quadrante. Os quatro viewports têm conteúdo claro (cortes e volume 3D);
+ * um vídeo só do viewport 3D deixaria os outros quadrantes praticamente
+ * vazios, e um vídeo vazio falharia em todos.
+ */
+async function analyzeVideoFrame(video) {
+  return video.evaluate(async (element) => {
+    if (element.readyState < 2) {
+      await new Promise((resolve) =>
+        element.addEventListener("loadeddata", resolve, { once: true }),
+      );
+    }
+    const duration = Number.isFinite(element.duration) ? element.duration : 0;
+    const target = duration > 0 ? Math.min(0.5, duration / 2) : 0;
+    if (target > 0 && Math.abs(element.currentTime - target) > 0.05) {
+      await new Promise((resolve) => {
+        element.addEventListener("seeked", resolve, { once: true });
+        element.currentTime = target;
+      });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = element.videoWidth;
+    canvas.height = element.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D indisponível para inspecionar o vídeo");
+    ctx.drawImage(element, 0, 0);
+
+    const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const quadrants = { axial: 0, coronal: 0, sagittal: 0, threeD: 0 };
+    const halfWidth = canvas.width / 2;
+    const halfHeight = canvas.height / 2;
+    for (let y = 0; y < canvas.height; y += 2) {
+      for (let x = 0; x < canvas.width; x += 2) {
+        const i = (y * canvas.width + x) * 4;
+        // Fundo/cabeçalho gravados ficam abaixo deste limiar; tecido e volume
+        // 3D ficam acima.
+        if (pixels[i] + pixels[i + 1] + pixels[i + 2] < 90) continue;
+        const key =
+          y < halfHeight
+            ? x < halfWidth
+              ? "axial"
+              : "coronal"
+            : x < halfWidth
+              ? "sagittal"
+              : "threeD";
+        quadrants[key] += 1;
+      }
+    }
+    return { width: canvas.width, height: canvas.height, quadrants };
+  });
+}
+
 export async function run(page, config) {
   const { WP_URL } = config;
 
@@ -105,60 +178,42 @@ export async function run(page, config) {
   await page.goto(`${WP_URL}/v-dicom/${sceneKey}/`);
   await waitForViewerReady(page, 4, 240000);
 
-  const frame = page.locator(VIEWPORT_3D).first();
-  await expect(frame).toBeVisible({ timeout: 15000 });
+  const viewport3d = page.locator(VIEWPORT_3D).first();
+  await expect(viewport3d).toBeVisible({ timeout: 15000 });
 
-  const screenshotBtn = frame.locator("button:has(svg.lucide-camera)").first();
-  const recordBtn = frame.locator("button:has(svg.lucide-video)").first();
-  await expect(screenshotBtn).toBeVisible({ timeout: 10000 });
+  // A captura de imagem continua no viewport 3D; a gravação saiu de lá.
+  await expect(viewport3d.locator("button:has(svg.lucide-camera)").first()).toBeVisible({
+    timeout: 10000,
+  });
+  expect(await viewport3d.locator("button:has(svg.lucide-video)").count()).toBe(0);
+
+  const rail = page.locator("nav.rail").first();
+  await expect(rail).toBeVisible({ timeout: 10000 });
+  const recordBtn = rail.getByRole("button", { name: START_LABEL });
   await expect(recordBtn).toBeVisible({ timeout: 10000 });
+  await expect(recordBtn).toHaveAttribute("aria-pressed", "false");
 
-  // ============================================================
-  // TEST 1: record button sits next to the screenshot button with
-  // the same size and visual treatment.
-  // ============================================================
-  const cameraBox = await screenshotBtn.boundingBox();
-  const recordBox = await recordBtn.boundingBox();
-  expect(cameraBox).toBeTruthy();
-  expect(recordBox).toBeTruthy();
-  expect(Math.abs(recordBox.width - cameraBox.width)).toBeLessThanOrEqual(1);
-  expect(Math.abs(recordBox.height - cameraBox.height)).toBeLessThanOrEqual(1);
-  expect(Math.abs(recordBox.y - cameraBox.y)).toBeLessThanOrEqual(1);
-  expect(recordBox.x).toBeGreaterThan(cameraBox.x);
-  const gap = recordBox.x - (cameraBox.x + cameraBox.width);
-  expect(gap).toBeGreaterThanOrEqual(2);
-  expect(gap).toBeLessThanOrEqual(12);
+  const panel = page.locator("[data-recording-panel]").first();
+  await expect(panel).toBeVisible({ timeout: 10000 });
+  const panelBox = await panel.boundingBox();
+  expect(panelBox).toBeTruthy();
+  const dpr = await page.evaluate(() => window.devicePixelRatio || 1);
+  const expectedSize = expectedOutputSize(panelBox, dpr);
 
-  const [cameraStyle, recordStyle] = await Promise.all(
-    [screenshotBtn, recordBtn].map((button) =>
-      button.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return {
-          background: style.backgroundColor,
-          borderColor: style.borderTopColor,
-          borderRadius: style.borderTopLeftRadius,
-        };
-      }),
-    ),
-  );
-  expect(recordStyle).toEqual(cameraStyle);
-  console.log(
-    `  🎥 Botão de gravação ao lado do screenshot (${recordBox.width}×${recordBox.height}px, gap ${gap}px)`,
-  );
-
+  console.log("  🎥 Botão de gravação no trilho (fora do viewport 3D)");
   await capture(page, config, "video-recording-01-initial.png");
-  await capture(page, config, "video-recording-01-initial-viewport.png", frame);
 
   // ============================================================
-  // TEST 2: start recording — stop icon/text + red indicator + timer.
+  // TEST 1: start recording — stop state + red indicator + timer.
   // ============================================================
   await recordBtn.click();
 
-  const stopBtn = frame.locator("button:has(svg.lucide-square)").first();
+  const stopBtn = rail.getByRole("button", { name: STOP_LABEL });
   await expect(stopBtn).toBeVisible({ timeout: 10000 });
-  await expect(stopBtn).toContainText(STOP_LABEL);
+  await expect(stopBtn).toHaveAttribute("aria-pressed", "true");
+  await expect(stopBtn).toHaveClass(/text-red-400/);
 
-  const indicator = frame.locator('[role="status"][aria-label]').first();
+  const indicator = page.getByRole("status", { name: INDICATOR_LABEL }).first();
   await expect(indicator).toBeVisible({ timeout: 5000 });
   // Tailwind v4 emits oklch(); Chrome exposes the computed value as lab(...),
   // so assert the utility class and that the background is not transparent
@@ -171,29 +226,23 @@ export async function run(page, config) {
   const timer = indicator.locator("span.tabular-nums").first();
   await expect(timer).toHaveText(/^\d{2}:\d{2}$/);
 
-  const indicatorBox = await indicator.boundingBox();
-  expect(indicatorBox).toBeTruthy();
-  expect(indicatorBox.x).toBeLessThan(cameraBox.x);
-  expect(indicatorBox.y).toBeGreaterThan(cameraBox.y);
+  // O indicador fica sobre o painel inteiro, não dentro do viewport 3D.
+  expect(await viewport3d.locator('[role="status"]').count()).toBe(0);
 
   const firstElapsed = await timer.textContent();
   await page.waitForTimeout(1500);
   await expect(timer).not.toHaveText(firstElapsed ?? "", { timeout: 5000 });
-
-  const stopBox = await stopBtn.boundingBox();
-  expect(stopBox).toBeTruthy();
-  expect(stopBox.width).toBeGreaterThan(cameraBox.width);
-  console.log(`  ⏺ Gravação ativa (${firstElapsed} → ${await timer.textContent()})`);
+  console.log(`  ⏺ Gravação ativa no painel (${firstElapsed} → ${await timer.textContent()})`);
   await capture(page, config, "video-recording-02-active.png");
-  await capture(page, config, "video-recording-02-active-viewport.png", frame);
 
   // ============================================================
-  // TEST 3: stop finalizes the video and opens the preview modal.
+  // TEST 2: stop finalizes the video and opens the preview modal.
   // ============================================================
   await stopBtn.click();
 
   const dialog = page.locator('[role="dialog"]:has(video)').first();
   await expect(dialog).toBeVisible({ timeout: 20000 });
+  await expect(dialog).toContainText(/Vídeo do painel|Panel video|Vídeo del panel/);
   const video = dialog.locator("video").first();
   await expect(video).toBeVisible();
   await expect(video).toHaveAttribute("src", /^blob:/);
@@ -205,11 +254,29 @@ export async function run(page, config) {
   }));
   expect(metadata.width).toBeGreaterThan(0);
   expect(metadata.height).toBeGreaterThan(0);
-  console.log(`  🎬 Prévia aberta (${metadata.width}×${metadata.height})`);
+  // O canvas composto tem o tamanho do painel inteiro, não só do viewport 3D.
+  expect(Math.abs(metadata.width - expectedSize.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(metadata.height - expectedSize.height)).toBeLessThanOrEqual(2);
+  const viewport3dBox = await viewport3d.boundingBox();
+  expect(viewport3dBox).toBeTruthy();
+  expect(metadata.width).toBeGreaterThan(viewport3dBox.width * 1.5);
+  console.log(`  🎬 Prévia do painel aberta (${metadata.width}×${metadata.height})`);
+
+  const frame = await analyzeVideoFrame(video);
+  expect(frame.width).toBe(metadata.width);
+  expect(frame.height).toBe(metadata.height);
+  for (const [quadrant, count] of Object.entries(frame.quadrants)) {
+    expect(count, `quadrante ${quadrant} sem conteúdo gravado`).toBeGreaterThan(100);
+  }
+  console.log(
+    `  🖼 Quatro viewports no vídeo (${Object.entries(frame.quadrants)
+      .map(([key, count]) => `${key}: ${count}px`)
+      .join(", ")})`,
+  );
   await capture(page, config, "video-recording-03-preview.png");
 
   // ============================================================
-  // TEST 4: download the recorded file.
+  // TEST 3: download the recorded file.
   // ============================================================
   const downloadPromise = page.waitForEvent("download");
   await dialog.locator("button:has(svg.lucide-download)").first().click();
@@ -252,17 +319,17 @@ export async function run(page, config) {
   console.log(`  ⬇ Download do vídeo validado: ${fileName} (${size} bytes)`);
 
   // ============================================================
-  // TEST 5: close the modal and prove the recorder can be reused
+  // TEST 4: close the modal and prove the recorder can be reused
   // (stream tracks and object URL were released).
   // ============================================================
   await dialog.locator("button.btn-chip").first().click();
   await expect(dialog).not.toBeVisible({ timeout: 5000 });
 
-  const recordAgain = frame.locator("button:has(svg.lucide-video)").first();
+  const recordAgain = rail.getByRole("button", { name: START_LABEL });
   await expect(recordAgain).toBeVisible({ timeout: 10000 });
   await recordAgain.click();
   await page.waitForTimeout(1200);
-  const stopAgain = frame.locator("button:has(svg.lucide-square)").first();
+  const stopAgain = rail.getByRole("button", { name: STOP_LABEL });
   await expect(stopAgain).toBeVisible({ timeout: 10000 });
   await stopAgain.click();
 
@@ -271,6 +338,110 @@ export async function run(page, config) {
   await secondDialog.locator("button.btn-chip").first().click();
   await expect(secondDialog).not.toBeVisible({ timeout: 5000 });
   console.log("  🔁 Segunda gravação iniciada/encerrada (recursos liberados)");
+
+  // ============================================================
+  // TEST 5: recording follows the expanded single-viewport layout.
+  // ============================================================
+  const expandBtn = page.locator('main button[aria-label^="Expandir"]').first();
+  await expect(expandBtn).toBeVisible({ timeout: 10000 });
+  await expandBtn.click();
+  await expect(page.locator("[data-recording-viewport]")).toHaveCount(1);
+
+  await rail.getByRole("button", { name: START_LABEL }).click();
+  await page.waitForTimeout(1200);
+  const stopExpanded = rail.getByRole("button", { name: STOP_LABEL });
+  await expect(stopExpanded).toBeVisible({ timeout: 10000 });
+  await stopExpanded.click();
+
+  const expandedDialog = page.locator('[role="dialog"]:has(video)').first();
+  await expect(expandedDialog).toBeVisible({ timeout: 20000 });
+  const expandedVideo = expandedDialog.locator("video").first();
+  await waitForVideoMetadata(page);
+  const expandedMetadata = await expandedVideo.evaluate((element) => ({
+    width: element.videoWidth,
+    height: element.videoHeight,
+  }));
+  expect(Math.abs(expandedMetadata.width - expectedSize.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(expandedMetadata.height - expectedSize.height)).toBeLessThanOrEqual(2);
+  const expandedFrame = await analyzeVideoFrame(expandedVideo);
+  const expandedTotal = Object.values(expandedFrame.quadrants).reduce(
+    (sum, count) => sum + count,
+    0,
+  );
+  expect(expandedTotal).toBeGreaterThan(1000);
+  console.log(
+    `  🔍 Janela expandida gravada (${expandedMetadata.width}×${expandedMetadata.height})`,
+  );
+  await capture(page, config, "video-recording-04-expanded.png");
+  await expandedDialog.locator("button.btn-chip").first().click();
+  await expect(expandedDialog).not.toBeVisible({ timeout: 5000 });
+
+  const backToGrid = rail.getByRole("button", { name: BACK_TO_GRID_LABEL });
+  await expect(backToGrid).toBeVisible({ timeout: 10000 });
+  await backToGrid.click();
+  await expect(page.locator("[data-recording-viewport]")).toHaveCount(4);
+
+  // ============================================================
+  // TEST 6: tablet has no rail, so the same control lives in the
+  // parameters side panel and records the panel there too.
+  // ============================================================
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.waitForTimeout(800);
+  const panelToggle = page.getByRole("button", { name: PANEL_TOGGLE_LABEL });
+  if ((await panelToggle.getAttribute("aria-pressed")) !== "true") await panelToggle.click();
+  await expect(page.locator("nav.rail")).toHaveCount(0);
+  const tabletRecord = page.getByRole("button", { name: START_LABEL }).first();
+  await expect(tabletRecord).toBeVisible({ timeout: 10000 });
+  await tabletRecord.click();
+  const tabletStop = page.getByRole("button", { name: STOP_LABEL }).first();
+  await expect(tabletStop).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(1000);
+  await tabletStop.click();
+  const tabletDialog = page.locator('[role="dialog"]:has(video)').first();
+  await expect(tabletDialog).toBeVisible({ timeout: 20000 });
+  await waitForVideoMetadata(page);
+  const tabletMetadata = await tabletDialog.locator("video").evaluate((element) => ({
+    width: element.videoWidth,
+    height: element.videoHeight,
+  }));
+  expect(tabletMetadata.width).toBeGreaterThan(0);
+  expect(tabletMetadata.height).toBeGreaterThan(0);
+  console.log(
+    `  📱 Gravação no painel lateral do tablet (${tabletMetadata.width}×${tabletMetadata.height})`,
+  );
+  await tabletDialog.locator("button.btn-chip").first().click();
+  await expect(tabletDialog).not.toBeVisible({ timeout: 5000 });
+
+  // ============================================================
+  // TEST 7: mobile records from the 3D sheet (only the focused
+  // viewport is visible, so the composed video follows it).
+  // ============================================================
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(800);
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  const mobileSheet = page.locator('[role="dialog"]').first();
+  await expect(mobileSheet).toBeVisible({ timeout: 10000 });
+  const mobileRecord = mobileSheet.getByRole("button", { name: START_LABEL });
+  await expect(mobileRecord).toBeVisible({ timeout: 10000 });
+  await mobileRecord.click();
+  const mobileStop = mobileSheet.getByRole("button", { name: STOP_LABEL });
+  await expect(mobileStop).toBeVisible({ timeout: 10000 });
+  await page.waitForTimeout(1000);
+  await mobileStop.click();
+  const mobileDialog = page.locator('[role="dialog"]:has(video)').first();
+  await expect(mobileDialog).toBeVisible({ timeout: 20000 });
+  await waitForVideoMetadata(page);
+  const mobileMetadata = await mobileDialog.locator("video").evaluate((element) => ({
+    width: element.videoWidth,
+    height: element.videoHeight,
+  }));
+  expect(mobileMetadata.width).toBeGreaterThan(0);
+  expect(mobileMetadata.height).toBeGreaterThan(mobileMetadata.width);
+  console.log(`  📱 Gravação no mobile (${mobileMetadata.width}×${mobileMetadata.height})`);
+  await mobileDialog.locator("button.btn-chip").first().click();
+  await expect(mobileDialog).not.toBeVisible({ timeout: 5000 });
+
+  await page.setViewportSize({ width: 1920, height: 1080 });
 
   console.log("  ✓ Todos os testes de gravação de vídeo passaram");
   return { passed: true, sceneKey, fileName, size };

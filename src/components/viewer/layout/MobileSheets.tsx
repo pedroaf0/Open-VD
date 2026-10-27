@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, Plus, RotateCcw, X, PenTool } from "lucide-react";
+import { Eye, EyeOff, Plus, RotateCcw, Square, Video, X, PenTool } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatRecordingDuration } from "@/lib/videoCapture";
 import { PanelSection } from "@/components/viewer/panels/PanelSection";
 import { RangeField } from "@/components/viewer/panels/RangeField";
 import { OrientationPanel } from "@/components/viewer/panels/OrientationPanel";
@@ -80,6 +81,9 @@ interface MobileSheetsProps {
   stlInput: React.RefObject<HTMLInputElement | null>;
   showLines: boolean;
   setShowLines: (v: boolean | ((prev: boolean) => boolean)) => void;
+  recording: boolean;
+  recordedSeconds: number;
+  onToggleRecording: () => void;
 }
 
 export function MobileSheets({
@@ -130,6 +134,9 @@ export function MobileSheets({
   stlInput,
   showLines,
   setShowLines,
+  recording,
+  recordedSeconds,
+  onToggleRecording,
 }: MobileSheetsProps) {
   const { t } = useTranslation();
   if (!isMobile || route !== "viewer" || !activeSheet || !volume || status) return null;
@@ -222,6 +229,23 @@ export function MobileSheets({
 
         {activeSheet === "3d" && (
           <div className="space-y-3">
+            <button
+              className={cn(
+                "btn-chip w-full",
+                recording && "border-red-500/50 text-red-400 hover:text-red-300",
+              )}
+              onClick={onToggleRecording}
+              aria-pressed={recording}
+            >
+              {recording ? (
+                <Square className="h-3.5 w-3.5 fill-red-400 text-red-400" />
+              ) : (
+                <Video className="h-3.5 w-3.5" />
+              )}
+              {recording
+                ? `${t("viewer.recording.stop")} · ${formatRecordingDuration(recordedSeconds)}`
+                : t("viewer.recording.start")}
+            </button>
             <RangeField
               label={`${t("viewer.panel.density")} ${(threshold * 100).toFixed(0)}%`}
               min={0}

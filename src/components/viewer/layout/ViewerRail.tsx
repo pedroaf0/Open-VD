@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, LayoutGrid, RotateCcw, type LucideIcon } from "lucide-react";
+import { Eye, EyeOff, LayoutGrid, RotateCcw, Square, Video, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatRecordingDuration } from "@/lib/videoCapture";
 import { ANN_TOOLS } from "@/components/viewer/constants";
 import type { Tool } from "@/lib/annotations";
 import type { Volume } from "@/lib/dicom";
@@ -29,6 +30,9 @@ interface ViewerRailProps {
   ) => void;
   resetAllPlanes: () => void;
   annColorPicker: React.ReactNode;
+  recording: boolean;
+  recordedSeconds: number;
+  onToggleRecording: () => void;
 }
 
 export function ViewerRail({
@@ -45,6 +49,9 @@ export function ViewerRail({
   setExpanded,
   resetAllPlanes,
   annColorPicker,
+  recording,
+  recordedSeconds,
+  onToggleRecording,
 }: ViewerRailProps) {
   const { t } = useTranslation();
   if (!isDesktop || !hasData) return null;
@@ -86,6 +93,32 @@ export function ViewerRail({
 
       {volume && (
         <>
+          <div className="rail-sep" aria-hidden />
+          <button
+            className={cn(
+              "icon-btn",
+              recording && "bg-red-500/15 text-red-400 hover:bg-red-500/25 hover:text-red-300",
+            )}
+            onClick={onToggleRecording}
+            aria-pressed={recording}
+            aria-label={recording ? t("viewer.recording.stop") : t("viewer.recording.start")}
+            title={
+              recording
+                ? `${t("viewer.recording.stop")} · ${formatRecordingDuration(recordedSeconds)}`
+                : t("viewer.recording.start")
+            }
+          >
+            {recording ? (
+              <Square className="h-4 w-4 fill-red-400 text-red-400" />
+            ) : (
+              <Video className="h-4 w-4" />
+            )}
+          </button>
+          {recording && (
+            <span className="data-mono text-[9px] font-semibold tabular-nums text-red-400">
+              {formatRecordingDuration(recordedSeconds)}
+            </span>
+          )}
           <button
             className="icon-btn"
             onClick={resetAllPlanes}

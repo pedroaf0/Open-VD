@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Eye, EyeOff, MousePointer2, RotateCcw, Plus, X } from "lucide-react";
+import { Eye, EyeOff, MousePointer2, RotateCcw, Plus, Square, Video, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatRecordingDuration } from "@/lib/videoCapture";
 import { PanelSection } from "@/components/viewer/panels/PanelSection";
 import { RangeField } from "@/components/viewer/panels/RangeField";
 import { OrientationPanel } from "@/components/viewer/panels/OrientationPanel";
@@ -11,6 +12,7 @@ import type { Volume } from "@/lib/dicom";
 
 interface ViewerSidePanelProps {
   isMobile: boolean;
+  isTablet: boolean;
   route: "viewer" | "profile";
   panelOpen: boolean;
   hasData: boolean;
@@ -56,10 +58,14 @@ interface ViewerSidePanelProps {
   setMeshes: React.Dispatch<React.SetStateAction<MeshFile[]>>;
   resetAllPlanes: () => void;
   handleResetAll: () => void;
+  recording: boolean;
+  recordedSeconds: number;
+  onToggleRecording: () => void;
 }
 
 export function ViewerSidePanel({
   isMobile,
+  isTablet,
   route,
   panelOpen,
   hasData,
@@ -96,6 +102,9 @@ export function ViewerSidePanel({
   setMeshes,
   resetAllPlanes,
   handleResetAll,
+  recording,
+  recordedSeconds,
+  onToggleRecording,
 }: ViewerSidePanelProps) {
   const { t } = useTranslation();
   if (isMobile || route !== "viewer" || !panelOpen || !hasData) return null;
@@ -192,6 +201,28 @@ export function ViewerSidePanel({
               </button>
             ))}
           </div>
+        </PanelSection>
+      )}
+
+      {isTablet && volume && (
+        <PanelSection title={t("viewer.recording.title")}>
+          <button
+            className={cn(
+              "btn-chip w-full",
+              recording && "border-red-500/50 text-red-400 hover:text-red-300",
+            )}
+            onClick={onToggleRecording}
+            aria-pressed={recording}
+          >
+            {recording ? (
+              <Square className="h-3.5 w-3.5 fill-red-400 text-red-400" />
+            ) : (
+              <Video className="h-3.5 w-3.5" />
+            )}
+            {recording
+              ? `${t("viewer.recording.stop")} · ${formatRecordingDuration(recordedSeconds)}`
+              : t("viewer.recording.start")}
+          </button>
         </PanelSection>
       )}
 

@@ -12,7 +12,7 @@
  *   node scripts/test-plugin.js --screenshots --video --logs --save-recording  # Habilita todos
  *   npm run test:plugin                            # Executa com padrão (tudo desabilitado)
  *
- * COMPORTAMENTO PADRÃO: Todas as saídas extras (screenshots, vídeo de execução, vídeo 3D, logs)
+ * COMPORTAMENTO PADRÃO: Todas as saídas extras (screenshots, vídeo de execução, vídeo do painel, logs)
  * estão DESABILITADAS. Use as flags acima para habilitar explicitamente cada recurso.
  */
 import fs from "node:fs";
@@ -35,7 +35,7 @@ Opções:
   --screenshots    Habilita captura de screenshots em falhas (desabilitado por padrão)
   --video          Habilita gravação de vídeo dos testes (desabilitado por padrão)
   --logs           Habilita salvamento de logs em arquivo (desabilitado por padrão)
-  --save-recording Salva o vídeo gravado pelo viewport 3D na raiz do projeto (desabilitado por padrão)
+  --save-recording Salva o vídeo gravado pelo painel de visualização na raiz do projeto (desabilitado por padrão)
   --headless       Executa em modo headless (padrão: false - abre navegador visível)
   --only=<nome>    Executa apenas os módulos informados (separados por vírgula)
                    ex.: --only=video-recording ou --only=login,upload-comprehensive
@@ -45,7 +45,7 @@ Exemplos:
   node scripts/test-plugin.js                    # Execução padrão (sem screenshots, vídeo, logs)
   node scripts/test-plugin.js --screenshots      # Com screenshots em falhas
   node scripts/test-plugin.js --video --logs     # Com vídeo e logs
-  node scripts/test-plugin.js --save-recording --headless  # Salva o vídeo 3D na raiz
+  node scripts/test-plugin.js --save-recording --headless  # Salva o vídeo do painel na raiz
   node scripts/test-plugin.js --headless         # Modo headless (CI/CD)
   node scripts/test-plugin.js --screenshots --video --logs --save-recording --headless  # Tudo habilitado + headless
   `);
@@ -119,7 +119,7 @@ async function run() {
     `  Logs:        ${CONFIG.ENABLE_LOGS ? "HABILITADO (--logs)" : "DESABILITADO (padrão)"}`,
   );
   console.log(
-    `  Vídeo 3D:    ${CONFIG.SAVE_RECORDING ? "SALVO NA RAIZ (--save-recording)" : "DESCARTADO (padrão)"}`,
+    `  Vídeo painel:${CONFIG.SAVE_RECORDING ? " SALVO NA RAIZ (--save-recording)" : " DESCARTADO (padrão)"}`,
   );
   console.log("");
 

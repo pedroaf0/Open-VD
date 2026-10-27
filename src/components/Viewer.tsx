@@ -33,6 +33,9 @@ import { ViewerHeader } from "@/components/viewer/layout/ViewerHeader";
 import { ViewerRail } from "@/components/viewer/layout/ViewerRail";
 import { ViewerSidePanel } from "@/components/viewer/layout/ViewerSidePanel";
 import { ViewportGrid } from "@/components/viewer/layout/ViewportGrid";
+import { VideoPreviewDialog } from "@/components/VideoPreviewDialog";
+import { usePanelRecorder } from "@/hooks/usePanelRecorder";
+import { formatRecordingDuration, recordingFileExtension } from "@/lib/videoCapture";
 import { hookConsole, DEBUG_OVERLAY_ENABLED } from "@/lib/debuglog";
 import { DebugOverlay } from "@/components/DebugPanel";
 import {
@@ -327,6 +330,8 @@ export function Viewer() {
   );
   const [expanded, setExpanded] = useState<"axial" | "coronal" | "sagittal" | "3d" | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const viewportGridRef = useRef<HTMLDivElement | null>(null);
+  const volume3dRenderRef = useRef<(() => void) | null>(null);
   const [isFull, setIsFull] = useState(false);
 
   const [sceneKey, setSceneKey] = useState<string | null>(null);
@@ -374,6 +379,20 @@ export function Viewer() {
 
   const cfg = useWpConfig();
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
+  const panelRecording = usePanelRecorder(viewportGridRef, volume3dRenderRef);
+  const { error: recordingError, clearError: clearRecordingError } = panelRecording;
+
+  useEffect(() => {
+    if (!recordingError) return;
+    setError(
+      t(
+        recordingError === "unsupported"
+          ? "viewer.recording.unsupported"
+          : "viewer.recording.failed",
+      ),
+    );
+    clearRecordingError();
+  }, [recordingError, clearRecordingError, t]);
 
   // Flags derivados da configuração — declarados cedo para uso em callbacks
   const canUpload = !cfg || cfg.canUpload;
@@ -1844,6 +1863,18 @@ export function Viewer() {
 
         <QrDialog open={qrOpen} share={share} onClose={() => setQrOpen(false)} />
 
+        <VideoPreviewDialog
+          open={panelRecording.previewOpen}
+          onOpenChange={panelRecording.setPreviewOpen}
+          videoUrl={panelRecording.videoUrl}
+          fileNamePattern={cfg?.recordingNamePattern}
+          fileExtension={recordingFileExtension(panelRecording.videoMime)}
+          title={t("viewer.recording.previewTitle")}
+          description={t("viewer.recording.previewDesc")}
+          downloadLabel={t("viewer.recording.download")}
+          closeLabel={t("viewer.common.close")}
+        />
+
         {sceneKey && (
           <SceneDownloadModal
             open={downloadOpen}
@@ -1879,6 +1910,9 @@ export function Viewer() {
                 setExpanded={setExpanded}
                 resetAllPlanes={resetAllPlanes}
                 annColorPicker={annColorPicker}
+                recording={panelRecording.recording}
+                recordedSeconds={panelRecording.seconds}
+                onToggleRecording={panelRecording.toggle}
               />
 
               <div className="flex min-h-0 flex-1 flex-col">
@@ -1903,7 +1937,7 @@ export function Viewer() {
                 />
 
                 <div className="flex min-h-0 flex-1">
-                  <main className="min-h-0 flex-1 p-1.5 sm:p-2">
+                  <main className="relative min-h-0 flex-1 p-1.5 sm:p-2">
                     {!volume && !status && meshes.length > 0 && (
                       <div className="viewport-frame h-full">
                         <div className="viewport-header">
@@ -1926,7 +1960,6 @@ export function Viewer() {
                             ww={ww}
                             invert={invert}
                             centerRequest={centerRequest}
-                            recordingNamePattern={cfg?.recordingNamePattern}
                           />
                         </div>
                       </div>
@@ -2008,8 +2041,9 @@ export function Viewer() {
                         ww={ww}
                         invert={invert}
                         centerRequest={centerRequest}
-                        recordingNamePattern={cfg?.recordingNamePattern}
                         preciseRender={renderMode === "precise"}
+                        containerRef={viewportGridRef}
+                        render3dRef={volume3dRenderRef}
                         expanded={expanded}
                         setExpanded={setExpanded}
                         isMobile={isMobile}
@@ -2028,11 +2062,35 @@ export function Viewer() {
                         onStates={(fn) => setPlaneStates((s) => fn(s))}
                       />
                     )}
+
+                    {panelRecording.recording && (
+                      <div
+                        role="status"
+                        aria-live="polite"
+                        aria-label={t("viewer.recording.indicator")}
+                        className="pointer-events-none absolute bottom-4 left-4 z-30 flex items-center gap-2 rounded-full bg-red-600 px-2.5 py-1.5 text-white shadow-lg"
+                      >
+                        <span
+                          aria-hidden
+                          className="relative flex h-2.5 w-2.5 items-center justify-center"
+                        >
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-60" />
+                          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider">
+                          {t("viewer.recording.indicator")}
+                        </span>
+                        <span className="font-mono text-[11px] font-semibold leading-none tabular-nums">
+                          {formatRecordingDuration(panelRecording.seconds)}
+                        </span>
+                      </div>
+                    )}
                   </main>
 
                   {/* ── Painel de parâmetros (desktop/tablet) ─────────── */}
                   <ViewerSidePanel
                     isMobile={isMobile}
+                    isTablet={isTablet}
                     route={route}
                     panelOpen={panelOpen}
                     hasData={hasData}
@@ -2069,6 +2127,9 @@ export function Viewer() {
                     setMeshes={setMeshes}
                     resetAllPlanes={resetAllPlanes}
                     handleResetAll={handleResetAll}
+                    recording={panelRecording.recording}
+                    recordedSeconds={panelRecording.seconds}
+                    onToggleRecording={panelRecording.toggle}
                   />
                 </div>
               </div>
@@ -2156,6 +2217,9 @@ export function Viewer() {
           stlInput={stlInput}
           showLines={showLines}
           setShowLines={setShowLines}
+          recording={panelRecording.recording}
+          recordedSeconds={panelRecording.seconds}
+          onToggleRecording={panelRecording.toggle}
         />
       </div>
       {DEBUG_OVERLAY_ENABLED && <DebugOverlay />}

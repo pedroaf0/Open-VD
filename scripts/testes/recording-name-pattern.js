@@ -1,5 +1,5 @@
 /**
- * Admin test module: configure the 3D video filename pattern.
+ * Admin test module: configure the panel video filename pattern.
  *
  * The value is saved through the "Configurações gerais" form and re-read after
  * the redirect to prove it persisted. The video-recording module then asserts
@@ -9,7 +9,7 @@ import { expect } from "@playwright/test";
 import { ensureLoggedIn } from "./test-helpers.mjs";
 
 export const name = "recording-name-pattern";
-export const description = "Define e confirma o padrão do nome do vídeo 3D no WP Admin";
+export const description = "Define e confirma o padrão do nome do vídeo do painel no WP Admin";
 export const order = 35;
 
 /** Padrão temporário usado pelo teste; restaurado no final da suíte. */

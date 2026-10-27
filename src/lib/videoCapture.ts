@@ -1,4 +1,4 @@
-/** Utilitários compartilhados de gravação do viewport 3D. */
+/** Utilitários compartilhados de gravação do painel de visualização. */
 
 /** Padrão usado quando o admin não definiu um nome para o vídeo. */
 export const DEFAULT_RECORDING_NAME_PATTERN = "openvd-3d-recording-{timestamp}";

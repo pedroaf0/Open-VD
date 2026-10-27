@@ -593,7 +593,7 @@ export function SliceView(props: Props) {
           : "crosshair";
 
   return (
-    <div className="viewport-frame group">
+    <div className="viewport-frame group" data-recording-viewport={plane}>
       <div className="viewport-header">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="plane-label truncate" style={{ color: props.accent }}>
@@ -692,6 +692,7 @@ export function SliceView(props: Props) {
             <canvas ref={canvasRef} className="block h-full w-full" />
             <svg
               ref={svgRef}
+              data-recording-overlay
               className="pointer-events-none absolute inset-0 h-full w-full"
               viewBox={`0 0 ${geom.w} ${geom.h}`}
               preserveAspectRatio="none"

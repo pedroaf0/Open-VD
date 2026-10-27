@@ -195,14 +195,15 @@
     "failed": "Could not capture the scene image."
   },
   "recording": {
-    "start": "Record scene video",
+    "title": "Panel recording",
+    "start": "Record panel video",
     "stop": "Stop Recording",
     "indicator": "Recording",
-    "previewTitle": "3D scene video",
-    "previewDesc": "Preview of the current framing recording. The video does not include the interface controls.",
+    "previewTitle": "Panel video",
+    "previewDesc": "Preview of the current panel recording. The video includes the visible viewports but not the interface controls.",
     "download": "Download video",
-    "unsupported": "This browser does not support recording the 3D scene.",
-    "failed": "Could not record the scene video."
+    "unsupported": "This browser does not support recording the panel.",
+    "failed": "Could not record the panel video."
   },
   "mpr": {
     "resetOblique": "Reset oblique MPR"

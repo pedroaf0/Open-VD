@@ -195,14 +195,15 @@
     "failed": "No se pudo capturar la imagen de la escena."
   },
   "recording": {
-    "start": "Grabar vídeo de la escena",
+    "title": "Grabación del panel",
+    "start": "Grabar vídeo del panel",
     "stop": "Detener grabación",
     "indicator": "Grabando",
-    "previewTitle": "Vídeo de la escena 3D",
-    "previewDesc": "Vista previa de la grabación del encuadre actual. El vídeo no incluye los controles de la interfaz.",
+    "previewTitle": "Vídeo del panel",
+    "previewDesc": "Vista previa de la grabación del panel actual. El vídeo incluye las ventanas visibles, sin los controles de la interfaz.",
     "download": "Descargar vídeo",
-    "unsupported": "Este navegador no permite grabar vídeo de la escena 3D.",
-    "failed": "No se pudo grabar el vídeo de la escena."
+    "unsupported": "Este navegador no permite grabar vídeo del panel.",
+    "failed": "No se pudo grabar el vídeo del panel."
   },
   "mpr": {
     "resetOblique": "Restablecer MPR oblicuo"

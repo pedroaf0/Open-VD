@@ -22,7 +22,7 @@ type Props = {
   closeLabel: string;
 };
 
-/** Modal de prévia e download dos vídeos gravados no viewport 3D. */
+/** Modal de prévia e download dos vídeos gravados no painel de visualização. */
 export function VideoPreviewDialog({
   open,
   onOpenChange,

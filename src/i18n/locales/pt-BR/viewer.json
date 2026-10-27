@@ -195,14 +195,15 @@
     "failed": "Não foi possível capturar a imagem da cena."
   },
   "recording": {
-    "start": "Gravar vídeo da cena",
+    "title": "Gravação do painel",
+    "start": "Gravar vídeo do painel",
     "stop": "Parar gravação",
     "indicator": "Gravando",
-    "previewTitle": "Vídeo da cena 3D",
-    "previewDesc": "Prévia da gravação do enquadramento atual. O vídeo não inclui os controles da interface.",
+    "previewTitle": "Vídeo do painel",
+    "previewDesc": "Prévia da gravação do painel atual. O vídeo inclui as janelas visíveis, sem os controles da interface.",
     "download": "Baixar vídeo",
-    "unsupported": "Este navegador não permite gravar vídeo da cena 3D.",
-    "failed": "Não foi possível gravar o vídeo da cena."
+    "unsupported": "Este navegador não permite gravar vídeo do painel.",
+    "failed": "Não foi possível gravar o vídeo do painel."
   },
   "mpr": {
     "resetOblique": "Zerar MPR oblíquo"

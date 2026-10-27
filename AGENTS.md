@@ -10,7 +10,7 @@
 > configurações atuais são a fonte da verdade** — e este arquivo deve ser
 > atualizado.
 >
-> Última revisão: 23/10/2026.
+> Última revisão: 27/10/2026.
 
 ## Comece aqui (30 segundos)
 
@@ -529,9 +529,10 @@ Relate o comando exato, o resultado e qualquer falha pré-existente.
   `type="module"` via filtro `script_loader_tag`. Se esse filtro for removido,
   o bundle não executa; os chunks são resolvidos relativamente a `assets/`.
 - **Cache do entry com chunks:** o entry é estável (`v-dicom.js?ver=...`), mas
-  os chunks têm hash e `emptyOutDir` apaga os antigos. Um build manual sem bump
-  de versão pode deixar um entry em cache apontando para chunks removidos; faça
-  hard refresh ou use `build:plugin` (que incrementa a versão).
+  os chunks têm hash. O build do plugin versiona os imports do entry e os nomes
+  dos chunks (`...-v<versão>.js`) para evitar mismatch entre entry e chunk em
+  cache. Ainda assim, uma página aberta durante a troca dos assets deve ser
+  recarregada; em build manual sem bump, use hard refresh.
 - **`Viewer.tsx` é grande**, mas agora é um orquestrador com subcomponentes em
   `viewer/`. Não reintroduza lógica de layout/diálogo nele sem necessidade.
 - **`precise` desativa OrbitControls:** novas interações 3D devem checar o modo.

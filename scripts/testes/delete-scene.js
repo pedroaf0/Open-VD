@@ -83,7 +83,7 @@ export async function run(page, config) {
 
   // Restore the default video filename pattern changed by the admin test.
   if (globalThis.__TEST_RECORDING_NAME_PATTERN__) {
-    console.log("  ♻ Restaurando padrão do nome do vídeo 3D...");
+    console.log("  ♻ Restaurando padrão do nome do vídeo do painel...");
     await page.goto(`${WP_URL}/wp-admin/admin.php?page=v-dicom-settings`);
     await page.waitForLoadState("networkidle");
 

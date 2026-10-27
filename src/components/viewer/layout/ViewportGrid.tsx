@@ -23,8 +23,9 @@ interface ViewportGridProps {
   ww: number;
   invert: boolean;
   centerRequest: { id: string; seq: number } | null;
-  recordingNamePattern: string | undefined;
   preciseRender: boolean;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  render3dRef: React.RefObject<(() => void) | null>;
   expanded: "axial" | "coronal" | "sagittal" | "3d" | null;
   setExpanded: (
     e:
@@ -63,8 +64,9 @@ export function ViewportGrid({
   ww,
   invert,
   centerRequest,
-  recordingNamePattern,
   preciseRender,
+  containerRef,
+  render3dRef,
   expanded,
   setExpanded,
   isMobile,
@@ -86,6 +88,8 @@ export function ViewportGrid({
 
   return (
     <div
+      ref={containerRef}
+      data-recording-panel
       className={
         expanded
           ? "grid h-full grid-cols-1 grid-rows-1 gap-1.5 sm:gap-2"
@@ -123,7 +127,7 @@ export function ViewportGrid({
         ) : null,
       )}
       {(!expanded || expanded === "3d") && (
-        <div className="viewport-frame">
+        <div className="viewport-frame" data-recording-viewport="3d">
           <div className="viewport-header">
             <span className="plane-label text-muted-foreground">3D / STL</span>
             <span className="flex items-center gap-1">
@@ -164,7 +168,7 @@ export function ViewportGrid({
               ww={ww}
               invert={invert}
               centerRequest={centerRequest}
-              recordingNamePattern={recordingNamePattern}
+              renderRequestRef={render3dRef}
             />
           </div>
         </div>
