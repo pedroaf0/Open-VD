@@ -451,6 +451,7 @@ class V_Dicom_REST {
 				'wp_error'      => $response->get_error_message(),
 				'wp_error_code' => $response->get_error_code(),
 			) );
+			error_log( sprintf( '[v-dicom-segmentation] RUN request ERROR: url=%s error=%s code=%s', $url, $response->get_error_message(), $response->get_error_code() ) );
 			$err = new WP_Error( 'segmentation_request_failed', $response->get_error_message(), array( 'status' => 500 ) );
 			if ( self::DEBUG_SEGMENTATION ) {
 				$err->add_data( array( 'debug' => $this->last_segmentation_debug ), 'segmentation_request_failed' );
@@ -469,6 +470,8 @@ class V_Dicom_REST {
 			'response_body_raw' => $body,
 			'response_json'     => $data,
 		) );
+
+		error_log( sprintf( '[v-dicom-segmentation] RUN request: url=%s code=%d body=%s', $url, $status_code, substr( $body, 0, 2000 ) ) );
 
 		if ( $status_code < 200 || $status_code >= 300 ) {
 			/* translators: %d: HTTP status code */
@@ -674,6 +677,7 @@ class V_Dicom_REST {
 				'wp_error_code' => $response->get_error_code(),
 			) );
 			if ( $scene_post ) { V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'last_status_debug' => $tmp, 'last_status_time' => time() ) ); }
+			error_log( sprintf( '[v-dicom-segmentation] POLL ERROR: key=%s type=%s job=%s url=%s error=%s code=%s', $key, $type_id, $job_id, $status_url, $response->get_error_message(), $response->get_error_code() ) );
 			$err = new WP_Error( 'segmentation_status_error', $response->get_error_message(), array( 'status' => 500 ) );
 			if ( self::DEBUG_SEGMENTATION ) { $err->add_data( array( 'debug' => $tmp ), 'segmentation_status_error' ); }
 			return $err;
@@ -689,6 +693,7 @@ class V_Dicom_REST {
 			'response_json'     => $data,
 		) );
 		if ( $scene_post ) { V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'last_status_debug' => $debug_status, 'last_status_time' => time() ) ); }
+		error_log( sprintf( '[v-dicom-segmentation] POLL key=%s type=%s job=%s url=%s code=%d status=%s body=%s', $key, $type_id, $job_id, $status_url, $status_code, $raw_status, substr( $body, 0, 2000 ) ) );
 		if ( $status_code < 200 || $status_code >= 300 ) {
 			/* translators: %d: HTTP status code */
 			$err = new WP_Error( 'segmentation_status_error', sprintf( __( 'O serviço de segmentação respondeu com HTTP %d.', 'v-dicom' ), $status_code ), array( 'status' => $status_code ) );
@@ -759,6 +764,7 @@ class V_Dicom_REST {
 		}
 		$callback_debug = array( 'timestamp' => time(), 'headers' => function_exists( 'getallheaders' ) ? getallheaders() : array(), 'query_apikey' => substr( (string) $request->get_param( 'apikey' ), 0, 8 ) . '…', 'body_params' => $params, 'raw_body' => $request->get_body(), 'mapped_status' => $status, 'type' => $type_id );
 		V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'last_callback' => $callback_debug, 'last_callback_time' => time() ) );
+		error_log( sprintf( '[v-dicom-segmentation] CALLBACK key=%s type=%s job=%s status=%s raw_status=%s params=%s', $key, $type_id, ( $params['job_id'] ?? '' ), $status, $raw_status, wp_json_encode( $params ) ) );
 		if ( ! empty( $params['job_id'] ) && is_string( $params['job_id'] ) ) {
 			$cur = V_Dicom_Storage::get_segmentation( $key, $type_id );
 			if ( empty( $cur['job_id'] ) ) { V_Dicom_Storage::set_segmentation( $key, $type_id, array( 'job_id' => sanitize_text_field( $params['job_id'] ), 'used' => true ) ); }

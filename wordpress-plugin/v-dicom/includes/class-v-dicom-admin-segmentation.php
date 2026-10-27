@@ -11,6 +11,8 @@ class V_Dicom_Admin_Segmentation {
 	public function __construct() {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_post_v_dicom_seg_types', array( $this, 'handle_seg_types' ) );
+		add_action( 'admin_post_v_dicom_seg_export', array( $this, 'handle_seg_export' ) );
+		add_action( 'admin_post_v_dicom_seg_import', array( $this, 'handle_seg_import' ) );
 	}
 
 	public function menu() {
@@ -63,6 +65,105 @@ class V_Dicom_Admin_Segmentation {
 		exit;
 	}
 
+	/**
+	 * Export segmentation types as JSON file.
+	 */
+	public function handle_seg_export() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		check_admin_referer( 'v_dicom_seg_export' );
+
+		$seg_types = V_Dicom_Storage::get_segmentation_types( true );
+		$export_data = array(
+			'version'      => 1,
+			'exported_at'  => gmdate( 'c' ),
+			'seg_types'    => $seg_types,
+		);
+
+		$filename = 'v-dicom-segmentation-types-' . gmdate( 'Y-m-d' ) . '.json';
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+		header( 'Cache-Control: no-store, no-cache, must-revalidate, max-age=0' );
+		header( 'Pragma: no-cache' );
+		echo wp_json_encode( $export_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE );
+		exit;
+	}
+
+	/**
+	 * Import segmentation types from uploaded JSON file.
+	 */
+	public function handle_seg_import() {
+		if ( ! current_user_can( 'edit_users' ) ) {
+			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
+		}
+		check_admin_referer( 'v_dicom_seg_import' );
+
+		if ( empty( $_FILES['v_dicom_seg_import_file']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'segimporterror', 'no_file', admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
+			exit;
+		}
+
+		$file = $_FILES['v_dicom_seg_import_file'];
+		if ( $file['error'] !== UPLOAD_ERR_OK ) {
+			wp_safe_redirect( add_query_arg( 'segimporterror', 'upload_error', admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
+			exit;
+		}
+
+		// Read and validate JSON.
+		$json = file_get_contents( $file['tmp_name'] );
+		if ( false === $json ) {
+			wp_safe_redirect( add_query_arg( 'segimporterror', 'read_error', admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
+			exit;
+		}
+
+		$data = json_decode( $json, true );
+		if ( json_last_error() !== JSON_ERROR_NONE ) {
+			wp_safe_redirect( add_query_arg( 'segimporterror', 'invalid_json', admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
+			exit;
+		}
+
+		if ( ! isset( $data['seg_types'] ) || ! is_array( $data['seg_types'] ) ) {
+			wp_safe_redirect( add_query_arg( 'segimporterror', 'invalid_structure', admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
+			exit;
+		}
+
+		// Sanitize each type.
+		$out = array();
+		$seen = array();
+		foreach ( $data['seg_types'] as $item ) {
+			if ( ! is_array( $item ) ) { continue; }
+			$id_raw = isset( $item['id'] ) ? (string) $item['id'] : '';
+			$id = V_Dicom_Storage::sanitize_seg_type_id( $id_raw );
+			if ( '' === $id ) {
+				$id = substr( md5( ( $item['name'] ?? '' ) . microtime() . wp_rand() ), 0, 8 );
+			}
+			if ( isset( $seen[ $id ] ) ) { continue; }
+			$seen[ $id ] = true;
+
+			$san = V_Dicom_Storage::sanitize_segmentation_type( array(
+				'id'            => $id,
+				'name'          => $item['name'] ?? '',
+				'description'   => $item['description'] ?? '',
+				'url'           => $item['url'] ?? '',
+				'run_url'       => $item['run_url'] ?? '',
+				'status_url'    => $item['status_url'] ?? '',
+				'authorization' => $item['authorization'] ?? '',
+				'payload'       => $item['payload'] ?? '',
+				'cost'          => $item['cost'] ?? 0,
+				'enabled'       => ! empty( $item['enabled'] ),
+			), $id );
+			if ( ! $san ) { continue; }
+			$out[] = $san;
+		}
+
+		update_option( V_Dicom_Storage::OPTION_SEG_TYPES, array_values( $out ) );
+
+		$imported_count = count( $out );
+		wp_safe_redirect( add_query_arg( 'segimported', $imported_count, admin_url( 'admin.php?page=v-dicom-segmentation' ) ) );
+		exit;
+	}
+
 	public function page() {
 		if ( ! current_user_can( 'edit_users' ) ) {
 			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
@@ -76,9 +177,58 @@ class V_Dicom_Admin_Segmentation {
 			<?php if ( isset( $_GET['segtypessaved'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Tipos de segmentação atualizados.', 'v-dicom' ); ?></p></div>
 			<?php endif; ?>
+			<?php if ( isset( $_GET['segimported'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p>
+					<?php
+					/* translators: %d: number of imported segmentation types */
+					printf( esc_html__( '%d tipo(s) de segmentação importado(s).', 'v-dicom' ), (int) $_GET['segimported'] );
+					?>
+				</p></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['segimporterror'] ) ) : ?>
+				<div class="notice notice-error is-dismissible"><p>
+					<?php
+					$err = sanitize_text_field( wp_unslash( $_GET['segimporterror'] ) );
+					switch ( $err ) {
+						case 'no_file':
+							esc_html_e( 'Nenhum arquivo enviado.', 'v-dicom' );
+							break;
+						case 'upload_error':
+							esc_html_e( 'Erro no upload do arquivo.', 'v-dicom' );
+							break;
+						case 'read_error':
+							esc_html_e( 'Não foi possível ler o arquivo.', 'v-dicom' );
+							break;
+						case 'invalid_json':
+							esc_html_e( 'Arquivo JSON inválido.', 'v-dicom' );
+							break;
+						case 'invalid_structure':
+							esc_html_e( 'Estrutura do arquivo inválida. Esperado objeto com chave "seg_types".', 'v-dicom' );
+							break;
+						default:
+							esc_html_e( 'Erro desconhecido na importação.', 'v-dicom' );
+					}
+					?>
+				</p></div>
+			<?php endif; ?>
 			<p class="description" style="max-width:960px">
 				<?php esc_html_e( 'Cada tipo representa um serviço de nuvem serverless. A URL de execução recebe o payload, a URL de status é consultada durante o processamento e o callback informa a conclusão. Desmarque "Ativo" para desabilitar um tipo sem excluí-lo. A mesma cena pode usar vários tipos.', 'v-dicom' ); ?>
 			</p>
+
+			<div style="display:flex;gap:10px;align-items:center;margin:14px 0;flex-wrap:wrap;">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+					<input type="hidden" name="action" value="v_dicom_seg_export" />
+					<?php wp_nonce_field( 'v_dicom_seg_export' ); ?>
+					<button type="submit" class="button"><?php esc_html_e( 'Exportar configurações', 'v-dicom' ); ?></button>
+				</form>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" style="display:inline;">
+					<input type="hidden" name="action" value="v_dicom_seg_import" />
+					<?php wp_nonce_field( 'v_dicom_seg_import' ); ?>
+					<input type="file" name="v_dicom_seg_import_file" accept=".json" style="display:inline-block;width:auto;margin-right:8px;" required />
+					<button type="submit" class="button"><?php esc_html_e( 'Importar configurações', 'v-dicom' ); ?></button>
+				</form>
+				<span class="description" style="font-size:12px;"><?php esc_html_e( 'Exporta/importa todos os tipos de segmentação como JSON. O arquivo inclui payloads, URLs, autorização e descrições.', 'v-dicom' ); ?></span>
+			</div>
 
 			<details style="max-width:960px;margin:14px 0;padding:10px 12px;background:#fff;border:1px solid #ccd0d4;">
 				<summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'Placeholders disponíveis', 'v-dicom' ); ?></summary>
