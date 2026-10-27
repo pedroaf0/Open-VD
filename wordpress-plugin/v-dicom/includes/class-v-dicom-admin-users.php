@@ -149,7 +149,7 @@ class V_Dicom_Admin_Users {
 		}
 	}
 
-	/** Save the per-user storage limits (MB) and processing credits sent by the admin. */
+	/** Save the per-user storage limits (MB), processing credits, and subscription status sent by the admin. */
 	public function handle_limit() {
 		if ( ! current_user_can( 'edit_users' ) ) {
 			wp_die( esc_html__( 'Permissão negada.', 'v-dicom' ) );
@@ -167,6 +167,13 @@ class V_Dicom_Admin_Users {
 			$uid = (int) $uid;
 			if ( $uid > 0 ) {
 				V_Dicom_Storage::set_user_credit( $uid, max( 0, (int) $credits ) );
+			}
+		}
+		$sub_raw = isset( $_POST['v_dicom_subscription'] ) && is_array( $_POST['v_dicom_subscription'] ) ? array_map( 'absint', wp_unslash( $_POST['v_dicom_subscription'] ) ) : array();
+		foreach ( $sub_raw as $uid => $sub ) {
+			$uid = (int) $uid;
+			if ( $uid > 0 ) {
+				update_user_meta( $uid, V_Dicom_Storage::META_SUBSCRIPTION, $sub ? 1 : 0 );
 			}
 		}
 		wp_safe_redirect( add_query_arg( 'limitsaved', 1, admin_url( 'admin.php?page=v-dicom-users' ) ) );
@@ -347,17 +354,19 @@ class V_Dicom_Admin_Users {
 								<th><?php esc_html_e( 'Usuário', 'v-dicom' ); ?></th>
 								<th style="width:120px"><?php esc_html_e( 'Limite (MB)', 'v-dicom' ); ?></th>
 								<th style="width:120px"><?php esc_html_e( 'Créditos', 'v-dicom' ); ?></th>
+								<th style="width:100px"><?php esc_html_e( 'Assinante', 'v-dicom' ); ?></th>
 								<th><?php esc_html_e( 'Em uso agora', 'v-dicom' ); ?></th>
 							</tr>
 						</thead>
 						<tbody>
 						<?php if ( ! $quota_users ) : ?>
-							<tr><td colspan="4"><?php echo esc_html( '' !== $users_search ? __( 'Nenhum usuário encontrado para a busca.', 'v-dicom' ) : __( 'Nenhum usuário com cenas ou limite definido ainda.', 'v-dicom' ) ); ?></td></tr>
+							<tr><td colspan="5"><?php echo esc_html( '' !== $users_search ? __( 'Nenhum usuário encontrado para a busca.', 'v-dicom' ) : __( 'Nenhum usuário com cenas ou limite definido ainda.', 'v-dicom' ) ); ?></td></tr>
 						<?php endif; ?>
 						<?php foreach ( $quota_users as $u ) :
-							$u_limit   = V_Dicom_Storage::user_limit_bytes( (int) $u->ID );
-							$u_used    = V_Dicom_Storage::used_bytes( (int) $u->ID );
-							$u_credits = V_Dicom_Storage::user_credit( (int) $u->ID );
+							$u_limit       = V_Dicom_Storage::user_limit_bytes( (int) $u->ID );
+							$u_used        = V_Dicom_Storage::used_bytes( (int) $u->ID );
+							$u_credits     = V_Dicom_Storage::user_credit( (int) $u->ID );
+							$u_subscription = (bool) get_user_meta( (int) $u->ID, V_Dicom_Storage::META_SUBSCRIPTION, true );
 							?>
 							<tr>
 								<td>
@@ -377,6 +386,12 @@ class V_Dicom_Admin_Users {
 								<td>
 									<input type="number" min="0" step="1" class="small-text" name="v_dicom_credit[<?php echo (int) $u->ID; ?>]"
 										value="<?php echo (int) $u_credits; ?>" />
+								</td>
+								<td>
+									<select name="v_dicom_subscription[<?php echo (int) $u->ID; ?>]" class="small-text">
+										<option value="0" <?php selected( $u_subscription, false ); ?>><?php esc_html_e( 'Não', 'v-dicom' ); ?></option>
+										<option value="1" <?php selected( $u_subscription, true ); ?>><?php esc_html_e( 'Sim', 'v-dicom' ); ?></option>
+									</select>
 								</td>
 								<td>
 									<?php echo esc_html( self::format_bytes( $u_used ) ); ?>

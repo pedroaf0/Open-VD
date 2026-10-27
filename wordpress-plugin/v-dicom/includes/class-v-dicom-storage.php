@@ -16,6 +16,8 @@ class V_Dicom_Storage {
 	const META_ANNOTATIONS = '_v_dicom_annotations';
 	/** Planos de armazenamento comprados pelo usuário (lista com expiração individual). */
 	const META_PLANS    = 'v_dicom_storage_plans';
+	/** Assinante/Subscriber — boolean user meta. */
+	const META_SUBSCRIPTION = 'v_dicom_subscription';
 
 	const OPTION_API_KEY = 'v_dicom_api_key';
 const OPTION_CREDIT = 'v_dicom_credit';
