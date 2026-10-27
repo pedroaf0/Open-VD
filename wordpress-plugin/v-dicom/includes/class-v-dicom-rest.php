@@ -367,6 +367,10 @@ class V_Dicom_REST {
 				return new WP_Error( 'segmentation_payload_invalid', __( 'O payload renderizado não é um JSON válido.', 'v-dicom' ), array( 'status' => 500 ) );
 			}
 		}
+		// Templates using the singular download placeholder only receive the
+		// scene ZIP; expand that field so external sources (Drive/OneDrive)
+		// saved with the scene are downloaded by the service as well.
+		$payload = $this->ensure_all_download_urls_in_payload( $payload, $download_urls );
 
 		$run_template = trim( (string) ( $seg_type['run_url'] ?? '' ) );
 		if ( '' === $run_template ) {
@@ -414,6 +418,78 @@ class V_Dicom_REST {
 		return rest_ensure_response( $payload );
 	}
 
+	/**
+	 * Helper: prepare the rendered payload for error_log().
+	 *
+	 * The default template embeds scene URLs that carry "?apikey=", so the key
+	 * is masked to keep the debug log free of credentials. The payload is also
+	 * capped to avoid flooding the log with very large templates.
+	 */
+	private function segmentation_payload_for_log( $payload ) {
+		$payload = (string) $payload;
+		$masked  = preg_replace( '/([?&]apikey=)[^&\s"]+/i', '$1***', $payload );
+		if ( is_string( $masked ) ) {
+			$payload = $masked;
+		}
+		$total = strlen( $payload );
+		if ( $total > 4000 ) {
+			$payload = substr( $payload, 0, 4000 ) . sprintf( '...[truncated, total %d bytes]', $total );
+		}
+		return $payload;
+	}
+
+	/**
+	 * Make sure the rendered payload points the service at every scene source.
+	 *
+	 * A payload template written with the singular placeholder (for example
+	 * "download-url": "{{download_url}}") receives only the scene ZIP URL. When
+	 * the scene also references external files (Google Drive, OneDrive), the
+	 * download field is upgraded to the full URL array saved with the scene.
+	 */
+	private function ensure_all_download_urls_in_payload( $payload, $urls ) {
+		$urls = is_array( $urls ) ? array_values( array_filter( $urls ) ) : array();
+		if ( count( $urls ) < 2 ) {
+			return $payload;
+		}
+		$data = json_decode( (string) $payload, true );
+		if ( ! is_array( $data ) ) {
+			return $payload;
+		}
+		if ( ! $this->replace_download_url_values( $data, $urls ) ) {
+			return $payload;
+		}
+		$encoded = wp_json_encode( $data );
+		return is_string( $encoded ) ? $encoded : $payload;
+	}
+
+	/** Recursively expand download URL fields to the full list of scene URLs. */
+	private function replace_download_url_values( &$node, $urls ) {
+		$download_keys = array(
+			'download_url', 'download_urls', 'downloadurl', 'downloadurls',
+			'download_link', 'download_links', 'downloadlink', 'downloadlinks',
+		);
+		$changed = false;
+		foreach ( $node as $key => &$value ) {
+			if ( is_array( $value ) ) {
+				if ( $this->replace_download_url_values( $value, $urls ) ) {
+					$changed = true;
+				}
+				continue;
+			}
+			if ( ! is_string( $value ) || ! in_array( $value, $urls, true ) ) {
+				continue;
+			}
+			$normalized = strtolower( str_replace( array( '-', ' ' ), '_', (string) $key ) );
+			if ( ! in_array( $normalized, $download_keys, true ) ) {
+				continue;
+			}
+			$value   = array_values( $urls );
+			$changed = true;
+		}
+		unset( $value );
+		return $changed;
+	}
+
 	/** Helper: POST the rendered payload to the configured run endpoint. */
 	private function make_segmentation_request( $url, $auth_header, $payload, $template, $vars ) {
 		$headers = array( 'Content-Type' => 'application/json' );
@@ -424,6 +500,7 @@ class V_Dicom_REST {
 		if ( isset( $debug_headers['Authorization'] ) ) {
 			$debug_headers['Authorization'] = '***';
 		}
+		$log_payload = $this->segmentation_payload_for_log( $payload );
 
 		$response = wp_remote_post(
 			$url,
@@ -451,7 +528,7 @@ class V_Dicom_REST {
 				'wp_error'      => $response->get_error_message(),
 				'wp_error_code' => $response->get_error_code(),
 			) );
-			error_log( sprintf( '[v-dicom-segmentation] RUN request ERROR: url=%s error=%s code=%s', $url, $response->get_error_message(), $response->get_error_code() ) );
+			error_log( sprintf( '[v-dicom-segmentation] RUN request ERROR: url=%s error=%s code=%s payload=%s', $url, $response->get_error_message(), $response->get_error_code(), $log_payload ) );
 			$err = new WP_Error( 'segmentation_request_failed', $response->get_error_message(), array( 'status' => 500 ) );
 			if ( self::DEBUG_SEGMENTATION ) {
 				$err->add_data( array( 'debug' => $this->last_segmentation_debug ), 'segmentation_request_failed' );
@@ -471,7 +548,7 @@ class V_Dicom_REST {
 			'response_json'     => $data,
 		) );
 
-		error_log( sprintf( '[v-dicom-segmentation] RUN request: url=%s code=%d body=%s', $url, $status_code, substr( $body, 0, 2000 ) ) );
+		error_log( sprintf( '[v-dicom-segmentation] RUN request: url=%s code=%d payload=%s body=%s', $url, $status_code, $log_payload, substr( $body, 0, 2000 ) ) );
 
 		if ( $status_code < 200 || $status_code >= 300 ) {
 			/* translators: %d: HTTP status code */

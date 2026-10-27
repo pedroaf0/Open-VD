@@ -3,7 +3,7 @@
  * Plugin Name:       v-dicom
  * Plugin URI:        https://v-dicom.online-web.app.br/
  * Description:       Visualizador DICOM/CBCT no navegador (cortes axial, coronal, sagital, reconstrução 3D e modelos STL/PLY) com upload de estudos e compartilhamento por link. Inclui reorientação multiplanar (MPR oblíquo) para alinhar os cortes ao longo eixo do dente.
- * Version:           1.118.0
+ * Version:           1.121.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            v-dicom
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'V_DICOM_VERSION', '1.118.0' );
+define( 'V_DICOM_VERSION', '1.121.0' );
 define( 'V_DICOM_FILE', __FILE__ );
 define( 'V_DICOM_DIR', plugin_dir_path( __FILE__ ) );
 define( 'V_DICOM_URL', plugin_dir_url( __FILE__ ) );

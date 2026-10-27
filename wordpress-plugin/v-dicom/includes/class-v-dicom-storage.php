@@ -295,7 +295,9 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 	 *
 	 * In JSON mode (default) the replacement keeps the template valid JSON:
 	 * outside quotes the value is encoded as JSON (so arrays/numbers work),
-	 * inside quotes the value is inserted already escaped as text.
+	 * inside quotes the value is inserted escaped as text. When an array/object
+	 * placeholder is the whole content of a JSON string, the surrounding quotes
+	 * are dropped so it becomes a real JSON array/object.
 	 * In raw mode the value is inserted as plain text, useful for URL templates.
 	 *
 	 * @param string $template Template text.
@@ -311,6 +313,7 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		$length   = strlen( $template );
 		$in_string = false;
 		$escaped   = false;
+		$string_start = -1;
 
 		for ( $i = 0; $i < $length; $i++ ) {
 			$char = $template[ $i ];
@@ -339,7 +342,28 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 						} elseif ( $in_string ) {
 							if ( is_array( $value ) || is_object( $value ) ) {
 								$encoded = wp_json_encode( $value );
-								$out    .= is_string( $encoded ) ? substr( $encoded, 1, -1 ) : '';
+								$encoded = is_string( $encoded ) ? $encoded : 'null';
+								$whole_string = (
+									-1 !== $string_start
+									&& strlen( $out ) === $string_start + 1
+									&& '"' === $out[ $string_start ]
+									&& $end + 2 < $length
+									&& '"' === $template[ $end + 2 ]
+								);
+								if ( $whole_string ) {
+									// Drop the quotes so the array/object becomes a
+									// real JSON value instead of escaped text.
+									$out          = substr( $out, 0, $string_start ) . $encoded;
+									$i            = $end + 2; // skip the closing quote
+									$in_string    = false;
+									$escaped      = false;
+									$string_start = -1;
+									continue;
+								}
+								// Embedded in a longer string: insert the JSON text
+								// escaped so the template stays valid JSON.
+								$as_string = wp_json_encode( $encoded );
+								$out      .= is_string( $as_string ) ? substr( $as_string, 1, -1 ) : '';
 							} elseif ( is_bool( $value ) ) {
 								$out .= $value ? 'true' : 'false';
 							} elseif ( null === $value ) {
@@ -365,10 +389,12 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 				} elseif ( '\\' === $char ) {
 					$escaped = true;
 				} elseif ( '"' === $char ) {
-					$in_string = false;
+					$in_string    = false;
+					$string_start = -1;
 				}
 			} elseif ( '"' === $char ) {
-				$in_string = true;
+				$in_string    = true;
+				$string_start = strlen( $out ) - 1;
 			}
 		}
 

@@ -4,7 +4,7 @@ Tags: dicom, cbct, stl, viewer, radiology
 Requires at least: 5.8
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.118.0
+Stable tag: 1.121.0
 License: GPLv2 or later
 
 View DICOM/CBCT studies in the browser: axial, coronal and sagittal slices, 3D reconstruction and STL/PLY models, with study upload and link sharing.
@@ -54,6 +54,12 @@ Flow per scene ("Segment" button in the dashboard):
    - "download-url": /wp-json/v-dicom/v1/download/{key}/zip?apikey=KEY
    - "upload-url":   /wp-json/v-dicom/v1/uploads/{key}/files?apikey=KEY
    - "callback-url": callback endpoint for status updates
+   When the template uses the singular download placeholder and the scene also
+   references external sources (Google Drive/OneDrive), that field is expanded
+   to an array with the ZIP URL followed by the proxied source URLs.
+   Tip: `{{download_urls}}` always renders a JSON array (also when written
+   inside quotes) with every scene source, which is what the segmentation
+   services expect.
 4. The returned job id (id, job_id, request_id, task_id, etc.) is saved and the status can be queried at
    GET /wp-json/v-dicom/v1/scenes/{key}/segmentation-status
 5. When the status becomes COMPLETED the STL files sent by the service are already in the scene folder; the page is reloaded to display them.
