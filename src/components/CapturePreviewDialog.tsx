@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Copy, Download } from "lucide-react";
+import { Copy, Download, Share2 } from "lucide-react";
 
 import {
   Dialog,
@@ -8,7 +8,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { captureTimestamp, copyImageToClipboard, downloadPngDataUrl } from "@/lib/imageCapture";
+import {
+  captureTimestamp,
+  copyImageToClipboard,
+  dataUrlToBlob,
+  downloadPngDataUrl,
+} from "@/lib/imageCapture";
+import { shareFile, shareableFile } from "@/lib/share";
 
 type CopyStatus = "idle" | "copied" | "unsupported" | "error";
 
@@ -26,10 +32,12 @@ type Props = {
     copyUnsupported: string;
     copyFailed: string;
     download: string;
+    share: string;
+    shareFailed: string;
   };
 };
 
-/** Modal compartilhado de prévia, cópia e download das capturas de imagem. */
+/** Modal compartilhado de prévia, cópia, compartilhamento e download das capturas de imagem. */
 export function CapturePreviewDialog({
   open,
   onOpenChange,
@@ -40,6 +48,8 @@ export function CapturePreviewDialog({
   labels,
 }: Props) {
   const [status, setStatus] = useState<CopyStatus>("idle");
+  const [shareTarget, setShareTarget] = useState<File | null>(null);
+  const [shareFailed, setShareFailed] = useState(false);
 
   useEffect(() => {
     if (!open) setStatus("idle");
@@ -49,6 +59,17 @@ export function CapturePreviewDialog({
     setStatus("idle");
   }, [imageUrl]);
 
+  // Só oferece o compartilhamento quando o navegador aceita o arquivo; a
+  // validação usa o PNG real, então tipos recusados já não exibem o botão.
+  useEffect(() => {
+    setShareTarget(null);
+    setShareFailed(false);
+    if (!open || !imageUrl) return;
+    const blob = dataUrlToBlob(imageUrl);
+    if (!blob) return;
+    setShareTarget(shareableFile(blob, `${fileNamePrefix}-${captureTimestamp()}.png`));
+  }, [open, imageUrl, fileNamePrefix]);
+
   const handleCopy = async () => {
     if (!imageUrl) return;
     setStatus(await copyImageToClipboard(imageUrl));
@@ -57,6 +78,12 @@ export function CapturePreviewDialog({
   const handleDownload = () => {
     if (!imageUrl) return;
     downloadPngDataUrl(imageUrl, `${fileNamePrefix}-${captureTimestamp()}.png`);
+  };
+
+  const handleShare = async () => {
+    if (!shareTarget) return;
+    setShareFailed(false);
+    setShareFailed((await shareFile(shareTarget, title)) === "error");
   };
 
   return (
@@ -86,6 +113,16 @@ export function CapturePreviewDialog({
             <Download className="h-3.5 w-3.5" />
             {labels.download}
           </button>
+          {shareTarget && (
+            <button
+              type="button"
+              className="btn-chip gap-1.5 text-xs"
+              onClick={() => void handleShare()}
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              {labels.share}
+            </button>
+          )}
           {status === "copied" && (
             <span className="text-[11px] font-medium text-emerald-400">{labels.copied}</span>
           )}
@@ -94,6 +131,11 @@ export function CapturePreviewDialog({
           )}
           {status === "error" && (
             <span className="text-[11px] text-destructive">{labels.copyFailed}</span>
+          )}
+          {shareFailed && (
+            <span className="text-[11px] text-destructive" role="alert">
+              {labels.shareFailed}
+            </span>
           )}
         </div>
       </DialogContent>

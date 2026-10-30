@@ -1901,6 +1901,8 @@ export function Viewer() {
           title={t("viewer.recording.previewTitle")}
           description={t("viewer.recording.previewDesc")}
           downloadLabel={t("viewer.recording.download")}
+          shareLabel={t("viewer.recording.share")}
+          shareFailedLabel={t("viewer.recording.shareFailed")}
           closeLabel={t("viewer.common.close")}
         />
 
@@ -2089,6 +2091,9 @@ export function Viewer() {
                           setWw(b);
                         }}
                         onStates={(fn) => setPlaneStates((s) => fn(s))}
+                        recording={panelRecording.recording}
+                        recordedSeconds={panelRecording.seconds}
+                        onToggleRecording={requestRecordingToggle}
                       />
                     )}
 

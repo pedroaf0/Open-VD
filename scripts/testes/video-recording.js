@@ -1,9 +1,10 @@
 /**
  * Panel video recording test module.
  *
- * Covers the record button in the lateral rail, the audio choice prompt, the red
- * recording indicator with its elapsed timer, the stop control, the preview
- * modal with playback and download, the composed 2×2 frame (all four viewports),
+ * Covers the record button in the lateral rail (and inside the slice/3D
+ * viewports), the audio choice prompt, the red recording indicator with its
+ * elapsed timer, the stop control, the preview modal with playback and
+ * download, the composed 2×2 frame (all four viewports),
  * a recording while one viewport is expanded, and starting a second recording
  * after the first one has been finalized (resource cleanup). The first preview
  * proves the no-audio path; the second one uses Chromium's fake microphone and
@@ -33,6 +34,8 @@ const AUDIO_PROMPT_LABEL =
 const WITHOUT_AUDIO_LABEL = /Gravar sem áudio|Record without audio|Grabar sin audio/;
 const WITH_AUDIO_LABEL = /Gravar com microfone|Record with microphone|Grabar con micrófono/;
 const CANCEL_LABEL = /Cancelar|Cancel/;
+const CLOSE_LABEL = /^(Fechar|Close|Cerrar)$/;
+const SHARE_LABEL = /Compartilhar vídeo|Share video|Compartir vídeo/;
 const BACK_TO_GRID_LABEL = /Voltar ao mosaico|Back to grid|Volver a la cuadrícula/;
 const PANEL_TOGGLE_LABEL = /Painel de parâmetros|Parameters panel|Panel de parámetros/;
 const DEFAULT_PATTERN = "openvd-3d-recording-{timestamp}";
@@ -210,11 +213,17 @@ export async function run(page, config) {
   const viewport3d = page.locator(VIEWPORT_3D).first();
   await expect(viewport3d).toBeVisible({ timeout: 15000 });
 
-  // A captura de imagem continua no viewport 3D; a gravação saiu de lá.
+  // A captura de imagem e a gravação ficam lado a lado no viewport 3D e nos
+  // cortes 2D; a gravação continua sendo a de todo o painel.
   await expect(viewport3d.locator("button:has(svg.lucide-camera)").first()).toBeVisible({
     timeout: 10000,
   });
-  expect(await viewport3d.locator("button:has(svg.lucide-video)").count()).toBe(0);
+  const viewport3dRecord = viewport3d.getByRole("button", { name: START_LABEL }).first();
+  await expect(viewport3dRecord).toBeVisible({ timeout: 10000 });
+  await expect(viewport3dRecord).toHaveAttribute("aria-pressed", "false");
+  const axialViewport = page.locator('[data-recording-viewport="axial"]').first();
+  const axialRecord = axialViewport.getByRole("button", { name: START_LABEL }).first();
+  await expect(axialRecord).toBeVisible({ timeout: 10000 });
 
   const rail = page.locator("nav.rail").first();
   await expect(rail).toBeVisible({ timeout: 10000 });
@@ -244,6 +253,15 @@ export async function run(page, config) {
   await expect(recordBtn).toHaveAttribute("aria-pressed", "false");
   expect(await rail.getByRole("button", { name: STOP_LABEL }).count()).toBe(0);
   console.log("  🎙 Pergunta de áudio exibida; cancelar não iniciou a gravação");
+
+  // O botão do viewport 3D dispara a mesma pergunta e não grava ao cancelar.
+  await viewport3dRecord.click();
+  const viewportPrompt = page.getByRole("dialog", { name: AUDIO_PROMPT_LABEL }).first();
+  await expect(viewportPrompt).toBeVisible({ timeout: 10000 });
+  await viewportPrompt.getByRole("button", { name: CANCEL_LABEL }).click();
+  await expect(viewportPrompt).not.toBeVisible({ timeout: 5000 });
+  await expect(viewport3dRecord).toHaveAttribute("aria-pressed", "false");
+  console.log("  🎥 Botão de gravação do viewport 3D abriu a pergunta de áudio");
 
   // ============================================================
   // TEST 2: start without audio — stop state + red indicator + timer.
@@ -289,6 +307,34 @@ export async function run(page, config) {
   await expect(video).toBeVisible();
   await expect(video).toHaveAttribute("src", /^blob:/);
   await waitForVideoMetadata(page);
+
+  // O botão de compartilhar só existe quando o navegador aceita compartilhar
+  // arquivos pela Web Share API (nível 2); sem suporte ele não é renderizado.
+  const canShareVideo = await page.evaluate(() => {
+    if (typeof navigator.share !== "function" || typeof navigator.canShare !== "function") {
+      return false;
+    }
+    const probe = new File([new Blob([new Uint8Array(1)], { type: "video/mp4" })], "probe.mp4", {
+      type: "video/mp4",
+    });
+    return navigator.canShare({ files: [probe] });
+  });
+  const shareBtn = dialog.getByRole("button", { name: SHARE_LABEL });
+  if (canShareVideo) {
+    await expect(shareBtn).toBeVisible({ timeout: 15000 });
+    // Fica ao lado do download, dentro do mesmo grupo de ações.
+    const [downloadBtn, shareBox] = await Promise.all([
+      dialog.locator("button:has(svg.lucide-download)").first().boundingBox(),
+      shareBtn.boundingBox(),
+    ]);
+    expect(downloadBtn).toBeTruthy();
+    expect(shareBox).toBeTruthy();
+    expect(shareBox.y).toBeLessThan(downloadBtn.y + downloadBtn.height);
+    console.log("  🔗 Botão de compartilhar vídeo visível ao lado do download");
+  } else {
+    await expect(shareBtn).toHaveCount(0);
+    console.log("  🔗 Navegador sem Web Share de arquivos: botão de compartilhar omitido");
+  }
 
   const metadata = await video.evaluate((element) => ({
     width: element.videoWidth,
@@ -365,7 +411,7 @@ export async function run(page, config) {
   // TEST 5: close the modal, record again with microphone audio, and prove
   // the recorder and its tracks were released between recordings.
   // ============================================================
-  await dialog.locator("button.btn-chip").first().click();
+  await dialog.getByRole("button", { name: CLOSE_LABEL }).first().click();
   await expect(dialog).not.toBeVisible({ timeout: 5000 });
 
   const recordAgain = rail.getByRole("button", { name: START_LABEL });
@@ -381,7 +427,7 @@ export async function run(page, config) {
   await waitForVideoMetadata(page);
   const secondVideo = secondDialog.locator("video").first();
   await expect.poll(() => videoAudioTrackCount(secondVideo), { timeout: 10000 }).toBeGreaterThan(0);
-  await secondDialog.locator("button.btn-chip").first().click();
+  await secondDialog.getByRole("button", { name: CLOSE_LABEL }).first().click();
   await expect(secondDialog).not.toBeVisible({ timeout: 5000 });
   console.log("  🎙 Segunda gravação com microfone incluiu faixa de áudio");
 
@@ -419,7 +465,7 @@ export async function run(page, config) {
     `  🔍 Janela expandida gravada (${expandedMetadata.width}×${expandedMetadata.height})`,
   );
   await capture(page, config, "video-recording-04-expanded.png");
-  await expandedDialog.locator("button.btn-chip").first().click();
+  await expandedDialog.getByRole("button", { name: CLOSE_LABEL }).first().click();
   await expect(expandedDialog).not.toBeVisible({ timeout: 5000 });
 
   const backToGrid = rail.getByRole("button", { name: BACK_TO_GRID_LABEL });
@@ -455,7 +501,7 @@ export async function run(page, config) {
   console.log(
     `  📱 Gravação no painel lateral do tablet (${tabletMetadata.width}×${tabletMetadata.height})`,
   );
-  await tabletDialog.locator("button.btn-chip").first().click();
+  await tabletDialog.getByRole("button", { name: CLOSE_LABEL }).first().click();
   await expect(tabletDialog).not.toBeVisible({ timeout: 5000 });
 
   // ============================================================
@@ -484,7 +530,7 @@ export async function run(page, config) {
   expect(mobileMetadata.width).toBeGreaterThan(0);
   expect(mobileMetadata.height).toBeGreaterThan(mobileMetadata.width);
   console.log(`  📱 Gravação no mobile (${mobileMetadata.width}×${mobileMetadata.height})`);
-  await mobileDialog.locator("button.btn-chip").first().click();
+  await mobileDialog.getByRole("button", { name: CLOSE_LABEL }).first().click();
   await expect(mobileDialog).not.toBeVisible({ timeout: 5000 });
 
   await page.setViewportSize({ width: 1920, height: 1080 });

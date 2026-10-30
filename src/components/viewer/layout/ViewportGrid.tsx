@@ -49,6 +49,9 @@ interface ViewportGridProps {
   resetPlane: (plane: Plane) => void;
   onWindow: (wc: number, ww: number) => void;
   onStates: (fn: (s: Record<Plane, PlaneState>) => Record<Plane, PlaneState>) => void;
+  recording: boolean;
+  recordedSeconds: number;
+  onToggleRecording: () => void;
 }
 
 export function ViewportGrid({
@@ -80,6 +83,9 @@ export function ViewportGrid({
   resetPlane,
   onWindow,
   onStates,
+  recording,
+  recordedSeconds,
+  onToggleRecording,
 }: ViewportGridProps) {
   const { t } = useTranslation();
   if (!volume) return null;
@@ -123,6 +129,9 @@ export function ViewportGrid({
             onCreateAnnotation={onCreateAnnotation}
             showLines={showLines}
             onToggleLines={onToggleLines}
+            recording={recording}
+            recordedSeconds={recordedSeconds}
+            onToggleRecording={onToggleRecording}
           />
         ) : null,
       )}
@@ -169,6 +178,9 @@ export function ViewportGrid({
               invert={invert}
               centerRequest={centerRequest}
               renderRequestRef={render3dRef}
+              recording={recording}
+              recordedSeconds={recordedSeconds}
+              onToggleRecording={onToggleRecording}
             />
           </div>
         </div>

@@ -1,4 +1,5 @@
-import { Download } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, Share2 } from "lucide-react";
 
 import {
   Dialog,
@@ -7,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { shareFile, shareableFile } from "@/lib/share";
 import { downloadUrlAsFile, recordingFileName } from "@/lib/videoCapture";
 
 type Props = {
@@ -19,10 +21,20 @@ type Props = {
   title: string;
   description?: string;
   downloadLabel: string;
+  shareLabel: string;
+  shareFailedLabel: string;
   closeLabel: string;
 };
 
-/** Modal de prévia e download dos vídeos gravados no painel de visualização. */
+const SHARE_MIME: Record<"webm" | "mp4", string> = {
+  mp4: "video/mp4",
+  webm: "video/webm",
+};
+
+/**
+ * Modal de prévia, download e compartilhamento dos vídeos gravados no painel
+ * de visualização.
+ */
 export function VideoPreviewDialog({
   open,
   onOpenChange,
@@ -32,11 +44,52 @@ export function VideoPreviewDialog({
   title,
   description,
   downloadLabel,
+  shareLabel,
+  shareFailedLabel,
   closeLabel,
 }: Props) {
+  const [shareTarget, setShareTarget] = useState<File | null>(null);
+  const [shareFailed, setShareFailed] = useState(false);
+
+  // A Web Share API com arquivos só pode ser validada com um File concreto,
+  // então o vídeo é empacotado quando o modal abre. Sem suporte, o botão some.
+  useEffect(() => {
+    setShareTarget(null);
+    setShareFailed(false);
+    if (!open || !videoUrl) return;
+    if (typeof navigator === "undefined") return;
+
+    let cancelled = false;
+    const prepareShareFile = async () => {
+      try {
+        const blob = await (await fetch(videoUrl)).blob();
+        if (cancelled) return;
+        setShareTarget(
+          shareableFile(
+            blob,
+            recordingFileName(fileNamePattern, fileExtension),
+            SHARE_MIME[fileExtension],
+          ),
+        );
+      } catch {
+        if (!cancelled) setShareTarget(null);
+      }
+    };
+    void prepareShareFile();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, videoUrl, fileNamePattern, fileExtension]);
+
   const handleDownload = () => {
     if (!videoUrl) return;
     downloadUrlAsFile(videoUrl, recordingFileName(fileNamePattern, fileExtension));
+  };
+
+  const handleShare = async () => {
+    if (!shareTarget) return;
+    setShareFailed(false);
+    setShareFailed((await shareFile(shareTarget, title)) === "error");
   };
 
   return (
@@ -62,6 +115,16 @@ export function VideoPreviewDialog({
             <Download className="h-3.5 w-3.5" />
             {downloadLabel}
           </button>
+          {shareTarget && (
+            <button
+              type="button"
+              className="btn-chip gap-1.5 text-xs"
+              onClick={() => void handleShare()}
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              {shareLabel}
+            </button>
+          )}
           <button
             type="button"
             className="btn-chip gap-1.5 text-xs"
@@ -69,6 +132,11 @@ export function VideoPreviewDialog({
           >
             {closeLabel}
           </button>
+          {shareFailed && (
+            <span className="text-[11px] text-destructive" role="alert">
+              {shareFailedLabel}
+            </span>
+          )}
         </div>
       </DialogContent>
     </Dialog>

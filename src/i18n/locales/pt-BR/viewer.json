@@ -192,6 +192,8 @@
     "copyUnsupported": "Este navegador não permite copiar imagens para a área de transferência.",
     "copyFailed": "Não foi possível copiar a imagem.",
     "download": "Baixar imagem",
+    "share": "Compartilhar imagem",
+    "shareFailed": "Não foi possível compartilhar a imagem.",
     "failed": "Não foi possível capturar a imagem da cena."
   },
   "recording": {
@@ -202,6 +204,8 @@
     "previewTitle": "Vídeo do painel",
     "previewDesc": "Prévia da gravação do painel atual. O vídeo inclui as janelas visíveis, sem os controles da interface. O microfone é incluído apenas quando escolhido no início da gravação.",
     "download": "Baixar vídeo",
+    "share": "Compartilhar vídeo",
+    "shareFailed": "Não foi possível compartilhar o vídeo.",
     "audioTitle": "Gravar áudio do microfone?",
     "audioDesc": "O vídeo do painel será gravado normalmente. Deseja incluir sua voz usando o microfone deste dispositivo?",
     "audioWithout": "Gravar sem áudio",

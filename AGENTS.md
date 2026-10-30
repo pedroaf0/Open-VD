@@ -194,7 +194,7 @@ Open-VD/
 │  │  ├─ renderMode.ts             # balanced | precise | fast
 │  │  ├─ transparency.ts           # OIT + depth peeling
 │  │  ├─ pwa.ts, debuglog.ts, format.ts, async.ts, utils.ts
-│  │  ├─ imageCapture.ts, videoCapture.ts
+│  │  ├─ imageCapture.ts, videoCapture.ts, share.ts
 │  │  └─ zipjs.d.ts
 │  ├─ i18n/
 │  │  ├─ index.ts, languages.ts

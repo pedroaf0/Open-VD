@@ -192,6 +192,8 @@
     "copyUnsupported": "Este navegador no permite copiar imágenes al portapapeles.",
     "copyFailed": "No se pudo copiar la imagen.",
     "download": "Descargar imagen",
+    "share": "Compartir imagen",
+    "shareFailed": "No se pudo compartir la imagen.",
     "failed": "No se pudo capturar la imagen de la escena."
   },
   "recording": {
@@ -202,6 +204,8 @@
     "previewTitle": "Vídeo del panel",
     "previewDesc": "Vista previa de la grabación del panel actual. El vídeo incluye las ventanas visibles, sin los controles de la interfaz. El micrófono se incluye solo cuando se selecciona al iniciar la grabación.",
     "download": "Descargar vídeo",
+    "share": "Compartir vídeo",
+    "shareFailed": "No se pudo compartir el vídeo.",
     "audioTitle": "¿Grabar audio del micrófono?",
     "audioDesc": "El vídeo del panel se grabará normalmente. ¿Deseas incluir tu voz usando el micrófono de este dispositivo?",
     "audioWithout": "Grabar sin audio",

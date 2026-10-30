@@ -22,6 +22,8 @@ import {
   Plus,
   RotateCcw,
   Sparkles,
+  Square,
+  Video,
   X,
   Zap,
   type LucideIcon,
@@ -53,6 +55,7 @@ import {
   WeightedOIT,
 } from "@/lib/transparency";
 import { cn } from "@/lib/utils";
+import { formatRecordingDuration } from "@/lib/videoCapture";
 
 export type MeshFile = {
   id: string;
@@ -86,6 +89,10 @@ type Props = {
   centerRequest?: { id: string; seq: number } | null;
   /** Permite ao gravador forçar um frame antes de ler o canvas WebGL. */
   renderRequestRef?: RefObject<(() => void) | null>;
+  /** gravação do painel (mesmo controle do trilho e do painel lateral) */
+  recording?: boolean;
+  recordedSeconds?: number;
+  onToggleRecording?: (() => void) | undefined;
 };
 
 const TIP_STORAGE_KEY = "openvd:transparency-tip-seen:v1";
@@ -202,6 +209,9 @@ export function Volume3D({
   invert,
   centerRequest,
   renderRequestRef,
+  recording,
+  recordedSeconds,
+  onToggleRecording,
 }: Props) {
   const mountRef = useRef<HTMLDivElement>(null);
   const matRef = useRef<THREE.ShaderMaterial | null>(null);
@@ -1121,6 +1131,32 @@ export function Volume3D({
           >
             <Camera className="h-3.5 w-3.5 text-sky-300" />
           </button>
+          {onToggleRecording && (
+            <button
+              type="button"
+              aria-pressed={recording === true}
+              aria-label={recording ? t("viewer.recording.stop") : t("viewer.recording.start")}
+              title={
+                recording
+                  ? `${t("viewer.recording.stop")} · ${formatRecordingDuration(
+                      recordedSeconds ?? 0,
+                    )}`
+                  : t("viewer.recording.start")
+              }
+              onClick={onToggleRecording}
+              className={
+                recording
+                  ? "flex h-7 w-7 items-center justify-center rounded-md border border-red-500/50 bg-red-500/15 text-red-400 shadow-lg backdrop-blur-md transition hover:bg-red-500/25 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  : "flex h-7 w-7 items-center justify-center rounded-md border border-white/15 bg-black/60 text-white/85 shadow-lg backdrop-blur-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              }
+            >
+              {recording ? (
+                <Square className="h-3.5 w-3.5 fill-red-400 text-red-400" />
+              ) : (
+                <Video className="h-3.5 w-3.5 text-sky-300" />
+              )}
+            </button>
+          )}
           <DropdownMenu
             onOpenChange={(open) => {
               if (open) dismissTip();
@@ -1399,6 +1435,8 @@ export function Volume3D({
           copyUnsupported: t("viewer.capture.copyUnsupported"),
           copyFailed: t("viewer.capture.copyFailed"),
           download: t("viewer.capture.download"),
+          share: t("viewer.capture.share"),
+          shareFailed: t("viewer.capture.shareFailed"),
         }}
       />
     </div>

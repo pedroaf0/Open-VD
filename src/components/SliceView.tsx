@@ -12,9 +12,12 @@ import {
   Plus,
   RotateCcw,
   RotateCw,
+  Square,
+  Video,
   X,
 } from "lucide-react";
 import type { Plane, Volume } from "@/lib/dicom";
+import { formatRecordingDuration } from "@/lib/videoCapture";
 import { CapturePreviewDialog } from "@/components/CapturePreviewDialog";
 import {
   clampPlane,
@@ -73,6 +76,10 @@ type Props = {
   showLines: boolean;
   /** alterna a visibilidade das linhas de referência (global) */
   onToggleLines: () => void;
+  /** gravação do painel (mesmo controle do trilho e do painel lateral) */
+  recording?: boolean;
+  recordedSeconds?: number;
+  onToggleRecording?: (() => void) | undefined;
 };
 
 const OTHERS: Record<Plane, [Plane, Plane]> = {
@@ -783,6 +790,33 @@ export function SliceView(props: Props) {
           >
             <Camera className="h-4 w-4 text-sky-300" />
           </button>
+          {props.onToggleRecording && (
+            <button
+              className={
+                props.recording
+                  ? "flex h-8 w-8 items-center justify-center rounded-md border border-red-500/50 bg-red-500/15 text-red-400 shadow-lg backdrop-blur-md transition hover:bg-red-500/25 hover:text-red-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                  : "flex h-8 w-8 items-center justify-center rounded-md border border-white/15 bg-black/60 text-white/85 shadow-lg backdrop-blur-md transition hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+              }
+              onClick={() => props.onToggleRecording?.()}
+              aria-pressed={props.recording === true}
+              aria-label={
+                props.recording ? t("viewer.recording.stop") : t("viewer.recording.start")
+              }
+              title={
+                props.recording
+                  ? `${t("viewer.recording.stop")} · ${formatRecordingDuration(
+                      props.recordedSeconds ?? 0,
+                    )}`
+                  : t("viewer.recording.start")
+              }
+            >
+              {props.recording ? (
+                <Square className="h-4 w-4 fill-red-400 text-red-400" />
+              ) : (
+                <Video className="h-4 w-4 text-sky-300" />
+              )}
+            </button>
+          )}
           {!annotating && (
             <button
               className="flex h-8 w-8 items-center justify-center rounded-md border backdrop-blur-sm transition"
@@ -891,6 +925,8 @@ export function SliceView(props: Props) {
           copyUnsupported: t("viewer.capture.copyUnsupported"),
           copyFailed: t("viewer.capture.copyFailed"),
           download: t("viewer.capture.download"),
+          share: t("viewer.capture.share"),
+          shareFailed: t("viewer.capture.shareFailed"),
         }}
       />
     </div>

@@ -192,6 +192,8 @@
     "copyUnsupported": "This browser does not support copying images to the clipboard.",
     "copyFailed": "Could not copy the image.",
     "download": "Download image",
+    "share": "Share image",
+    "shareFailed": "Could not share the image.",
     "failed": "Could not capture the scene image."
   },
   "recording": {
@@ -202,6 +204,8 @@
     "previewTitle": "Panel video",
     "previewDesc": "Preview of the current panel recording. The video includes the visible viewports but not the interface controls. The microphone is included only when selected at the start of the recording.",
     "download": "Download video",
+    "share": "Share video",
+    "shareFailed": "Could not share the video.",
     "audioTitle": "Record microphone audio?",
     "audioDesc": "The panel video will be recorded normally. Do you want to include your voice using this device's microphone?",
     "audioWithout": "Record without audio",

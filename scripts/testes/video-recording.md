@@ -1,7 +1,8 @@
 # video-recording
 
 Valida a gravação do **painel de visualização** (não apenas do viewport 3D), com o
-controle no trilho lateral esquerdo, incluindo a escolha de áudio do microfone.
+controle no trilho lateral esquerdo, nos viewports de corte/3D e nos painéis de
+tablet/mobile, incluindo a escolha de áudio do microfone.
 
 ## Dependências
 
@@ -20,8 +21,9 @@ caminho com áudio sem depender de um microfone físico.
 ## Passos
 
 1. Abre a cena existente em `/v-dicom/<chave>/` e aguarda os 4 canvases.
-2. Confere que o viewport 3D mantém apenas o botão de captura de imagem e que
-   não há botão de gravação dentro dele.
+2. Confere que o viewport 3D e os cortes 2D têm o botão de gravação ao lado do
+   botão de captura de imagem, e que ele abre a mesma pergunta de áudio do
+   trilho.
 3. Localiza o botão **Gravar vídeo do painel** no `nav.rail` e confere que ele
    abre a pergunta **Gravar áudio do microfone?**.
    - Cancelar fecha a pergunta sem iniciar a gravação.
@@ -35,7 +37,9 @@ caminho com áudio sem depender de um microfone físico.
    - dimensões iguais ao canvas composto do painel (não ao viewport 3D);
    - nenhuma faixa de áudio no caminho sem microfone;
    - um frame do meio do vídeo contém pixels claros nos quatro quadrantes
-     (axial, coronal, sagital e 3D).
+     (axial, coronal, sagital e 3D);
+   - o botão **Compartilhar vídeo** aparece ao lado do download somente quando
+     o navegador aceita compartilhar arquivos (`navigator.canShare({ files })`).
 6. Baixa o vídeo e confere o padrão de nome configurado no admin e o tamanho
    mínimo do arquivo. O arquivo é descartado, salvo se `--save-recording` for
    usado.
@@ -64,12 +68,15 @@ caminho com áudio sem depender de um microfone físico.
 | Painel gravado    | `[data-recording-panel]`                                     |
 | Viewports         | `[data-recording-viewport]`                                  |
 | Prévia            | `[role="dialog"]:has(video)`                                 |
+| Compartilhar      | `getByRole("button", { name: /Compartilhar vídeo/ })`        |
+| Fechar            | `getByRole("button", { name: /^(Fechar                       | Close | Cerrar)$/ })` |
 | Expandir          | `main button[aria-label^="Expandir"]`                        |
 | Voltar ao mosaico | `getByRole("button", { name: /Voltar ao mosaico/ })`         |
 
 ## Validações
 
-- O botão de gravação não existe dentro do viewport 3D.
+- O botão de gravação existe no trilho, nos viewports de corte/3D e no painel
+  lateral do tablet; cancelar a pergunta de áudio nunca inicia a gravação.
 - A pergunta de áudio aparece em todos os pontos de início e pode ser cancelada.
 - Sem microfone, o vídeo não tem faixa de áudio e continua como antes.
 - Com microfone, o vídeo tem a faixa de áudio anexada ao canvas composto.
@@ -77,5 +84,6 @@ caminho com áudio sem depender de um microfone físico.
 - Os quatro quadrantes do frame composto têm conteúdo clínico.
 - A gravação funciona com uma janela expandida.
 - A prévia, o download e uma segunda gravação funcionam.
+- O botão de compartilhar vídeo só é renderizado com suporte da Web Share API.
 - O nome do arquivo segue o padrão do WP Admin.
 - O controle também existe no painel lateral do tablet e na gaveta 3D do mobile.
