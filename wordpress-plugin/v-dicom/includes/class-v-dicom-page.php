@@ -300,6 +300,8 @@ $config = array(
 			'restUrl'   => esc_url_raw( rest_url( V_Dicom_REST::NS ) ),
 			'nonce'     => wp_create_nonce( 'wp_rest' ),
 			'canUpload' => v_dicom_can_upload(),
+			// Whether the current user has an active subscription (assinante).
+			'subscription' => is_user_logged_in() ? V_Dicom_Storage::user_subscription( get_current_user_id() ) : false,
 			'sceneKey'  => $scene ? $scene : null,
 			'homeUrl'   => esc_url_raw( home_url( '/' ) ),
 			'viewerUrl' => esc_url_raw( self::url() ),

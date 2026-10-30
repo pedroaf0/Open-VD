@@ -792,6 +792,16 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 		update_user_meta( (int) $user_id, self::OPTION_CREDIT, max( 0, (int) $credits ) );
 	}
 
+	/** Status de assinatura do usuário (boolean). */
+	public static function user_subscription( $user_id ) {
+		return (bool) get_user_meta( (int) $user_id, self::META_SUBSCRIPTION, true );
+	}
+
+	/** Definir o status de assinatura do usuário. */
+	public static function set_user_subscription( $user_id, $subscribed ) {
+		update_user_meta( (int) $user_id, self::META_SUBSCRIPTION, $subscribed ? 1 : 0 );
+	}
+
 	/**
 	 * Todos os planos de armazenamento de um usuário, na ordem em que foram
 	 * comprados. Cada plano: mb, months, granted_at, expires_at, order_id.

@@ -25,6 +25,11 @@ export type WpConfig = {
   restUrl: string;
   nonce: string;
   canUpload: boolean;
+  /**
+   * Whether the current user has an active subscription (assinante).
+   * Set by the plugin on the viewer page; false for anonymous visitors.
+   */
+  subscription?: boolean;
   sceneKey: string | null;
   homeUrl: string;
   viewerUrl: string;
@@ -211,6 +216,9 @@ export function wpConfig(): WpConfig | null {
     viewerUrl: raw.viewerUrl ?? "",
     shareTemplate: raw.shareTemplate ?? "",
   };
+  if (typeof raw.subscription === "boolean") {
+    cfg.subscription = raw.subscription;
+  }
   if (raw.locale) {
     cfg.locale = raw.locale;
   }
