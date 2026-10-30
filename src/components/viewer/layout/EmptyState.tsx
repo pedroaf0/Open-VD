@@ -8,7 +8,6 @@ interface EmptyStateProps {
   canUpload: boolean;
   canLoadPublicly: boolean;
   allowDirectDicom: boolean;
-  allowUrlLoading: boolean;
   error: string | null;
   // Refs for file inputs
   dicomInput: React.RefObject<HTMLInputElement | null>;
@@ -28,7 +27,6 @@ export function EmptyState({
   canUpload,
   canLoadPublicly,
   allowDirectDicom,
-  allowUrlLoading,
   error,
   dicomInput,
   dicomFolderInput,
@@ -85,15 +83,15 @@ export function EmptyState({
                 {t("viewer.header.openDicomFolder")}
               </button>
             )}
-            {(allowUrlLoading || allowDirectDicom) && (
-              <button
-                className={allowDirectDicom ? "btn-ghost gap-1.5" : "btn-primary gap-1.5"}
-                onClick={onOpenUrl}
-              >
-                <Link2 className="h-3.5 w-3.5" />
-                {t("viewer.header.openByUrl")}
-              </button>
-            )}
+            {/* URL (Drive/OneDrive) continua disponível mesmo com o upload
+                direto de DICOM desativado pelo administrador. */}
+            <button
+              className={allowDirectDicom ? "btn-ghost gap-1.5" : "btn-primary gap-1.5"}
+              onClick={onOpenUrl}
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {t("viewer.header.openByUrl")}
+            </button>
             <button className="btn-ghost" onClick={() => stlInput.current?.click()}>
               <Box className="h-3.5 w-3.5" />
               STL / PLY / OBJ

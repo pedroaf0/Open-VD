@@ -1608,12 +1608,6 @@ export function Viewer() {
   const allowDirectDicom = !cfg || cfg.directDicomEnabled === true || canLoadPublicly;
 
   /**
-   * Permite abrir exames por URL (Drive/OneDrive) sem login quando o
-   * carregamento público está habilitado.
-   */
-  const allowUrlLoading = canLoadPublicly;
-
-  /**
    * `webkitdirectory` é um atributo não padronizado e não consta nos tipos do
    * React, então é aplicado de forma imperativa no input de pasta DICOM.
    */
@@ -2002,7 +1996,6 @@ export function Viewer() {
                         canUpload={canUpload}
                         canLoadPublicly={canLoadPublicly}
                         allowDirectDicom={allowDirectDicom}
-                        allowUrlLoading={allowUrlLoading}
                         error={error}
                         dicomInput={dicomInput}
                         dicomFolderInput={dicomFolderInput}
