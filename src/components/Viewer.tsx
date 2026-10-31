@@ -383,7 +383,15 @@ export function Viewer() {
 
   const cfg = useWpConfig();
   const { isMobile, isTablet, isDesktop } = useBreakpoint();
-  const panelRecording = usePanelRecorder(viewportGridRef, volume3dRenderRef);
+  const watermarkConfig = cfg
+    ? {
+        text: cfg.watermarkText ?? "",
+        position: cfg.watermarkPosition ?? "br",
+        fontSize: cfg.watermarkFontSize ?? 18,
+        isSubscriber: !!cfg.subscription,
+      }
+    : undefined;
+  const panelRecording = usePanelRecorder(viewportGridRef, volume3dRenderRef, watermarkConfig);
   const {
     error: recordingError,
     clearError: clearRecordingError,
@@ -1898,6 +1906,9 @@ export function Viewer() {
           shareLabel={t("viewer.recording.share")}
           shareFailedLabel={t("viewer.recording.shareFailed")}
           closeLabel={t("viewer.common.close")}
+          subscriptionUrl={cfg?.subscriptionUrl}
+          isSubscriber={!!cfg?.subscription}
+          removeWatermarkLabel={t("viewer.recording.removeWatermark")}
         />
 
         {sceneKey && (

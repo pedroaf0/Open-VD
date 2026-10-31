@@ -96,7 +96,7 @@ class V_Dicom_Admin_Settings {
 	}
 
 	/**
-	 * Save general settings (URL auth, direct DICOM, public loading, recording name pattern) in a single submission.
+	 * Save general settings (URL auth, direct DICOM, public loading, recording name pattern, watermark text/position/font-size, subscription URL) in a single submission.
 	 */
 	public function handle_general_settings() {
 		if ( ! current_user_can( 'edit_users' ) ) {
@@ -109,6 +109,18 @@ class V_Dicom_Admin_Settings {
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in set_recording_name_pattern().
 		$recording_name_pattern = isset( $_POST['v_dicom_recording_name_pattern'] ) ? wp_unslash( $_POST['v_dicom_recording_name_pattern'] ) : '';
 		V_Dicom_Storage::set_recording_name_pattern( $recording_name_pattern );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in set_watermark_text().
+		$watermark_text = isset( $_POST['v_dicom_watermark_text'] ) ? wp_unslash( $_POST['v_dicom_watermark_text'] ) : '';
+		V_Dicom_Storage::set_watermark_text( $watermark_text );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in set_watermark_position().
+		$watermark_position = isset( $_POST['v_dicom_watermark_position'] ) ? wp_unslash( $_POST['v_dicom_watermark_position'] ) : '';
+		V_Dicom_Storage::set_watermark_position( $watermark_position );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in set_watermark_font_size().
+		$watermark_font_size = isset( $_POST['v_dicom_watermark_font_size'] ) ? wp_unslash( $_POST['v_dicom_watermark_font_size'] ) : '';
+		V_Dicom_Storage::set_watermark_font_size( $watermark_font_size );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized in set_subscription_url().
+		$subscription_url = isset( $_POST['v_dicom_subscription_url'] ) ? wp_unslash( $_POST['v_dicom_subscription_url'] ) : '';
+		V_Dicom_Storage::set_subscription_url( $subscription_url );
 		wp_safe_redirect( add_query_arg( 'generalsaved', 1, admin_url( 'admin.php?page=v-dicom-settings' ) ) );
 		exit;
 	}
@@ -313,6 +325,53 @@ class V_Dicom_Admin_Settings {
 								<p class="description">
 									<code>exame-{data}-{hora}</code> →
 									<code>exame-20261022-100319.mp4</code>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="v-dicom-watermark-text"><?php esc_html_e( 'Texto de marca d\'água para vídeo', 'v-dicom' ); ?></label></th>
+							<td>
+								<input type="text" id="v-dicom-watermark-text" name="v_dicom_watermark_text" value="<?php echo esc_attr( V_Dicom_Storage::watermark_text() ); ?>" class="regular-text" maxlength="200" placeholder="<?php esc_attr_e( 'Ex.: Clínica São Lucas - Dr. João Silva', 'v-dicom' ); ?>" />
+								<p class="description">
+									<?php esc_html_e( 'Texto opcional que será desenhado como marca d\'água nos vídeos gravados do viewport 3D. Deixe vazio para não adicionar marca d\'água.', 'v-dicom' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="v-dicom-watermark-position"><?php esc_html_e( 'Posição da marca d\'água', 'v-dicom' ); ?></label></th>
+							<td>
+								<select id="v-dicom-watermark-position" name="v_dicom_watermark_position" class="regular-text">
+									<option value="center" <?php selected( V_Dicom_Storage::watermark_position(), 'center' ); ?>><?php esc_html_e( 'Centro', 'v-dicom' ); ?></option>
+									<option value="tl" <?php selected( V_Dicom_Storage::watermark_position(), 'tl' ); ?>><?php esc_html_e( 'Canto superior esquerdo', 'v-dicom' ); ?></option>
+									<option value="tr" <?php selected( V_Dicom_Storage::watermark_position(), 'tr' ); ?>><?php esc_html_e( 'Canto superior direito', 'v-dicom' ); ?></option>
+									<option value="bl" <?php selected( V_Dicom_Storage::watermark_position(), 'bl' ); ?>><?php esc_html_e( 'Canto inferior esquerdo', 'v-dicom' ); ?></option>
+									<option value="br" <?php selected( V_Dicom_Storage::watermark_position(), 'br' ); ?>><?php esc_html_e( 'Canto inferior direito', 'v-dicom' ); ?></option>
+									<option value="top" <?php selected( V_Dicom_Storage::watermark_position(), 'top' ); ?>><?php esc_html_e( 'Centro superior', 'v-dicom' ); ?></option>
+									<option value="bottom" <?php selected( V_Dicom_Storage::watermark_position(), 'bottom' ); ?>><?php esc_html_e( 'Centro inferior', 'v-dicom' ); ?></option>
+									<option value="left" <?php selected( V_Dicom_Storage::watermark_position(), 'left' ); ?>><?php esc_html_e( 'Centro esquerdo', 'v-dicom' ); ?></option>
+									<option value="right" <?php selected( V_Dicom_Storage::watermark_position(), 'right' ); ?>><?php esc_html_e( 'Centro direito', 'v-dicom' ); ?></option>
+								</select>
+								<p class="description">
+									<?php esc_html_e( 'Posição onde a marca d\'água será desenhada no vídeo.', 'v-dicom' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="v-dicom-watermark-font-size"><?php esc_html_e( 'Tamanho da fonte da marca d\'água', 'v-dicom' ); ?></label></th>
+							<td>
+								<input type="number" id="v-dicom-watermark-font-size" name="v_dicom_watermark_font_size" value="<?php echo esc_attr( V_Dicom_Storage::watermark_font_size() ); ?>" class="small-text" min="8" max="72" step="1" />
+								<span class="description" style="margin-left:8px;"><?php esc_html_e( 'px (base para largura de 1920px)', 'v-dicom' ); ?></span>
+								<p class="description">
+									<?php esc_html_e( 'Tamanho da fonte da marca d\'água. O valor é escalado proporcionalmente à resolução do vídeo.', 'v-dicom' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="v-dicom-subscription-url"><?php esc_html_e( 'URL para assinatura', 'v-dicom' ); ?></label></th>
+							<td>
+								<input type="url" id="v-dicom-subscription-url" name="v_dicom_subscription_url" value="<?php echo esc_attr( V_Dicom_Storage::subscription_url() ); ?>" class="regular-text code" placeholder="https://example.com/assinatura?callback={{callback}}" />
+								<p class="description">
+									<?php esc_html_e( 'URL onde o usuário fará a assinatura. Use {{callback}} como placeholder para a URL de retorno (ex.: https://meusite.com/assinatura?callback={{callback}}). O placeholder será substituído pela URL do visualizador.', 'v-dicom' ); ?>
 								</p>
 							</td>
 						</tr>

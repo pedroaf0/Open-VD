@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
   User,
   X,
+  Gem,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -305,6 +306,20 @@ export function ViewerHeader({
           >
             <User className="h-4 w-4" />
           </button>
+        )}
+
+        {/* Assinatura (diamante) */}
+        {cfg?.subscriptionUrl && (
+          <a
+            className="icon-btn text-primary hover:text-primary-foreground"
+            href={cfg.subscriptionUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={t("viewer.header.subscriptionTitle")}
+            aria-label={t("viewer.header.subscription")}
+          >
+            <Gem className="h-4 w-4" />
+          </a>
         )}
 
         {/* Compartilhar */}

@@ -23,6 +23,8 @@
     "backToViewer": "Volver al visor DICOM",
     "profileTitle": "Mi perfil: escenas, almacenamiento y créditos",
     "profile": "Mi perfil",
+    "subscriptionTitle": "Suscribirse para quitar marca de agua en los vídeos",
+    "subscription": "Suscripción",
     "storageLimit": "Has alcanzado tu límite de almacenamiento.",
     "saveAndShare": "Guardar y compartir",
     "share": "Compartir",
@@ -206,13 +208,14 @@
     "download": "Descargar vídeo",
     "share": "Compartir vídeo",
     "shareFailed": "No se pudo compartir el vídeo.",
+    "removeWatermark": "Quitar marca de agua",
     "audioTitle": "¿Grabar audio del micrófono?",
     "audioDesc": "El vídeo del panel se grabará normalmente. ¿Deseas incluir tu voz usando el micrófono de este dispositivo?",
     "audioWithout": "Grabar sin audio",
     "audioWith": "Grabar con micrófono",
     "unsupported": "Este navegador no permite grabar vídeo del panel.",
     "failed": "No se pudo grabar el vídeo del panel.",
-    "microphoneFailed": "No se pudo acceder al micrófono. Revisa el permiso del navegador e inténtalo de nuevo."
+    "microphoneFailed": "No se pudo acessar ao micrófono. Revisa el permiso do navegador e tente novamente."
   },
   "mpr": {
     "resetOblique": "Restablecer MPR oblicuo"

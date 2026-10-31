@@ -66,6 +66,15 @@ export type WpConfig = {
    * `{data}`, `{hora}` e `{timestamp}`; a extensão é acrescentada no download.
    */
   recordingNamePattern?: string;
+  /** Texto de marca d'água opcional para o vídeo gravado (definido no WP Admin). */
+  watermarkText?: string;
+  /** Posição da marca d'água: center, tl, tr, bl, br, top, bottom, left, right. */
+  watermarkPosition?:
+    "center" | "tl" | "tr" | "bl" | "br" | "top" | "bottom" | "left" | "right" | undefined;
+  /** Tamanho base da fonte da marca d'água (em px, para largura 1920). */
+  watermarkFontSize?: number;
+  /** URL de assinatura (template com {{callback}}) definida no WP Admin. */
+  subscriptionUrl?: string;
   /** Cost in credits to run segmentation (admin config). */
   segmentationCost?: number;
   segmentationTypes?: SegmentationType[];
@@ -253,6 +262,31 @@ export function wpConfig(): WpConfig | null {
   }
   if (typeof raw.recordingNamePattern === "string" && raw.recordingNamePattern.trim()) {
     cfg.recordingNamePattern = raw.recordingNamePattern.trim();
+  }
+  if (typeof raw.watermarkText === "string") {
+    cfg.watermarkText = raw.watermarkText.trim();
+  }
+  if (typeof raw.watermarkPosition === "string") {
+    const allowedPositions = [
+      "center",
+      "tl",
+      "tr",
+      "bl",
+      "br",
+      "top",
+      "bottom",
+      "left",
+      "right",
+    ] as const;
+    if (allowedPositions.includes(raw.watermarkPosition as (typeof allowedPositions)[number])) {
+      cfg.watermarkPosition = raw.watermarkPosition as WpConfig["watermarkPosition"];
+    }
+  }
+  if (typeof raw.watermarkFontSize === "number" && raw.watermarkFontSize > 0) {
+    cfg.watermarkFontSize = Math.max(8, Math.min(72, Math.floor(raw.watermarkFontSize)));
+  }
+  if (typeof raw.subscriptionUrl === "string") {
+    cfg.subscriptionUrl = raw.subscriptionUrl.trim();
   }
   if (typeof raw.segmentationCost === "number") {
     cfg.segmentationCost = Math.max(0, Math.floor(raw.segmentationCost));

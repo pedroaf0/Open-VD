@@ -65,6 +65,15 @@ function svgToBlob(svg: SVGSVGElement): Blob {
   return new Blob([markup], { type: "image/svg+xml;charset=utf-8" });
 }
 
+type WatermarkPosition = "center" | "tl" | "tr" | "bl" | "br" | "top" | "bottom" | "left" | "right";
+
+interface WatermarkConfig {
+  text: string;
+  position: WatermarkPosition;
+  fontSize: number;
+  isSubscriber: boolean;
+}
+
 /**
  * Grava o painel de visualização inteiro (as quatro janelas, ou a janela
  * expandida) compondo os canvases dos viewports em um canvas 2D próprio.
@@ -73,6 +82,7 @@ function svgToBlob(svg: SVGSVGElement): Blob {
 export function usePanelRecorder(
   containerRef: RefObject<HTMLElement | null>,
   render3dRef?: RefObject<(() => void) | null>,
+  watermarkConfig?: WatermarkConfig,
 ): PanelRecorder {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -296,6 +306,100 @@ export function usePanelRecorder(
             frameRect.height - 1,
           );
         }
+
+        // Desenha a marca d'água no canvas de saída (apenas para não-assinantes).
+        const wm = watermarkConfig;
+        if (wm && !wm.isSubscriber && wm.text && wm.text.trim()) {
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          const baseFontSize = wm.fontSize > 0 ? wm.fontSize : 18;
+          const fontSize = Math.max(10, Math.round(baseFontSize * (size.width / 1920)));
+          const margin = Math.max(8, Math.round(20 * (size.width / 1920)));
+
+          ctx.font = `${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+          ctx.fillStyle = "rgba(255,255,255,0.85)";
+          // Sombra para legibilidade sobre qualquer fundo.
+          ctx.shadowColor = "rgba(0,0,0,0.7)";
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+
+          const text = wm.text.trim();
+          const metrics = ctx.measureText(text);
+          const textWidth = metrics.width;
+          const textHeight = fontSize; // aproximação
+
+          let x: number;
+          let y: number;
+          let textAlign: CanvasTextAlign = "right";
+          let textBaseline: CanvasTextBaseline = "bottom";
+
+          switch (wm.position) {
+            case "center":
+              x = size.width / 2;
+              y = size.height / 2;
+              textAlign = "center";
+              textBaseline = "middle";
+              break;
+            case "tl":
+              x = margin;
+              y = margin + textHeight;
+              textAlign = "left";
+              textBaseline = "top";
+              break;
+            case "tr":
+              x = size.width - margin;
+              y = margin + textHeight;
+              textAlign = "right";
+              textBaseline = "top";
+              break;
+            case "bl":
+              x = margin;
+              y = size.height - margin;
+              textAlign = "left";
+              textBaseline = "bottom";
+              break;
+            case "br":
+              x = size.width - margin;
+              y = size.height - margin;
+              textAlign = "right";
+              textBaseline = "bottom";
+              break;
+            case "top":
+              x = size.width / 2;
+              y = margin + textHeight;
+              textAlign = "center";
+              textBaseline = "top";
+              break;
+            case "bottom":
+              x = size.width / 2;
+              y = size.height - margin;
+              textAlign = "center";
+              textBaseline = "bottom";
+              break;
+            case "left":
+              x = margin;
+              y = size.height / 2;
+              textAlign = "left";
+              textBaseline = "middle";
+              break;
+            case "right":
+              x = size.width - margin;
+              y = size.height / 2;
+              textAlign = "right";
+              textBaseline = "middle";
+              break;
+          }
+
+          ctx.textAlign = textAlign;
+          ctx.textBaseline = textBaseline;
+          ctx.fillText(text, x, y);
+
+          // Reseta sombra.
+          ctx.shadowColor = "transparent";
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+        }
       };
 
       let stream: MediaStream | null = null;
@@ -452,7 +556,7 @@ export function usePanelRecorder(
         startingRef.current = false;
       }
     },
-    [cancelFrame, containerRef, releaseVideoUrl, render3dRef, stopTimer],
+    [cancelFrame, containerRef, releaseVideoUrl, render3dRef, stopTimer, watermarkConfig],
   );
 
   const stop = useCallback(() => {

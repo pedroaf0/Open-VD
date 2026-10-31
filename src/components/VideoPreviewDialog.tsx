@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Download, Share2 } from "lucide-react";
+import { Download, Share2, Gem } from "lucide-react";
 
 import {
   Dialog,
@@ -24,6 +24,12 @@ type Props = {
   shareLabel: string;
   shareFailedLabel: string;
   closeLabel: string;
+  /** URL de assinatura (template com {{callback}}) — se definida e usuário não for assinante. */
+  subscriptionUrl?: string | undefined;
+  /** Se o usuário atual é assinante (true) ou não (false). */
+  isSubscriber?: boolean | undefined;
+  /** Rótulo do botão "Remover marca d'água". */
+  removeWatermarkLabel?: string | undefined;
 };
 
 const SHARE_MIME: Record<"webm" | "mp4", string> = {
@@ -47,9 +53,14 @@ export function VideoPreviewDialog({
   shareLabel,
   shareFailedLabel,
   closeLabel,
+  subscriptionUrl,
+  isSubscriber,
+  removeWatermarkLabel,
 }: Props) {
   const [shareTarget, setShareTarget] = useState<File | null>(null);
   const [shareFailed, setShareFailed] = useState(false);
+
+  const showWatermarkButton = subscriptionUrl && !isSubscriber;
 
   // A Web Share API com arquivos só pode ser validada com um File concreto,
   // então o vídeo é empacotado quando o modal abre. Sem suporte, o botão some.
@@ -124,6 +135,18 @@ export function VideoPreviewDialog({
               <Share2 className="h-3.5 w-3.5" />
               {shareLabel}
             </button>
+          )}
+          {showWatermarkButton && (
+            <a
+              className="btn-chip gap-1.5 text-xs text-primary hover:text-primary-foreground"
+              href={subscriptionUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={removeWatermarkLabel}
+            >
+              <Gem className="h-3.5 w-3.5" />
+              {removeWatermarkLabel}
+            </a>
           )}
           <button
             type="button"

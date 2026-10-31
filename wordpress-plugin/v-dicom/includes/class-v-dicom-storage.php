@@ -31,6 +31,16 @@ const OPTION_DEFAULT_STORAGE_MB = 'v_dicom_default_storage_mb';
 /** Padrão do nome do vídeo gravado no viewport 3D (tokens resolvidos no viewer). */
 const OPTION_RECORDING_NAME_PATTERN = 'v_dicom_recording_name_pattern';
 const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
+/** Texto de marca d'água para o vídeo gravado (vazio = sem marca d'água). */
+const OPTION_WATERMARK_TEXT = 'v_dicom_watermark_text';
+/** Posição da marca d'água: center, tl, tr, bl, br, top, bottom, left, right. */
+const OPTION_WATERMARK_POSITION = 'v_dicom_watermark_position';
+const DEFAULT_WATERMARK_POSITION = 'br';
+/** Tamanho da fonte da marca d'água (em px, base para 1920px de largura). */
+const OPTION_WATERMARK_FONT_SIZE = 'v_dicom_watermark_font_size';
+const DEFAULT_WATERMARK_FONT_SIZE = 18;
+/** URL de assinatura (template com {{callback}} para o retorno após pagamento). */
+const OPTION_SUBSCRIPTION_URL = 'v_dicom_subscription_url';
 	const OPTION_SEG_COST = 'v_dicom_segmentation_cost';
 	const OPTION_SEG_TYPES = 'v_dicom_segmentation_types';
 	/** Regras nome-da-malha -> cor especial (dentes, mandíbula, canal, etc.). */
@@ -198,6 +208,115 @@ const DEFAULT_RECORDING_NAME_PATTERN = 'openvd-3d-recording-{timestamp}';
 	/** Persist the admin-defined video filename pattern. */
 	public static function set_recording_name_pattern( $pattern ) {
 		update_option( self::OPTION_RECORDING_NAME_PATTERN, self::sanitize_recording_name_pattern( $pattern ) );
+	}
+
+	/**
+	 * Sanitize the admin-defined watermark text for video recording.
+	 * Allows basic text with common punctuation, keeps accents.
+	 */
+	public static function sanitize_watermark_text( $text ) {
+		$text = (string) $text;
+		// Strip control characters and invalid UTF-8.
+		$text = wp_check_invalid_utf8( $text );
+		$text = preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', $text );
+		// Allow letters (including accented), numbers, spaces, and basic punctuation.
+		// Use ~ as delimiter to avoid conflict with forward slash in pattern.
+		// Inside character class: ] must be first (after ^) or escaped; [ does not need escaping.
+		// Add apostrophe (U+0027), curly quotes (U+2018, U+2019, U+201C, U+201D).
+		$text = preg_replace(
+			'~[^]\p{L}\p{N}\p{M}\s\-_.:,;!?()[\]{}@#%&*+=|\\\/' . "\x27\xE2\x80\x98\xE2\x80\x99\xE2\x80\x9C\xE2\x80\x9D]~u",
+			'',
+			$text
+		);
+		$text = preg_replace( '/\s+/u', ' ', $text );
+		$text = trim( $text );
+		return mb_substr( $text, 0, 200 );
+	}
+
+	/** Texto de marca d'água configurado pelo admin para o vídeo 3D. */
+	public static function watermark_text() {
+		return self::sanitize_watermark_text(
+			get_option( self::OPTION_WATERMARK_TEXT, '' )
+		);
+	}
+
+	/** Persist the admin-defined watermark text for video recording. */
+	public static function set_watermark_text( $text ) {
+		update_option( self::OPTION_WATERMARK_TEXT, self::sanitize_watermark_text( $text ) );
+	}
+
+	/**
+	 * Sanitize the watermark position value.
+	 * Allowed: center, tl, tr, bl, br, top, bottom, left, right.
+	 */
+	private static function sanitize_watermark_position( $position ) {
+		$allowed = array( 'center', 'tl', 'tr', 'bl', 'br', 'top', 'bottom', 'left', 'right' );
+		$position = strtolower( sanitize_text_field( (string) $position ) );
+		return in_array( $position, $allowed, true ) ? $position : self::DEFAULT_WATERMARK_POSITION;
+	}
+
+	/** Posição da marca d'água configurada pelo admin. */
+	public static function watermark_position() {
+		return self::sanitize_watermark_position(
+			get_option( self::OPTION_WATERMARK_POSITION, self::DEFAULT_WATERMARK_POSITION )
+		);
+	}
+
+	/** Persist the admin-defined watermark position. */
+	public static function set_watermark_position( $position ) {
+		update_option( self::OPTION_WATERMARK_POSITION, self::sanitize_watermark_position( $position ) );
+	}
+
+	/**
+	 * Sanitize the watermark font size value.
+	 * Integer between 8 and 72.
+	 */
+	private static function sanitize_watermark_font_size( $size ) {
+		$size = max( 8, min( 72, (int) $size ) );
+		return $size;
+	}
+
+	/** Tamanho da fonte da marca d'água configurado pelo admin. */
+	public static function watermark_font_size() {
+		return self::sanitize_watermark_font_size(
+			get_option( self::OPTION_WATERMARK_FONT_SIZE, self::DEFAULT_WATERMARK_FONT_SIZE )
+		);
+	}
+
+	/** Persist the admin-defined watermark font size. */
+	public static function set_watermark_font_size( $size ) {
+		update_option( self::OPTION_WATERMARK_FONT_SIZE, self::sanitize_watermark_font_size( $size ) );
+	}
+
+	/**
+	 * Sanitize the subscription URL.
+	 * Allows http/https URLs with optional {{callback}} placeholder.
+	 */
+	private static function sanitize_subscription_url( $url ) {
+		$url = sanitize_text_field( (string) $url );
+		$url = trim( $url );
+		if ( '' === $url ) {
+			return '';
+		}
+		// Allow http/https URLs with optional {{callback}} placeholder.
+		// Accept the URL if it starts with http:// or https:// and contains valid URL chars.
+		// The {{callback}} placeholder is allowed as-is.
+		// Use | as delimiter to avoid conflict with URL pattern characters.
+		// Inside character class: ] must be first (after ^) or escaped.
+		$url = preg_replace( '|[^]a-zA-Z0-9\-\._~:/?#\[\]@!$&\'()*+,;=%{}]|u', '', $url );
+		return $url;
+	}
+
+	/** URL de assinatura configurada pelo admin (template com {{callback}}). */
+	public static function subscription_url() {
+		return self::sanitize_subscription_url(
+			get_option( self::OPTION_SUBSCRIPTION_URL, '' )
+		);
+	}
+
+	/** Persist the admin-defined subscription URL. */
+	public static function set_subscription_url( $url ) {
+		update_option( self::OPTION_SUBSCRIPTION_URL, self::sanitize_subscription_url( $url ) );
 	}
 
 	public static function default_new_user_credit() {

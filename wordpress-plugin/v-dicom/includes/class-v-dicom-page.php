@@ -326,6 +326,14 @@ $config = array(
 			'publicLoadingEnabled' => V_Dicom_Storage::public_loading_enabled(),
 			// Padrão do nome do vídeo gravado no viewport 3D (tokens {data}, {hora}, {timestamp}).
 			'recordingNamePattern' => V_Dicom_Storage::recording_name_pattern(),
+			// Texto de marca d'água para o vídeo gravado (opcional).
+			'watermarkText' => V_Dicom_Storage::watermark_text(),
+			// Posição da marca d'água (center, tl, tr, bl, br, top, bottom, left, right).
+			'watermarkPosition' => V_Dicom_Storage::watermark_position(),
+			// Tamanho da fonte da marca d'água (px, base 1920px).
+			'watermarkFontSize' => V_Dicom_Storage::watermark_font_size(),
+			// URL de assinatura (template com {{callback}}).
+			'subscriptionUrl' => V_Dicom_Storage::subscription_url(),
 			'segmentationCost' => V_Dicom_Storage::segmentation_cost(),
 			'segmentationTypes' => V_Dicom_Storage::get_public_segmentation_types(),
 			// Regras de cor especial por nome de malha (editáveis no painel).
